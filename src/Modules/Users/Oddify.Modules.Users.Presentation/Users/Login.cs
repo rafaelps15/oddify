@@ -5,17 +5,18 @@ using Microsoft.AspNetCore.Routing;
 using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Results;
-using Oddify.Modules.Users.Application.Users.RegisterUser;
+using Oddify.Modules.Users.Application.Users;
+using Oddify.Modules.Users.Application.Users.Login;
 
 namespace Oddify.Modules.Users.Presentation.Users;
 
-internal sealed class RegisterUser : IEndpoint
+internal sealed class Login : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("users/register", async (Request request, ISender sender) =>
+        app.MapPost("users/login", async (Request request, ISender sender) =>
         {
-            Result<Guid> result = await sender.Send(new RegisterUserCommand(request.Email, request.Password, request.FirstName, request.LastName));
+            Result<AccessTokensResponse> result = await sender.Send(new LoginCommand(request.Email, request.Password));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
@@ -26,7 +27,5 @@ internal sealed class RegisterUser : IEndpoint
     {
         public string Email { get; init; }
         public string Password { get; init; }
-        public string FirstName { get; init; }
-        public string LastName { get; init; }
     }
 }

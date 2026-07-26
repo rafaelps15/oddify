@@ -1,11 +1,17 @@
+using System.Text;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Caching;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.EventBus;
+using Oddify.Common.Infrastructure.Authentication;
 using Oddify.Common.Infrastructure.Caching;
 using Oddify.Common.Infrastructure.Clock;
 using Oddify.Common.Infrastructure.Data;
@@ -18,6 +24,7 @@ public static class InfrastructureConfiguration
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
+        IConfiguration configuration,
         Action<IRegistrationConfigurator>[] moduleConfigureConsumers,
         string databaseConnectionString,
         string redisConnectionString)
@@ -47,6 +54,27 @@ public static class InfrastructureConfiguration
         services.TryAddSingleton<ICacheService, CacheService>();
 
         services.TryAddSingleton<IEventBus, EventBus.EventBus>();
+
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                JwtOptions jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>()!;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+                    ValidIssuer = jwtOptions.Issuer,
+                    ValidAudience = jwtOptions.Audience,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
+
+        services.AddAuthorization();
+        services.AddHttpContextAccessor();
+        services.TryAddScoped<IUserContext, UserContext>();
+        services.TryAddSingleton<IPasswordHasher, PasswordHasher>();
+        services.TryAddSingleton<ITokenProvider, TokenProvider>();
 
         services.AddMassTransit(configure =>
         {

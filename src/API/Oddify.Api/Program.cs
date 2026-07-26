@@ -38,6 +38,7 @@ string databaseConnectionString = builder.Configuration.GetConnectionString("Dat
 string redisConnectionString = builder.Configuration.GetConnectionString("Cache")!;
 
 builder.Services.AddInfrastructure(
+    builder.Configuration,
     [ApostasModule.ConfigureConsumers],
     databaseConnectionString,
     redisConnectionString);
@@ -62,6 +63,9 @@ if (app.Environment.IsDevelopment())
 
     app.ApplyMigrations();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapEndpoints();
 

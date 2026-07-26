@@ -9,10 +9,13 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
 {
     internal DbSet<User> Users { get; set; }
 
+    internal DbSet<RefreshToken> RefreshTokens { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Users);
 
         modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
     }
 }

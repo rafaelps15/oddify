@@ -5,20 +5,26 @@ using Microsoft.AspNetCore.Routing;
 using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Results;
-using Oddify.Modules.Users.Application.Users.GetUser;
-using Oddify.Modules.Users.Application.Users.GetUserByIdentityId;
+using Oddify.Modules.Users.Application.Users;
+using Oddify.Modules.Users.Application.Users.RefreshAccessToken;
 
 namespace Oddify.Modules.Users.Presentation.Users;
 
-internal sealed class GetUserByIdentityId : IEndpoint
+internal sealed class RefreshAccessToken : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("users/by-identity/{identityId}", async (string identityId, ISender sender) =>
+        app.MapPost("users/refresh", async (Request request, ISender sender) =>
         {
-            Result<UserResponse> result = await sender.Send(new GetUserByIdentityIdQuery(identityId));
+            Result<AccessTokensResponse> result = await sender.Send(new RefreshAccessTokenCommand(request.RefreshToken));
+
             return result.Match(Results.Ok, ApiResults.Problem);
         })
         .WithTags(Tags.Users);
+    }
+
+    internal sealed class Request
+    {
+        public string RefreshToken { get; init; }
     }
 }

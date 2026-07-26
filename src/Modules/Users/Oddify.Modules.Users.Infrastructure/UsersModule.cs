@@ -35,5 +35,7 @@ public static class UsersModule
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<UsersDbContext>());
 
         services.AddScoped<IUserRepository, UserRepository>();
+
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
     }
 }
