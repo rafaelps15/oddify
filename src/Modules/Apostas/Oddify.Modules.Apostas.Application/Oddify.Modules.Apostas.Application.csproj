@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Application\Oddify.Common.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Apostas.Domain\Oddify.Modules.Apostas.Domain.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Apostas.IntegrationEvents\Oddify.Modules.Apostas.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\Fixtures\Oddify.Modules.Fixtures.PublicApi\Oddify.Modules.Fixtures.PublicApi.csproj" />
+    <ProjectReference Include="..\..\Analise\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Oddify.UnitTests" />
+  </ItemGroup>
+</Project>

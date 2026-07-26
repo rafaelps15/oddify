@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Common\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Common\Oddify.Common.Application\Oddify.Common.Application.csproj" />
+    <ProjectReference Include="..\..\src\Common\Oddify.Common.Infrastructure\Oddify.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Common\Oddify.Common.Presentation\Oddify.Common.Presentation.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.Domain\Oddify.Modules.Fixtures.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.Application\Oddify.Modules.Fixtures.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.Infrastructure\Oddify.Modules.Fixtures.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.Presentation\Oddify.Modules.Fixtures.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.PublicApi\Oddify.Modules.Fixtures.PublicApi.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fixtures\Oddify.Modules.Fixtures.IntegrationEvents\Oddify.Modules.Fixtures.IntegrationEvents.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Domain\Oddify.Modules.Analise.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Application\Oddify.Modules.Analise.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Infrastructure\Oddify.Modules.Analise.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Presentation\Oddify.Modules.Analise.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.IntegrationEvents\Oddify.Modules.Analise.IntegrationEvents.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Domain\Oddify.Modules.Apostas.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Infrastructure\Oddify.Modules.Apostas.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Presentation\Oddify.Modules.Apostas.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.PublicApi\Oddify.Modules.Apostas.PublicApi.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.IntegrationEvents\Oddify.Modules.Apostas.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

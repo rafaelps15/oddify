@@ -1,0 +1,61 @@
+using Oddify.Common.Infrastructure.Interceptors;
+using Oddify.Common.Presentation.Endpoints;
+using Oddify.Modules.Fixtures.Application.Abstractions.Data;
+using Oddify.Modules.Fixtures.Domain.Cotacoes;
+using Oddify.Modules.Fixtures.Domain.Equipes;
+using Oddify.Modules.Fixtures.Domain.EstatisticasDeEquipe;
+using Oddify.Modules.Fixtures.Domain.EstatisticasDeJogador;
+using Oddify.Modules.Fixtures.Domain.Jogadores;
+using Oddify.Modules.Fixtures.Domain.Ligas;
+using Oddify.Modules.Fixtures.Domain.Partidas;
+using Oddify.Modules.Fixtures.Infrastructure.Cotacoes;
+using Oddify.Modules.Fixtures.Infrastructure.Database;
+using Oddify.Modules.Fixtures.Infrastructure.Equipes;
+using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeEquipe;
+using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeJogador;
+using Oddify.Modules.Fixtures.Infrastructure.Jogadores;
+using Oddify.Modules.Fixtures.Infrastructure.Ligas;
+using Oddify.Modules.Fixtures.Infrastructure.Partidas;
+using Oddify.Modules.Fixtures.Infrastructure.PublicApi;
+using Oddify.Modules.Fixtures.PublicApi;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Oddify.Modules.Fixtures.Infrastructure;
+
+public static class FixturesModule
+{
+    public static IServiceCollection AddFixturesModule(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddEndpoints(Presentation.AssemblyReference.Assembly);
+        services.AddInfrastructure(configuration);
+        return services;
+    }
+
+    private static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        string databaseConnectionString = configuration.GetConnectionString("Database")!;
+
+        services.AddDbContext<FixturesDbContext>((sp, options) =>
+            options
+                .UseNpgsql(databaseConnectionString, npgsqlOptions => npgsqlOptions
+                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Fixtures))
+                .UseSnakeCaseNamingConvention()
+                .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
+
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FixturesDbContext>());
+
+        services.AddScoped<ILigaConfiguradaRepository, LigaConfiguradaRepository>();
+        services.AddScoped<IEquipeRepository, EquipeRepository>();
+        services.AddScoped<IJogadorRepository, JogadorRepository>();
+        services.AddScoped<IPartidaRepository, PartidaRepository>();
+        services.AddScoped<IEstatisticaEquipeRepository, EstatisticaEquipeRepository>();
+        services.AddScoped<IEstatisticaJogadorRepository, EstatisticaJogadorRepository>();
+        services.AddScoped<ICotacaoRepository, CotacaoRepository>();
+
+        services.AddScoped<IFixturesApi, FixturesApi>();
+    }
+}

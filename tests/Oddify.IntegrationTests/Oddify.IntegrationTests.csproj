@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageReference Include="Respawn" Version="6.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pins transitivos com CVEs conhecidos (puxados por Docker.DotNet/Azure SDK via Testcontainers)
+         para versões corrigidas, já que o repositório trata avisos de auditoria do NuGet como erro. -->
+    <PackageReference Include="Azure.Identity" Version="1.13.2" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.3.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\API\Oddify.Api\Oddify.Api.csproj" />
+  </ItemGroup>
+
+</Project>

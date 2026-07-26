@@ -1,0 +1,51 @@
+{
+  "profiles": {
+    "Oddify.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:54457;http://localhost:54458"
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "launchBrowser": true,
+      "launchUrl": "https://localhost:54457",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:54457;http://localhost:54458"
+      },
+      "distributionName": ""
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/ligas",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HTTP_PORTS": "8080",
+        "ConnectionStrings__Database": "Host=host.docker.internal;Port=5433;Database=oddify;Username=postgres;Password=postgres;Include Error Detail=true",
+        "ConnectionStrings__Cache": "host.docker.internal:6379",
+        "Serilog__WriteTo__1__Args__serverUrl": "http://host.docker.internal:5341"
+      },
+      "publishAllPorts": true,
+      "useSSL": false
+    }
+  },
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:52464/",
+      "sslPort": 44397
+    }
+  }
+}

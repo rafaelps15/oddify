@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Presentation\Oddify.Common.Presentation.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Analise.Application\Oddify.Modules.Analise.Application.csproj" />
+  </ItemGroup>
+</Project>

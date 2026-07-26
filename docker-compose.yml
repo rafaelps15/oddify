@@ -1,0 +1,49 @@
+services:
+  oddify.database:
+    image: postgres:16-alpine
+    container_name: Oddify.Database
+    environment:
+      - POSTGRES_DB=oddify
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./.containers/db:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+
+  oddify.seq:
+    image: datalust/seq:latest
+    container_name: Oddify.Seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    ports:
+      - 5341:5341
+      - 8082:80
+
+  oddify.redis:
+    image: redis:latest
+    container_name: Oddify.Redis
+    restart: always
+    ports:
+      - 6379:6379
+
+  oddify.api:
+    build:
+      context: .
+      dockerfile: src/API/Oddify.Api/Dockerfile
+    container_name: Oddify.Api
+    depends_on:
+      - oddify.database
+      - oddify.redis
+      - oddify.seq
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      # Service names, not localhost — inside the compose network the API reaches its
+      # dependencies by service name, not by the host-mapped ports used outside Docker.
+      - ConnectionStrings__Database=Host=oddify.database;Port=5432;Database=oddify;Username=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__Cache=oddify.redis:6379
+      - Serilog__WriteTo__1__Args__serverUrl=http://oddify.seq:5341
+    ports:
+      - "8080:8080"

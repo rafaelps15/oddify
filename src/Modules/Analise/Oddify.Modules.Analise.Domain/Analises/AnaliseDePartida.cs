@@ -1,0 +1,110 @@
+using Oddify.Common.Domain;
+
+namespace Oddify.Modules.Analise.Domain.Analises;
+
+public sealed class AnaliseDePartida : Entity
+{
+    private AnaliseDePartida(
+        Guid id,
+        Guid partidaId,
+        string mercado,
+        decimal probPoissonPura,
+        decimal probDixonColes,
+        decimal probImplicitaDaOdd,
+        decimal vantagem,
+        decimal oddDeMercado,
+        bool aprovadaNoFiltro,
+        string? motivoDoDescarte,
+        DateTime criadaEmUtc)
+    {
+        Id = id;
+        PartidaId = partidaId;
+        Mercado = mercado;
+        ProbPoissonPura = probPoissonPura;
+        ProbDixonColes = probDixonColes;
+        ProbImplicitaDaOdd = probImplicitaDaOdd;
+        Vantagem = vantagem;
+        OddDeMercado = oddDeMercado;
+        AprovadaNoFiltro = aprovadaNoFiltro;
+        MotivoDoDescarte = motivoDoDescarte;
+        DecisaoDoClaude = DecisaoDoClaude.NaoAvaliada;
+        CriadaEmUtc = criadaEmUtc;
+    }
+
+    public Guid Id { get; private set; }
+
+    public Guid PartidaId { get; private set; }
+
+    public string Mercado { get; private set; }
+
+    public decimal ProbPoissonPura { get; private set; }
+
+    public decimal ProbDixonColes { get; private set; }
+
+    public decimal ProbImplicitaDaOdd { get; private set; }
+
+    public decimal Vantagem { get; private set; }
+
+    public decimal OddDeMercado { get; private set; }
+
+    public bool AprovadaNoFiltro { get; private set; }
+
+    public string? MotivoDoDescarte { get; private set; }
+
+    public DecisaoDoClaude DecisaoDoClaude { get; private set; }
+
+    public string? JustificativaDoClaude { get; private set; }
+
+    public string? RespostaLlmBruta { get; private set; }
+
+    public string? VersaoDoPrompt { get; private set; }
+
+    public DateTime CriadaEmUtc { get; private set; }
+
+    public static AnaliseDePartida Create(
+        Guid partidaId,
+        string mercado,
+        decimal probPoissonPura,
+        decimal probDixonColes,
+        decimal probImplicitaDaOdd,
+        decimal vantagem,
+        decimal oddDeMercado,
+        bool aprovadaNoFiltro,
+        string? motivoDoDescarte,
+        DateTime criadaEmUtc)
+    {
+        var analise = new AnaliseDePartida(
+            Guid.NewGuid(),
+            partidaId,
+            mercado,
+            probPoissonPura,
+            probDixonColes,
+            probImplicitaDaOdd,
+            vantagem,
+            oddDeMercado,
+            aprovadaNoFiltro,
+            motivoDoDescarte,
+            criadaEmUtc);
+
+        analise.Raise(new AnaliseCriadaDomainEvent(analise.Id));
+
+        return analise;
+    }
+
+    public Result RegistrarDecisaoDoClaude(DecisaoDoClaude decisao, string justificativa, string respostaBruta, string versaoDoPrompt)
+    {
+        if (!AprovadaNoFiltro)
+        {
+            return Result.Failure(AnaliseDePartidaErrors.NaoAprovadaNoFiltro(Id));
+        }
+
+        DecisaoDoClaude = decisao;
+        JustificativaDoClaude = justificativa;
+        RespostaLlmBruta = respostaBruta;
+        VersaoDoPrompt = versaoDoPrompt;
+
+        Raise(new AnaliseAvaliadaPeloClaudeDomainEvent(Id, decisao));
+
+        return Result.Success();
+    }
+}

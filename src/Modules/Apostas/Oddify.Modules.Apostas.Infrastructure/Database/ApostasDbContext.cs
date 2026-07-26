@@ -1,0 +1,26 @@
+using Oddify.Modules.Apostas.Application.Abstractions.Data;
+using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
+using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Domain.PernasDeAposta;
+using Microsoft.EntityFrameworkCore;
+
+namespace Oddify.Modules.Apostas.Infrastructure.Database;
+
+public sealed class ApostasDbContext(DbContextOptions<ApostasDbContext> options) : DbContext(options), IUnitOfWork
+{
+    internal DbSet<Banca> Bancas { get; set; }
+
+    internal DbSet<ApostaMultipla> ApostasMultiplas { get; set; }
+
+    internal DbSet<PernaDeAposta> PernasDeAposta { get; set; }
+
+    internal DbSet<AnaliseDisponivelParaAposta> AnalisesDisponiveisParaAposta { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema(Schemas.Apostas);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApostasDbContext).Assembly);
+    }
+}

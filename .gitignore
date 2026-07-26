@@ -1,0 +1,17 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Visual Studio
+.vs/
+
+## Rider
+.idea/
+
+## Docker
+.containers/
+
+## OS
+.DS_Store
+Thumbs.db

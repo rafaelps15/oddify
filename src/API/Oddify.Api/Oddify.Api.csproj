@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <!-- Dockerfile COPYs paths relative to the repo root (it needs every referenced .csproj),
+         so the build context has to be the repo root, not this project's own folder. -->
+    <DockerfileContext>..\..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="7.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Fixtures\Oddify.Modules.Fixtures.Infrastructure\Oddify.Modules.Fixtures.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Analise\Oddify.Modules.Analise.Infrastructure\Oddify.Modules.Analise.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Apostas\Oddify.Modules.Apostas.Infrastructure\Oddify.Modules.Apostas.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

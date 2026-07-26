@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Infrastructure\Oddify.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Analise.Application\Oddify.Modules.Analise.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Analise.Presentation\Oddify.Modules.Analise.Presentation.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.38.0" />
+  </ItemGroup>
+</Project>

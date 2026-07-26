@@ -1,0 +1,79 @@
+using Oddify.Api.Extensions;
+using Oddify.Api.Middleware;
+using Oddify.Common.Application;
+using Oddify.Common.Infrastructure;
+using Oddify.Common.Presentation.Endpoints;
+using Oddify.Common.Presentation.Serialization;
+using Oddify.Modules.Analise.Infrastructure;
+using Oddify.Modules.Apostas.Infrastructure;
+using Oddify.Modules.Fixtures.Infrastructure;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Serilog;
+
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, loggerConfig) => loggerConfig.ReadFrom.Configuration(context.Configuration));
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()));
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.CustomSchemaIds(t => t.FullName?.Replace("+", "."));
+});
+
+builder.Services.AddApplication([
+    Oddify.Modules.Fixtures.Application.AssemblyReference.Assembly,
+    Oddify.Modules.Analise.Application.AssemblyReference.Assembly,
+    Oddify.Modules.Apostas.Application.AssemblyReference.Assembly]);
+
+string databaseConnectionString = builder.Configuration.GetConnectionString("Database")!;
+string redisConnectionString = builder.Configuration.GetConnectionString("Cache")!;
+
+builder.Services.AddInfrastructure(
+    [ApostasModule.ConfigureConsumers],
+    databaseConnectionString,
+    redisConnectionString);
+
+builder.Configuration.AddModuleConfiguration(["fixtures", "analise", "apostas"]);
+
+builder.Services.AddHealthChecks()
+    .AddNpgSql(databaseConnectionString)
+    .AddRedis(redisConnectionString);
+
+builder.Services.AddFixturesModule(builder.Configuration);
+builder.Services.AddAnaliseModule(builder.Configuration);
+builder.Services.AddApostasModule(builder.Configuration);
+
+WebApplication app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+    app.ApplyMigrations();
+}
+
+app.MapEndpoints();
+
+app.MapHealthChecks("health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.UseSerilogRequestLogging();
+
+app.UseExceptionHandler();
+
+app.Run();
+
+// Público e parcial para que Oddify.IntegrationTests use WebApplicationFactory<Program>.
+#pragma warning disable CA1515
+public partial class Program;
+#pragma warning restore CA1515

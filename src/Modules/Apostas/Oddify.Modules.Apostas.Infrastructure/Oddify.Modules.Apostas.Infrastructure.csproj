@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Infrastructure\Oddify.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Apostas.Presentation\Oddify.Modules.Apostas.Presentation.csproj" />
+  </ItemGroup>
+</Project>

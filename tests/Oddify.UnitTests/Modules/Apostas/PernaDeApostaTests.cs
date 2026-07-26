@@ -1,0 +1,43 @@
+using FluentAssertions;
+using Oddify.Common.Domain;
+using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Apostas.Domain.PernasDeAposta;
+
+namespace Oddify.UnitTests.Modules.Apostas;
+
+public sealed class PernaDeApostaTests
+{
+    [Fact]
+    public void Resolver_should_set_resultado_ganha_when_ganhou()
+    {
+        var perna = PernaDeAposta.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.5m);
+
+        Result resultado = perna.Resolver(ganhou: true);
+
+        resultado.IsSuccess.Should().BeTrue();
+        perna.Resultado.Should().Be(ResultadoDaAposta.Ganha);
+    }
+
+    [Fact]
+    public void Resolver_should_set_resultado_perdida_when_nao_ganhou()
+    {
+        var perna = PernaDeAposta.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.5m);
+
+        Result resultado = perna.Resolver(ganhou: false);
+
+        resultado.IsSuccess.Should().BeTrue();
+        perna.Resultado.Should().Be(ResultadoDaAposta.Perdida);
+    }
+
+    [Fact]
+    public void Resolver_should_fail_when_already_resolvida()
+    {
+        var perna = PernaDeAposta.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.5m);
+        perna.Resolver(true);
+
+        Result resultado = perna.Resolver(false);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(PernaDeApostaErrors.JaResolvida(perna.Id));
+    }
+}

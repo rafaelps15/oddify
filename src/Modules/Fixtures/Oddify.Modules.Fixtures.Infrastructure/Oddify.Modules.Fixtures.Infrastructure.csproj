@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Infrastructure\Oddify.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Fixtures.Application\Oddify.Modules.Fixtures.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Fixtures.Presentation\Oddify.Modules.Fixtures.Presentation.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Fixtures.PublicApi\Oddify.Modules.Fixtures.PublicApi.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Application\Oddify.Common.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Fixtures.Domain\Oddify.Modules.Fixtures.Domain.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Fixtures.IntegrationEvents\Oddify.Modules.Fixtures.IntegrationEvents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Oddify.UnitTests" />
+  </ItemGroup>
+</Project>

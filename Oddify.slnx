@@ -1,0 +1,53 @@
+<Solution>
+  <Folder Name="/Modules/Users/">
+    <Project Path="Oddify.Modules.Users.Application/Oddify.Modules.Users.Application.csproj" Id="598afec9-54f4-436b-8161-9d4934fd2994" />
+    <Project Path="Oddify.Modules.Users.Domain/Oddify.Modules.Users.Domain.csproj" Id="67be93d1-93e7-42dc-a3cb-035e5001fd56" />
+    <Project Path="Oddify.Modules.Users.Infrastructure/Oddify.Modules.Users.Infrastructure.csproj" Id="210bfca6-cfd0-48bd-8a1a-c735e14a71be" />
+    <Project Path="Oddify.Modules.Users.IntegrationEvents/Oddify.Modules.Users.IntegrationEvents.csproj" Id="2a39c0d2-ecea-46d1-9b39-58dac3dc03ab" />
+    <Project Path="Oddify.Modules.Users.Presentation/Oddify.Modules.Users.Presentation.csproj" Id="27ea8a33-0b1d-4100-9dc1-1fa1eb6423db" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="CLAUDE.md" />
+  </Folder>
+  <Folder Name="/API/">
+    <Project Path="src/API/Oddify.Api/Oddify.Api.csproj" />
+  </Folder>
+  <Folder Name="/Common/">
+    <Project Path="src/Common/Oddify.Common.Application/Oddify.Common.Application.csproj" />
+    <Project Path="src/Common/Oddify.Common.Domain/Oddify.Common.Domain.csproj" />
+    <Project Path="src/Common/Oddify.Common.Infrastructure/Oddify.Common.Infrastructure.csproj" />
+    <Project Path="src/Common/Oddify.Common.Presentation/Oddify.Common.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/Modules/Fixtures/">
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.Application/Oddify.Modules.Fixtures.Application.csproj" />
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.Domain/Oddify.Modules.Fixtures.Domain.csproj" />
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.Infrastructure/Oddify.Modules.Fixtures.Infrastructure.csproj" />
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.IntegrationEvents/Oddify.Modules.Fixtures.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.Presentation/Oddify.Modules.Fixtures.Presentation.csproj" />
+    <Project Path="src/Modules/Fixtures/Oddify.Modules.Fixtures.PublicApi/Oddify.Modules.Fixtures.PublicApi.csproj" />
+  </Folder>
+  <Folder Name="/Modules/" />
+  <Folder Name="/Modules/Analise/">
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.Application/Oddify.Modules.Analise.Application.csproj" />
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.Domain/Oddify.Modules.Analise.Domain.csproj" />
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.Infrastructure/Oddify.Modules.Analise.Infrastructure.csproj" />
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.IntegrationEvents/Oddify.Modules.Analise.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.Presentation/Oddify.Modules.Analise.Presentation.csproj" />
+    <Project Path="src/Modules/Analise/Oddify.Modules.Analise.PublicApi/Oddify.Modules.Analise.PublicApi.csproj" />
+  </Folder>
+  <Folder Name="/Modules/Apostas/">
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Application/Oddify.Modules.Apostas.Application.csproj" />
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Domain/Oddify.Modules.Apostas.Domain.csproj" />
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Infrastructure/Oddify.Modules.Apostas.Infrastructure.csproj" />
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.IntegrationEvents/Oddify.Modules.Apostas.IntegrationEvents.csproj" />
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Presentation/Oddify.Modules.Apostas.Presentation.csproj" />
+    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.PublicApi/Oddify.Modules.Apostas.PublicApi.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Oddify.ArchitectureTests/Oddify.ArchitectureTests.csproj" />
+    <Project Path="tests/Oddify.IntegrationTests/Oddify.IntegrationTests.csproj" />
+    <Project Path="tests/Oddify.UnitTests/Oddify.UnitTests.csproj" />
+  </Folder>
+</Solution>
