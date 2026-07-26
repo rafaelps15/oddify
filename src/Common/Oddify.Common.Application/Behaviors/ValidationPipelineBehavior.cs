@@ -1,9 +1,9 @@
 using System.Reflection;
-using Oddify.Common.Application.Messaging;
-using Oddify.Common.Domain;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
+using Oddify.Common.Application.Messaging;
+using Oddify.Common.Domain;
 
 namespace Oddify.Common.Application.Behaviors;
 
@@ -31,7 +31,7 @@ internal sealed class ValidationPipelineBehavior<TRequest, TResponse>(
 
             MethodInfo? failureMethod = typeof(Result<>)
                 .MakeGenericType(resultType)
-                .GetMethod(nameof(Result<object>.ValidationFailure));
+                .GetMethod(nameof(Result<>.ValidationFailure));
 
             if (failureMethod is not null)
             {
@@ -58,14 +58,13 @@ internal sealed class ValidationPipelineBehavior<TRequest, TResponse>(
         ValidationResult[] validationResults = await Task.WhenAll(
             validators.Select(validator => validator.ValidateAsync(context)));
 
-        ValidationFailure[] validationFailures = validationResults
+        ValidationFailure[] validationFailures = [.. validationResults
             .Where(validationResult => !validationResult.IsValid)
-            .SelectMany(validationResult => validationResult.Errors)
-            .ToArray();
+            .SelectMany(validationResult => validationResult.Errors)];
 
         return validationFailures;
     }
 
     private static ValidationError CreateValidationError(ValidationFailure[] validationFailures) =>
-        new(validationFailures.Select(f => Error.Problem(f.ErrorCode, f.ErrorMessage)).ToArray());
+        new([.. validationFailures.Select(f => Error.Problem(f.ErrorCode, f.ErrorMessage))]);
 }

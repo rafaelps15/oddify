@@ -1,7 +1,7 @@
-using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
-using Oddify.Modules.Apostas.Domain.Bancas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Apostas.Domain.Bancas;
 
 namespace Oddify.Modules.Apostas.Infrastructure.ApostasMultiplas;
 

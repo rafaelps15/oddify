@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 
 namespace Oddify.Modules.Apostas.Infrastructure.ApostasMultiplas;
 

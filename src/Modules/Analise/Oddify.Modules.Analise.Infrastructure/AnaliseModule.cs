@@ -1,4 +1,9 @@
 using Anthropic;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
@@ -9,11 +14,6 @@ using Oddify.Modules.Analise.Infrastructure.Database;
 using Oddify.Modules.Analise.Infrastructure.Llm;
 using Oddify.Modules.Analise.Infrastructure.PublicApi;
 using Oddify.Modules.Analise.PublicApi;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Oddify.Modules.Analise.Infrastructure;
 

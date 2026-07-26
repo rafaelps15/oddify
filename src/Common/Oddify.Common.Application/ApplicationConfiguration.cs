@@ -1,7 +1,7 @@
 using System.Reflection;
-using Oddify.Common.Application.Behaviors;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Oddify.Common.Application.Behaviors;
 
 namespace Oddify.Common.Application;
 

@@ -1,6 +1,6 @@
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using FluentAssertions;
 using NSubstitute;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.Application.Abstractions.Data;

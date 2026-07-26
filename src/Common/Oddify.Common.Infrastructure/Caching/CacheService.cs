@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text.Json;
-using Oddify.Common.Application.Caching;
 using Microsoft.Extensions.Caching.Distributed;
+using Oddify.Common.Application.Caching;
 
 namespace Oddify.Common.Infrastructure.Caching;
 

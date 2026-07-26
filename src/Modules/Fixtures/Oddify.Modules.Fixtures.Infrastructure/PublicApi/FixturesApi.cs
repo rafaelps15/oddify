@@ -1,10 +1,10 @@
+using MediatR;
 using Oddify.Common.Domain;
 using Oddify.Modules.Fixtures.Application.Cotacoes.GetCotacaoMaisRecente;
 using Oddify.Modules.Fixtures.Application.Cotacoes.GetCotacoesPorPartida;
 using Oddify.Modules.Fixtures.Application.Ligas.GetLiga;
 using Oddify.Modules.Fixtures.Application.Partidas.GetHistoricoRecentePorEquipe;
 using Oddify.Modules.Fixtures.Application.Partidas.GetPartida;
-using MediatR;
 using Contracts = Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.PublicApi;

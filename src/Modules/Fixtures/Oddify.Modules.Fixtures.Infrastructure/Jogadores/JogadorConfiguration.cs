@@ -1,7 +1,7 @@
-using Oddify.Modules.Fixtures.Domain.Equipes;
-using Oddify.Modules.Fixtures.Domain.Jogadores;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Fixtures.Domain.Equipes;
+using Oddify.Modules.Fixtures.Domain.Jogadores;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.Jogadores;
 

@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\Modules\Fixtures\Oddify.Modules.Fixtures.Infrastructure\Oddify.Modules.Fixtures.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Analise\Oddify.Modules.Analise.Infrastructure\Oddify.Modules.Analise.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Apostas\Oddify.Modules.Apostas.Infrastructure\Oddify.Modules.Apostas.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Users\Oddify.Modules.Users.Infrastructure\Oddify.Modules.Users.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

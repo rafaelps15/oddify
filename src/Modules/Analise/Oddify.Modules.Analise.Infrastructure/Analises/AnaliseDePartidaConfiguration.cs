@@ -1,6 +1,6 @@
-using Oddify.Modules.Analise.Domain.Analises;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Analise.Domain.Analises;
 
 namespace Oddify.Modules.Analise.Infrastructure.Analises;
 

@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Application.Abstractions.Llm;
 using Oddify.Modules.Analise.Domain.Analises;
-using Microsoft.Extensions.Logging;
 
 namespace Oddify.Modules.Analise.Application.Analises.AvaliarComClaude;
 

@@ -35,9 +35,18 @@ public sealed class CrossModuleBoundaryTests
             Oddify.Modules.Apostas.Presentation.AssemblyReference.Assembly,
         ]);
 
+    private static Modulo Users => new(
+        "Users",
+        [
+            typeof(Oddify.Modules.Users.Domain.Users.User).Assembly,
+            Oddify.Modules.Users.Application.AssemblyReference.Assembly,
+            typeof(Oddify.Modules.Users.Infrastructure.UsersModule).Assembly,
+            Oddify.Modules.Users.Presentation.AssemblyReference.Assembly,
+        ]);
+
     public static TheoryData<string, Assembly, string, string> ParesDeModulos()
     {
-        Modulo[] modulos = [Fixtures, Analise, Apostas];
+        Modulo[] modulos = [Fixtures, Analise, Apostas, Users];
         var data = new TheoryData<string, Assembly, string, string>();
 
         foreach (Modulo modulo in modulos)
@@ -84,6 +93,7 @@ public sealed class CrossModuleBoundaryTests
             (typeof(Oddify.Modules.Fixtures.Infrastructure.FixturesModule).Assembly, "Fixtures"),
             (typeof(Oddify.Modules.Analise.Infrastructure.AnaliseModule).Assembly, "Analise"),
             (typeof(Oddify.Modules.Apostas.Infrastructure.ApostasModule).Assembly, "Apostas"),
+            (typeof(Oddify.Modules.Users.Infrastructure.UsersModule).Assembly, "Users"),
         ];
 
         foreach ((Assembly assembly, string nome) in infraestruturas)

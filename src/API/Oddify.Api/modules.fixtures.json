@@ -1,4 +1,9 @@
 {
   "Fixtures": {
+    "SincronizacaoExterna": {
+      "Intervalo": "24:00:00",
+      "TheOddsApiSportKeys": {},
+      "ApiFootballTemporadas": {}
+    }
   }
 }

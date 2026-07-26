@@ -1,9 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
-using Microsoft.EntityFrameworkCore;
 
 namespace Oddify.Modules.Apostas.Infrastructure.Database;
 

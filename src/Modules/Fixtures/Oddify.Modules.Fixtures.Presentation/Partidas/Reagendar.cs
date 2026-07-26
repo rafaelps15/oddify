@@ -1,11 +1,11 @@
-using Oddify.Common.Domain;
-using Oddify.Common.Presentation.Endpoints;
-using Oddify.Common.Presentation.Results;
-using Oddify.Modules.Fixtures.Application.Partidas.Reagendar;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Oddify.Common.Domain;
+using Oddify.Common.Presentation.Endpoints;
+using Oddify.Common.Presentation.Results;
+using Oddify.Modules.Fixtures.Application.Partidas.Reagendar;
 
 namespace Oddify.Modules.Fixtures.Presentation.Partidas;
 

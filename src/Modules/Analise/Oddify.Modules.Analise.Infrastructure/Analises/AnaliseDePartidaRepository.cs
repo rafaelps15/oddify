@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Analise.Domain.Analises;
 using Oddify.Modules.Analise.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 
 namespace Oddify.Modules.Analise.Infrastructure.Analises;
 

@@ -1,5 +1,5 @@
-using Oddify.Common.Application.EventBus;
 using MassTransit;
+using Oddify.Common.Application.EventBus;
 
 namespace Oddify.Common.Infrastructure.EventBus;
 

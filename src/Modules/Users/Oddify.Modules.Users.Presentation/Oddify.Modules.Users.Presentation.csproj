@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Presentation\Oddify.Common.Presentation.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Users.Application\Oddify.Modules.Users.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -27,8 +27,8 @@ Two ways to run locally — pick one, don't mix (both bind the same infra ports)
 docker compose down
 
 # Build / restore
-dotnet restore Oddify.slnx
-dotnet build Oddify.slnx
+dotnet restore Oddify.sln
+dotnet build Oddify.sln
 
 # Generate a migration for a module (run from repo root)
 dotnet ef migrations add <Name> --project src/Modules/<Module>/Oddify.Modules.<Module>.Infrastructure --startup-project src/API/Oddify.Api --context <Module>DbContext -o Database/Migrations

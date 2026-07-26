@@ -1,8 +1,8 @@
-using Oddify.Common.Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Oddify.Common.Domain;
 
 namespace Oddify.Common.Infrastructure.Interceptors;
 

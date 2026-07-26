@@ -1,3 +1,5 @@
+name: oddify
+
 services:
   oddify.database:
     image: postgres:16-alpine

@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 
 namespace Oddify.Modules.Apostas.Infrastructure.AnalisesDisponiveis;
 

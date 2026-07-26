@@ -1,3 +1,7 @@
+using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 using Oddify.Common.Application.Caching;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Data;
@@ -6,10 +10,6 @@ using Oddify.Common.Infrastructure.Caching;
 using Oddify.Common.Infrastructure.Clock;
 using Oddify.Common.Infrastructure.Data;
 using Oddify.Common.Infrastructure.Interceptors;
-using MassTransit;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Npgsql;
 using StackExchange.Redis;
 
 namespace Oddify.Common.Infrastructure;

@@ -1,6 +1,6 @@
-using Oddify.Common.Domain;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Oddify.Common.Domain;
 using Serilog.Context;
 
 namespace Oddify.Common.Application.Behaviors;

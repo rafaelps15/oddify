@@ -1,0 +1,16 @@
+﻿using Oddify.Common.Domain;
+
+namespace Oddify.Modules.Users.Domain.Users;
+
+public static class UserErrors
+{
+    public static Error NotFound(Guid userId) =>
+        Error.NotFound("Users.NotFound", $"The user with the identifier {userId} not found");
+
+    public static Error NotFound(string identityId) =>
+        Error.NotFound("Users.NotFound", $"The user with the IDP identifier {identityId} not found");
+
+    public static readonly Error IdentityIdAlreadyRegistered = Error.Conflict(
+        "Users.IdentityIdAlreadyRegistered",
+        "A user with this IDP identifier is already registered");
+}

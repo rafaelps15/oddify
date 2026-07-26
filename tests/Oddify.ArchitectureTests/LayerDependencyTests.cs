@@ -18,6 +18,10 @@ public sealed class LayerDependencyTests
     private const string ApostasInfrastructure = "Oddify.Modules.Apostas.Infrastructure";
     private const string ApostasPresentation = "Oddify.Modules.Apostas.Presentation";
 
+    private const string UsersApplication = "Oddify.Modules.Users.Application";
+    private const string UsersInfrastructure = "Oddify.Modules.Users.Infrastructure";
+    private const string UsersPresentation = "Oddify.Modules.Users.Presentation";
+
     [Fact]
     public void Fixtures_Domain_should_not_depend_on_other_layers()
     {
@@ -46,6 +50,17 @@ public sealed class LayerDependencyTests
         TestResult result = Types.InAssembly(typeof(Oddify.Modules.Apostas.Domain.Bancas.Banca).Assembly)
             .Should()
             .NotHaveDependencyOnAny(ApostasApplication, ApostasInfrastructure, ApostasPresentation)
+            .GetResult();
+
+        result.IsSuccessful.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Users_Domain_should_not_depend_on_other_layers()
+    {
+        TestResult result = Types.InAssembly(typeof(Oddify.Modules.Users.Domain.Users.User).Assembly)
+            .Should()
+            .NotHaveDependencyOnAny(UsersApplication, UsersInfrastructure, UsersPresentation)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue();
@@ -85,6 +100,17 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void Users_Application_should_not_depend_on_infrastructure_or_presentation()
+    {
+        TestResult result = Types.InAssembly(Oddify.Modules.Users.Application.AssemblyReference.Assembly)
+            .Should()
+            .NotHaveDependencyOnAny(UsersInfrastructure, UsersPresentation)
+            .GetResult();
+
+        result.IsSuccessful.Should().BeTrue();
+    }
+
+    [Fact]
     public void CommandHandlers_should_be_sealed_and_not_public_across_all_modules()
     {
         Assembly[] assemblies =
@@ -92,6 +118,7 @@ public sealed class LayerDependencyTests
             Oddify.Modules.Fixtures.Application.AssemblyReference.Assembly,
             Oddify.Modules.Analise.Application.AssemblyReference.Assembly,
             Oddify.Modules.Apostas.Application.AssemblyReference.Assembly,
+            Oddify.Modules.Users.Application.AssemblyReference.Assembly,
         ];
 
         foreach (Assembly assembly in assemblies)

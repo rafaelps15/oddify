@@ -1,7 +1,7 @@
-using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
-using Oddify.Modules.Apostas.Domain.PernasDeAposta;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Apostas.Domain.PernasDeAposta;
 
 namespace Oddify.Modules.Apostas.Infrastructure.PernasDeAposta;
 

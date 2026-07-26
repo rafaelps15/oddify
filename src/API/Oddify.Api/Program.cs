@@ -1,3 +1,5 @@
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Oddify.Api.Extensions;
 using Oddify.Api.Middleware;
 using Oddify.Common.Application;
@@ -7,8 +9,7 @@ using Oddify.Common.Presentation.Serialization;
 using Oddify.Modules.Analise.Infrastructure;
 using Oddify.Modules.Apostas.Infrastructure;
 using Oddify.Modules.Fixtures.Infrastructure;
-using HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Oddify.Modules.Users.Infrastructure;
 using Serilog;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -30,7 +31,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddApplication([
     Oddify.Modules.Fixtures.Application.AssemblyReference.Assembly,
     Oddify.Modules.Analise.Application.AssemblyReference.Assembly,
-    Oddify.Modules.Apostas.Application.AssemblyReference.Assembly]);
+    Oddify.Modules.Apostas.Application.AssemblyReference.Assembly,
+    Oddify.Modules.Users.Application.AssemblyReference.Assembly]);
 
 string databaseConnectionString = builder.Configuration.GetConnectionString("Database")!;
 string redisConnectionString = builder.Configuration.GetConnectionString("Cache")!;
@@ -40,7 +42,7 @@ builder.Services.AddInfrastructure(
     databaseConnectionString,
     redisConnectionString);
 
-builder.Configuration.AddModuleConfiguration(["fixtures", "analise", "apostas"]);
+builder.Configuration.AddModuleConfiguration(["fixtures", "analise", "apostas", "users"]);
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(databaseConnectionString)
@@ -49,6 +51,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddFixturesModule(builder.Configuration);
 builder.Services.AddAnaliseModule(builder.Configuration);
 builder.Services.AddApostasModule(builder.Configuration);
+builder.Services.AddUsersModule(builder.Configuration);
 
 WebApplication app = builder.Build();
 

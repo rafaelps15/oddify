@@ -6,5 +6,7 @@ public interface ILigaConfiguradaRepository
 
     Task<LigaConfigurada?> GetByIdExternoAsync(string idExterno, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<LigaConfigurada>> ListarTodasAsync(CancellationToken cancellationToken = default);
+
     void Insert(LigaConfigurada liga);
 }

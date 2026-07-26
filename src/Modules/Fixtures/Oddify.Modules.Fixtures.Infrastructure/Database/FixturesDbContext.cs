@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.Domain.Equipes;
@@ -6,7 +7,6 @@ using Oddify.Modules.Fixtures.Domain.EstatisticasDeJogador;
 using Oddify.Modules.Fixtures.Domain.Jogadores;
 using Oddify.Modules.Fixtures.Domain.Ligas;
 using Oddify.Modules.Fixtures.Domain.Partidas;
-using Microsoft.EntityFrameworkCore;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.Database;
 

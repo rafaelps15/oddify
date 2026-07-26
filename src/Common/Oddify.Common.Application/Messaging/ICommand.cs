@@ -1,5 +1,5 @@
-using Oddify.Common.Domain;
 using MediatR;
+using Oddify.Common.Domain;
 
 namespace Oddify.Common.Application.Messaging;
 

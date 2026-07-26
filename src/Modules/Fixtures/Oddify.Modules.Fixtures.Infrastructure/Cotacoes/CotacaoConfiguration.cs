@@ -1,7 +1,7 @@
-using Oddify.Modules.Fixtures.Domain.Cotacoes;
-using Oddify.Modules.Fixtures.Domain.Partidas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Fixtures.Domain.Cotacoes;
+using Oddify.Modules.Fixtures.Domain.Partidas;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.Cotacoes;
 

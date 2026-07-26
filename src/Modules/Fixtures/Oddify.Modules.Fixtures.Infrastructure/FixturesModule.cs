@@ -1,6 +1,12 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
+using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.Domain.Equipes;
 using Oddify.Modules.Fixtures.Domain.EstatisticasDeEquipe;
@@ -13,16 +19,14 @@ using Oddify.Modules.Fixtures.Infrastructure.Database;
 using Oddify.Modules.Fixtures.Infrastructure.Equipes;
 using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeEquipe;
 using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeJogador;
+using Oddify.Modules.Fixtures.Infrastructure.ExternalData;
+using Oddify.Modules.Fixtures.Infrastructure.HealthChecks;
 using Oddify.Modules.Fixtures.Infrastructure.Jogadores;
 using Oddify.Modules.Fixtures.Infrastructure.Ligas;
 using Oddify.Modules.Fixtures.Infrastructure.Partidas;
 using Oddify.Modules.Fixtures.Infrastructure.PublicApi;
+using Oddify.Modules.Fixtures.Infrastructure.Sincronizacao;
 using Oddify.Modules.Fixtures.PublicApi;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Oddify.Modules.Fixtures.Infrastructure;
 
@@ -57,5 +61,24 @@ public static class FixturesModule
         services.AddScoped<ICotacaoRepository, CotacaoRepository>();
 
         services.AddScoped<IFixturesApi, FixturesApi>();
+
+        services.Configure<SincronizacaoExternaOptions>(configuration.GetSection("Fixtures:SincronizacaoExterna"));
+
+        services.AddHttpClient<IApiFootballClient, ApiFootballClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://v3.football.api-sports.io/");
+            client.DefaultRequestHeaders.Add("x-apisports-key", Environment.GetEnvironmentVariable("APIFOOTBALL_API_KEY") ?? string.Empty);
+        });
+
+        services.AddHttpClient<ITheOddsApiClient, TheOddsApiClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.the-odds-api.com/v4/");
+        });
+
+        services.AddHostedService<SincronizacaoExternaBackgroundService>();
+
+        services.AddHealthChecks()
+            .AddCheck<ApiFootballHealthCheck>("api-football")
+            .AddCheck<TheOddsApiHealthCheck>("the-odds-api");
     }
 }

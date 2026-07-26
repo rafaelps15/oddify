@@ -31,6 +31,12 @@ COPY ["src/Modules/Apostas/Oddify.Modules.Apostas.Infrastructure/Oddify.Modules.
 COPY ["src/Modules/Apostas/Oddify.Modules.Apostas.Presentation/Oddify.Modules.Apostas.Presentation.csproj", "src/Modules/Apostas/Oddify.Modules.Apostas.Presentation/"]
 COPY ["src/Modules/Apostas/Oddify.Modules.Apostas.PublicApi/Oddify.Modules.Apostas.PublicApi.csproj", "src/Modules/Apostas/Oddify.Modules.Apostas.PublicApi/"]
 COPY ["src/Modules/Apostas/Oddify.Modules.Apostas.IntegrationEvents/Oddify.Modules.Apostas.IntegrationEvents.csproj", "src/Modules/Apostas/Oddify.Modules.Apostas.IntegrationEvents/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.Domain/Oddify.Modules.Users.Domain.csproj", "src/Modules/Users/Oddify.Modules.Users.Domain/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.Application/Oddify.Modules.Users.Application.csproj", "src/Modules/Users/Oddify.Modules.Users.Application/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.Infrastructure/Oddify.Modules.Users.Infrastructure.csproj", "src/Modules/Users/Oddify.Modules.Users.Infrastructure/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.Presentation/Oddify.Modules.Users.Presentation.csproj", "src/Modules/Users/Oddify.Modules.Users.Presentation/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.PublicApi/Oddify.Modules.Users.PublicApi.csproj", "src/Modules/Users/Oddify.Modules.Users.PublicApi/"]
+COPY ["src/Modules/Users/Oddify.Modules.Users.IntegrationEvents/Oddify.Modules.Users.IntegrationEvents.csproj", "src/Modules/Users/Oddify.Modules.Users.IntegrationEvents/"]
 RUN dotnet restore "./src/API/Oddify.Api/Oddify.Api.csproj"
 COPY . .
 WORKDIR "/src/src/API/Oddify.Api"

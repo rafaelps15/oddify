@@ -1,11 +1,11 @@
-using Oddify.Common.Domain;
-using Oddify.Common.Presentation.Endpoints;
-using Oddify.Common.Presentation.Results;
-using Oddify.Modules.Fixtures.Application.Jogadores.TransferirJogador;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Oddify.Common.Domain;
+using Oddify.Common.Presentation.Endpoints;
+using Oddify.Common.Presentation.Results;
+using Oddify.Modules.Fixtures.Application.Jogadores.TransferirJogador;
 
 namespace Oddify.Modules.Fixtures.Presentation.Jogadores;
 

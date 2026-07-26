@@ -1,0 +1,5 @@
+# Reservado para overrides locais de docker-compose.yml (ex.: portas, volumes, variáveis de
+# ambiente específicas de uma máquina de desenvolvimento). Carregado automaticamente pelo
+# `docker compose` quando presente; vazio por padrão — não altera o comportamento de
+# docker-compose.yml até que algo seja adicionado aqui.
+services: {}

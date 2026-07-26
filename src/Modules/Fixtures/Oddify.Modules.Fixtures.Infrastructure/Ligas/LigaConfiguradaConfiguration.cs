@@ -1,6 +1,6 @@
-using Oddify.Modules.Fixtures.Domain.Ligas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Oddify.Modules.Fixtures.Domain.Ligas;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.Ligas;
 

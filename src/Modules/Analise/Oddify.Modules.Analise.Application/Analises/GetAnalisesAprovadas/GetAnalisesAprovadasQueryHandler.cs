@@ -40,6 +40,6 @@ internal sealed class GetAnalisesAprovadasQueryHandler(IDbConnectionFactory dbCo
 
         IEnumerable<AnaliseResponse> result = await connection.QueryAsync<AnaliseResponse>(sql);
 
-        return Result.Success<IReadOnlyCollection<AnaliseResponse>>(result.ToList());
+        return Result.Success<IReadOnlyCollection<AnaliseResponse>>([.. result]);
     }
 }

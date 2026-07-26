@@ -1,13 +1,13 @@
-using Oddify.Common.Domain;
-using Oddify.Common.Presentation.Endpoints;
-using Oddify.Common.Presentation.Results;
-using Oddify.Modules.Fixtures.Application.Partidas.GetPartida;
-using Oddify.Modules.Fixtures.Application.Partidas.GetPartidas;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Oddify.Common.Domain;
+using Oddify.Common.Presentation.Endpoints;
+using Oddify.Common.Presentation.Results;
+using Oddify.Modules.Fixtures.Application.Partidas.GetPartida;
+using Oddify.Modules.Fixtures.Application.Partidas.GetPartidas;
 
 namespace Oddify.Modules.Fixtures.Presentation.Partidas;
 

@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Database\Migrations\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\Oddify.Common.Infrastructure\Oddify.Common.Infrastructure.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Users.Application\Oddify.Modules.Users.Application.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Users.Presentation\Oddify.Modules.Users.Presentation.csproj" />
+    <ProjectReference Include="..\Oddify.Modules.Users.PublicApi\Oddify.Modules.Users.PublicApi.csproj" />
+  </ItemGroup>
+
+</Project>

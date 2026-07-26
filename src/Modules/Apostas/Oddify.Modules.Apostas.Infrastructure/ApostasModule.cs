@@ -1,3 +1,9 @@
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
@@ -11,12 +17,6 @@ using Oddify.Modules.Apostas.Infrastructure.Bancas;
 using Oddify.Modules.Apostas.Infrastructure.Database;
 using Oddify.Modules.Apostas.Infrastructure.PernasDeAposta;
 using Oddify.Modules.Apostas.Presentation.IntegrationEvents;
-using MassTransit;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Oddify.Modules.Apostas.Infrastructure;
 

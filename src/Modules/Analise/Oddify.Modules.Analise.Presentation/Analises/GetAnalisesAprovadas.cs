@@ -1,12 +1,12 @@
+using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Results;
 using Oddify.Modules.Analise.Application.Analises.GetAnalise;
 using Oddify.Modules.Analise.Application.Analises.GetAnalisesAprovadas;
-using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 
 namespace Oddify.Modules.Analise.Presentation.Analises;
 

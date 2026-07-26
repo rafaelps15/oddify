@@ -1,5 +1,5 @@
-using Oddify.Common.Domain;
 using Microsoft.AspNetCore.Http;
+using Oddify.Common.Domain;
 
 namespace Oddify.Common.Presentation.Results;
 

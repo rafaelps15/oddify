@@ -1,6 +1,6 @@
-using Oddify.Common.Application.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Oddify.Common.Application.Exceptions;
 
 namespace Oddify.Common.Application.Behaviors;
 

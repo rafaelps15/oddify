@@ -1,6 +1,6 @@
 using System.Data.Common;
-using Oddify.Common.Application.Data;
 using Npgsql;
+using Oddify.Common.Application.Data;
 
 namespace Oddify.Common.Infrastructure.Data;
 
