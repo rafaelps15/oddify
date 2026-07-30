@@ -1,13 +1,13 @@
 using FluentAssertions;
+using MediatR;
 using NSubstitute;
 using Oddify.Common.Domain;
-using Oddify.Modules.Analise.PublicApi;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
+using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetResultadosDasPernas;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.LiquidarMultipla;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
-using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.UnitTests.Modules.Apostas.LiquidarMultipla;
 
@@ -16,15 +16,17 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     private readonly IApostaMultiplaRepository _apostaMultiplaRepository = Substitute.For<IApostaMultiplaRepository>();
     private readonly IPernaDeApostaRepository _pernaDeApostaRepository = Substitute.For<IPernaDeApostaRepository>();
     private readonly IBancaRepository _bancaRepository = Substitute.For<IBancaRepository>();
-    private readonly IFixturesApi _fixturesApi = Substitute.For<IFixturesApi>();
-    private readonly IAnaliseApi _analiseApi = Substitute.For<IAnaliseApi>();
+    private readonly ISender _sender = Substitute.For<ISender>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private LiquidarMultiplaCommandHandler CriarHandler() =>
-        new(_apostaMultiplaRepository, _pernaDeApostaRepository, _bancaRepository, _fixturesApi, _analiseApi, _unitOfWork);
+        new(_apostaMultiplaRepository, _pernaDeApostaRepository, _bancaRepository, _sender, _unitOfWork);
 
-    private static PartidaResponse PartidaEncerrada(Guid id, int golsCasa, int golsVisitante) =>
-        new(id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "Encerrada", golsCasa, golsVisitante);
+    private void ConfigurarResultados(IReadOnlyDictionary<Guid, bool> resultadosPorPernaId)
+    {
+        _sender.Send(Arg.Any<GetResultadosDasPernasQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyDictionary<Guid, bool>>(resultadosPorPernaId));
+    }
 
     [Fact]
     public async Task Handle_should_mark_multipla_ganha_when_all_pernas_win()
@@ -32,19 +34,14 @@ public sealed class LiquidarMultiplaCommandHandlerTests
         var banca = Banca.Create(1000m, modoPaperTrading: true);
         var apostaMultipla = ApostaMultipla.Create(banca.Id, oddCombinada: 4.0m, stake: 50m, DateTime.UtcNow);
 
-        var partida1 = Guid.NewGuid();
-        var partida2 = Guid.NewGuid();
-        var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), partida1, "vitoria_casa", 2.0m);
-        var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), partida2, "vitoria_casa", 2.0m);
+        var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
+        var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
         _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna1, perna2]);
 
-        _fixturesApi.ObterPartidaAsync(partida1, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida1, 2, 0));
-        _fixturesApi.ObterPartidaAsync(partida2, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida2, 1, 0));
-
-        _analiseApi.ResolverMercado("vitoria_casa", Arg.Any<int>(), Arg.Any<int>()).Returns(true);
+        ConfigurarResultados(new Dictionary<Guid, bool> { [perna1.Id] = true, [perna2.Id] = true });
 
         _bancaRepository.GetAsync(banca.Id, Arg.Any<CancellationToken>()).Returns(banca);
 
@@ -62,20 +59,14 @@ public sealed class LiquidarMultiplaCommandHandlerTests
         var banca = Banca.Create(1000m, modoPaperTrading: true);
         var apostaMultipla = ApostaMultipla.Create(banca.Id, oddCombinada: 4.0m, stake: 50m, DateTime.UtcNow);
 
-        var partida1 = Guid.NewGuid();
-        var partida2 = Guid.NewGuid();
-        var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), partida1, "vitoria_casa", 2.0m);
-        var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), partida2, "vitoria_casa", 2.0m);
+        var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
+        var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
         _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna1, perna2]);
 
-        _fixturesApi.ObterPartidaAsync(partida1, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida1, 2, 0));
-        _fixturesApi.ObterPartidaAsync(partida2, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida2, 0, 1));
-
-        _analiseApi.ResolverMercado("vitoria_casa", 2, 0).Returns(true);
-        _analiseApi.ResolverMercado("vitoria_casa", 0, 1).Returns(false);
+        ConfigurarResultados(new Dictionary<Guid, bool> { [perna1.Id] = true, [perna2.Id] = false });
 
         _bancaRepository.GetAsync(banca.Id, Arg.Any<CancellationToken>()).Returns(banca);
 
@@ -87,24 +78,25 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_should_fail_when_a_partida_is_not_yet_encerrada()
+    public async Task Handle_should_fail_when_query_fails()
     {
         var banca = Banca.Create(1000m, modoPaperTrading: true);
         var apostaMultipla = ApostaMultipla.Create(banca.Id, oddCombinada: 2.0m, stake: 50m, DateTime.UtcNow);
 
-        var partidaId = Guid.NewGuid();
-        var perna = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), partidaId, "vitoria_casa", 2.0m);
+        var perna = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
         _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna]);
 
-        _fixturesApi.ObterPartidaAsync(partidaId, Arg.Any<CancellationToken>())
-            .Returns(new PartidaResponse(partidaId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "Agendada", null, null));
+        var erro = Error.Problem("ApostasMultiplas.PartidaNaoEncerrada", "A partida ainda não foi encerrada");
+        _sender.Send(Arg.Any<GetResultadosDasPernasQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyDictionary<Guid, bool>>(erro));
 
         Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
 
         resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(erro);
         apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Pendente);
     }
 }

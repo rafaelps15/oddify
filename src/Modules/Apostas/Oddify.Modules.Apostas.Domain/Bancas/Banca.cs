@@ -4,11 +4,8 @@ namespace Oddify.Modules.Apostas.Domain.Bancas;
 
 public sealed class Banca : Entity
 {
-    private Banca(Guid id, decimal saldoAtual, bool modoPaperTrading)
+    private Banca()
     {
-        Id = id;
-        SaldoAtual = saldoAtual;
-        ModoPaperTrading = modoPaperTrading;
     }
 
     public Guid Id { get; private set; }
@@ -17,8 +14,15 @@ public sealed class Banca : Entity
 
     public bool ModoPaperTrading { get; private set; }
 
-    public static Banca Create(decimal saldoInicial, bool modoPaperTrading) =>
-        new(Guid.NewGuid(), saldoInicial, modoPaperTrading);
+    public static Banca Create(decimal saldoInicial, bool modoPaperTrading)
+    {
+        return new Banca
+        {
+            Id = Guid.NewGuid(),
+            SaldoAtual = saldoInicial,
+            ModoPaperTrading = modoPaperTrading
+        };
+    }
 
     public void AjustarSaldo(decimal delta)
     {

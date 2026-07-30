@@ -1,11 +1,11 @@
+using MediatR;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
-using Oddify.Modules.Analise.PublicApi;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
+using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetResultadosDasPernas;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
-using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.LiquidarMultipla;
 
@@ -13,8 +13,7 @@ internal sealed class LiquidarMultiplaCommandHandler(
     IApostaMultiplaRepository apostaMultiplaRepository,
     IPernaDeApostaRepository pernaDeApostaRepository,
     IBancaRepository bancaRepository,
-    IFixturesApi fixturesApi,
-    IAnaliseApi analiseApi,
+    ISender sender,
     IUnitOfWork unitOfWork)
     : ICommandHandler<LiquidarMultiplaCommand>
 {
@@ -29,27 +28,20 @@ internal sealed class LiquidarMultiplaCommandHandler(
         IReadOnlyCollection<PernaDeAposta> pernas =
             await pernaDeApostaRepository.GetPorApostaMultiplaAsync(request.ApostaMultiplaId, cancellationToken);
 
+        var query = new GetResultadosDasPernasQuery(
+            [.. pernas.Select(perna => new PernaParaResolver(perna.Id, perna.PartidaId, perna.Mercado))]);
+
+        Result<IReadOnlyDictionary<Guid, bool>> resultados = await sender.Send(query, cancellationToken);
+        if (resultados.IsFailure)
+        {
+            return Result.Failure(resultados.Error);
+        }
+
         var resultadosDasPernas = new List<bool>();
 
         foreach (PernaDeAposta perna in pernas)
         {
-            Result<PartidaResponse> partidaResult = await fixturesApi.ObterPartidaAsync(perna.PartidaId, cancellationToken);
-
-            if (partidaResult.IsFailure)
-            {
-                return Result.Failure(partidaResult.Error);
-            }
-
-            PartidaResponse partida = partidaResult.Value;
-
-            if (partida.GolsCasa is null || partida.GolsVisitante is null)
-            {
-                return Result.Failure(Error.Problem(
-                    "ApostasMultiplas.PartidaNaoEncerrada",
-                    $"A partida {perna.PartidaId} ainda não foi encerrada"));
-            }
-
-            bool ganhouPerna = analiseApi.ResolverMercado(perna.Mercado, partida.GolsCasa.Value, partida.GolsVisitante.Value);
+            bool ganhouPerna = resultados.Value[perna.Id];
 
             Result resolverResult = perna.Resolver(ganhouPerna);
             if (resolverResult.IsFailure)

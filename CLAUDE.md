@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A .NET **modular monolith**: business modules — `<ModuleA>`/`<ModuleB>`/... — plus shared
-`Common` libraries and a thin `Api` host. One Postgres database with one schema per module,
-MediatR as the in-process mediator, an in-memory MassTransit bus for cross-module integration
-events. `<ProjectName>` below stands for this repo's actual root namespace/solution name;
-`<Module>`/`<Entity>` are illustrated with a fictional `Tasks` module / `TodoItem` entity that
-doesn't collide with any real code — this project has **no modules yet**, so treat every
-concrete-looking example below as the pattern to follow, not a claim about what currently exists.
-Run `/add-module` to create the first real one.
+A .NET **modular monolith**: business modules — currently `Analise`, `Apostas`, `Fixtures`,
+`Users` — plus shared `Common` libraries and a thin `Api` host. One Postgres database with one
+schema per module, MediatR as the in-process mediator, an in-memory MassTransit bus for
+cross-module integration events. `<ProjectName>` below stands for `Oddify`; `<Module>`/`<Entity>`
+in code examples are illustrated with a fictional `Tasks` module / `TodoItem` entity (kept
+generic on purpose, so the pattern reads the same regardless of which real module you're
+extending) — treat every concrete-looking `<Module>`/`<Entity>` example as the pattern to
+follow, not a literal file that exists. Run `/add-module` to scaffold a new module the same
+way these four were built.
 
 ## Commands
 
@@ -40,7 +41,7 @@ reaches Postgres/Redis/Seq via their **compose service names** (`oddify.database
 `oddify.seq`), overridden via environment variables in `docker-compose.yml` — `appsettings.*.json`
 still has the `localhost`-based connection strings used by the native (non-Docker) run.
 
-This project's `Directory.Build.props` should set repo-wide: `TargetFramework net8.0`,
+This project's `Directory.Build.props` should set repo-wide: `TargetFramework net10.0`,
 `Nullable`, `ImplicitUsings`, `AnalysisMode=All`, and **`TreatWarningsAsErrors=true`** —
 `dotnet build` should be a meaningful correctness gate, not just a compile check.
 `.editorconfig` should require file-scoped namespaces and braces on every `if`.
@@ -60,7 +61,11 @@ enforced by `ProjectReference`s, not just convention:
 - **`<Module>.Application`** — CQRS use cases, one per vertical-slice folder (e.g. `TodoItems/CreateTodoItem/`), plus `Abstractions/Data/IUnitOfWork.cs`. References `Common.Application` (MediatR-based `ICommand`/`IQuery` abstractions, pipeline behaviors) + its own `Domain`, and its own `IntegrationEvents` project if this module publishes integration events (see below).
 - **`<Module>.Infrastructure`** — the module's composition root (`<Module>Module.cs`): EF Core `DbContext` (Postgres, snake_case naming convention, one schema per module), repository implementations, migrations. References `Common.Infrastructure` + its own `Application` **and** `Presentation` (so it can call `AddEndpoints(...)`).
 - **`<Module>.Presentation`** — minimal-API `IEndpoint` classes only, one file per endpoint. References `Common.Presentation` + its own `Application`.
-- **`<Module>.PublicApi`** — contract-only project for synchronous cross-module calls. Treat as **reserved/aspirational** unless you actually wire it up: scaffold it for shape-consistency, but don't assume another module calls it until you've checked.
+- **`<Module>.PublicApi`** — contract-only project for synchronous cross-module reads. Check
+  whether it's actually wired before assuming another module calls it; once it is, this is the
+  established way to read another module's data — always from inside a dedicated read
+  abstraction (a plain injected service, not a MediatR handler), never straight from a command
+  handler (see "Command handler shape" below).
 - **`<Module>.IntegrationEvents`** (only on modules that publish) — just the `IntegrationEvent` record contracts other modules consume, referencing `Common.Application` only.
 
 `<ProjectName>.Api` only ever references each module's `Infrastructure.csproj` (which
@@ -105,17 +110,72 @@ its own static `*Errors` class with a `NotFound(Guid id)` method plus `static re
 fields for business rules, via `Error.NotFound/Problem/Conflict/Failure("<PluralAggregate>.<Reason>", "message")`. Endpoints convert the `Result` to HTTP via `ApiResults.Problem` (maps
 `ErrorType` to a `ProblemDetails` status code).
 
+### Command handler shape
+
+`Handle` does at most: fetch/check → build the entity via `Entity.Create(...)` →
+`repository.Insert(...)` → `unitOfWork.SaveChangesAsync(...)` → return the id (or
+`Result.Success()`). No `*Response`-suffixed type, and no other externally-shaped DTO, may
+appear inside a command handler. Which of these three shapes it takes depends on where the
+data for `Create(...)` comes from:
+
+- **Nothing to look up** — the command's own fields are enough (this is the
+  `CreateTodoItemCommandHandler` shown under "Vertical-slice / CQRS layout" above: build via
+  `TodoItem.Create(...)`, insert, save, return the id).
+- **Needs a related aggregate from the same module** — fetch it via repository as `T?`
+  (never wrapped in `Result`); pass the entity itself into `Create(...)`, which may return
+  `Result<TEntity>` if creation can still fail:
+  ```csharp
+  TodoList? list = await todoListRepository.GetAsync(request.ListId, cancellationToken);
+  if (list is null)
+  {
+      return Result.Failure<Guid>(TodoListErrors.NotFound(request.ListId));
+  }
+
+  Result<TodoItem> result = TodoItem.Create(list, request.Title, DateTime.UtcNow);
+  if (result.IsFailure)
+  {
+      return Result.Failure<Guid>(result.Error);
+  }
+
+  todoItemRepository.Insert(result.Value);
+  await unitOfWork.SaveChangesAsync(cancellationToken);
+  return result.Value.Id;
+  ```
+- **Needs data from another module or an external system** — that read (its `*Response` DTOs
+  and their `Result.IsFailure` handling) belongs in a dedicated, plain injected service, never
+  inline in the command handler — **not** a MediatR query sent via `ISender` (its handler
+  contract forces a `Result<T>` return, which just reintroduces the same unwrap-in-the-handler
+  shape this rule exists to avoid). The service's own method signature looks exactly like a
+  repository lookup: `Task<T?>`, nullable, no `Result<T>` at the call site:
+  ```csharp
+  AssigneeSummary? assignee = await assigneeSummaryService.ObterAsync(request.AssigneeUserId, cancellationToken);
+  if (assignee is null)
+  {
+      return Result.Failure<Guid>(TodoItemErrors.AssigneeUnavailable(request.AssigneeUserId));
+  }
+
+  var todoItem = TodoItem.Create(request.Title, assignee.DisplayName, DateTime.UtcNow);
+  ```
+  Interface in `Application/Abstractions/<Area>/IAssigneeSummaryService.cs` (public — it's
+  injected across an assembly boundary), implementation `internal sealed class` in
+  `Infrastructure/<Area>/AssigneeSummaryService.cs`, registered by hand in
+  `<Module>Module.AddInfrastructure` (it's a plain service, not a MediatR
+  handler/validator/endpoint, so assembly scanning doesn't pick it up). Internally it may still
+  unwrap `Result<T>` from the `PublicApi` calls it makes — that unwrapping just never leaves the
+  service; any failure collapses to `null` at the public method boundary. For a real, fully
+  worked instance of this exact shape, read `AnalisarPartidaCommandHandler` +
+  `IAnaliseDePartidaDadosService`/`AnaliseDePartidaDadosService` in this repo. A command's *own*
+  declared return type (e.g. `AccessTokensResponse` in `LoginCommandHandler`) is not a
+  "contaminant" under this rule — that's the command's output contract, built at the very end of
+  `Handle`, not an externally-fetched DTO threaded through the handler's logic.
+
 ### Domain entities
 
 ```csharp
 public sealed class TodoItem : Entity
 {
-    private TodoItem(Guid id, string title, DateTime createdAtUtc)
+    private TodoItem()
     {
-        Id = id;
-        Title = title;
-        IsCompleted = false;
-        CreatedAtUtc = createdAtUtc;
     }
 
     public Guid Id { get; private set; }
@@ -125,21 +185,36 @@ public sealed class TodoItem : Entity
 
     public static TodoItem Create(string title, DateTime createdAtUtc)
     {
-        var todoItem = new TodoItem(Guid.NewGuid(), title, createdAtUtc);
+        var todoItem = new TodoItem
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            IsCompleted = false,
+            CreatedAtUtc = createdAtUtc
+        };
+
         todoItem.Raise(new TodoItemCreatedDomainEvent(todoItem.Id));
+
         return todoItem;
     }
 
-    public void Complete() { IsCompleted = true; Raise(new TodoItemCompletedDomainEvent(Id)); }
+    public void Complete()
+    {
+        IsCompleted = true;
+        Raise(new TodoItemCompletedDomainEvent(Id));
+    }
 }
 ```
-Private constructor (EF), `private set` on every property, a `public static Create(...)`
-factory (returns the entity directly, or `Result<Entity>` when creation can fail), behavior
-methods return `void` when they can't fail or `Result`/`Result<T>` when they can. **Only raise
-a domain event when state actually changed** (no-op setters return early without raising) —
-and not every `Create` needs to raise one: an entity that exists purely to mirror another
-module's aggregate (synced via an integration event) may skip it. References to other
-aggregates are stored as the foreign `Guid Id`, never a navigation property.
+Private **parameterless** constructor (EF), `private set` on every property, a `public static
+Create(...)` factory that builds the instance via an **object initializer** (never a
+parameterized private constructor — every field assignment happens in `Create`, not split
+between a constructor argument list and the initializer) and returns the entity directly (or
+`Result<Entity>` when creation can fail). Behavior methods return `void` when they can't fail
+or `Result`/`Result<T>` when they can. **Only raise a domain event when state actually changed**
+(no-op setters return early without raising) — and not every `Create` needs to raise one: an
+entity that exists purely to mirror another module's aggregate (synced via an integration
+event) may skip it. References to other aggregates are stored as the foreign `Guid Id`, never a
+navigation property.
 
 EF `IEntityTypeConfiguration<T>` classes are written when there's a relationship to configure
 (`HasOne`/`HasForeignKey`) **or** a column-level constraint worth enforcing at the DB level
@@ -165,9 +240,10 @@ a module raises a domain event → its domain-event handler
 that module's own `IntegrationEvents` project) through `IEventBus.PublishAsync`. The consuming
 module's `Presentation` project references only the publishing module's `IntegrationEvents`
 project (never its Domain/Application/Infrastructure) and implements `IConsumer<...>`,
-registered via `<Module>Module.ConfigureConsumers`. The synchronous `PublicApi` mechanism
-exists for shape-consistency but treat it as unimplemented until you've actually wired and
-tested it.
+registered via `<Module>Module.ConfigureConsumers`. For a synchronous cross-module **read**
+instead (a command or query needs another module's current state right now, not eventually),
+call that module's `PublicApi` from inside a dedicated read abstraction — see "Command handler
+shape" below.
 
 ## Conventions to preserve when extending
 

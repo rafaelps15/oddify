@@ -54,6 +54,15 @@ explicitly rather than inventing a rule.
   pipeline only runs for commands.)
 - Does a **query** handler use EF (`DbContext`) instead of Dapper/a raw connection factory, if
   this repo's established pattern is Dapper for reads and EF/repository for writes? Flag it.
+- Does any `*Response`-suffixed type, `Result<T>` from a cross-module/external read, or another
+  externally-shaped DTO (another module's `PublicApi` contract, an external HTTP client's
+  payload type) appear inside a **command** handler — as a local variable, a parameter, or
+  unwrapped via `.Value`? Per this repo's `CLAUDE.md` ("Command handler shape"), that read
+  belongs in a dedicated plain injected service (`Task<T?>`, nullable, registered by hand in
+  `<Module>Module.AddInfrastructure`) — **not** a MediatR query sent via `ISender`, since a
+  query handler's contract forces the same `Result<T>` unwrap this rule exists to avoid.
+  Exception: a command's own declared return type (its `ICommand<TResponse>` generic argument,
+  built at the end of `Handle`) is not a violation.
 - Does a command handler call `SaveChanges`/`SaveChangesAsync` anywhere other than via the
   unit-of-work abstraction exactly once, after all mutations? Does a repository method call
   `SaveChanges` itself? (Repositories must never do this, per this template.)
@@ -65,8 +74,10 @@ explicitly rather than inventing a rule.
   today — introducing one is a scope decision to confirm with the user, not a silent addition.
 
 ### 4. Domain entity conventions
-- Entity: `sealed class : Entity`, private parameterless constructor, `private set` on every
-  property, mutation only through named behavior methods (no public setters).
+- Entity: `sealed class : Entity`, private **parameterless** constructor, `private set` on every
+  property, mutation only through named behavior methods (no public setters). `Create(...)`
+  builds the instance via an **object initializer** — flag a parameterized private constructor
+  (field assignment split between constructor args and initializer) as a deviation.
 - Every state transition that changes observable state raises exactly one domain event; a
   no-op call (value unchanged) must **not** raise one — check for early-return guards.
 - Are references to other aggregates stored as a bare `Guid` id, or did the change introduce

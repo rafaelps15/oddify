@@ -4,13 +4,8 @@ namespace Oddify.Modules.Users.Domain.Users;
 
 public sealed class User : Entity
 {
-    private User(Guid id, string email, string passwordHash, string firstName, string lastName)
+    private User()
     {
-        Id = id;
-        Email = email;
-        PasswordHash = passwordHash;
-        FirstName = firstName;
-        LastName = lastName;
     }
 
     public Guid Id { get; private set; }
@@ -25,7 +20,14 @@ public sealed class User : Entity
 
     public static User Create(string email, string passwordHash, string firstName, string lastName)
     {
-        var user = new User(Guid.NewGuid(), email, passwordHash, firstName, lastName);
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            PasswordHash = passwordHash,
+            FirstName = firstName,
+            LastName = lastName
+        };
 
         user.Raise(new UserRegisteredDomainEvent(user.Id));
 

@@ -4,31 +4,9 @@ namespace Oddify.Modules.Analise.Domain.Analises;
 
 public sealed class AnaliseDePartida : Entity
 {
-    private AnaliseDePartida(
-        Guid id,
-        Guid partidaId,
-        string mercado,
-        decimal probPoissonPura,
-        decimal probDixonColes,
-        decimal probImplicitaDaOdd,
-        decimal vantagem,
-        decimal oddDeMercado,
-        bool aprovadaNoFiltro,
-        string? motivoDoDescarte,
-        DateTime criadaEmUtc)
+    private AnaliseDePartida()
     {
-        Id = id;
-        PartidaId = partidaId;
-        Mercado = mercado;
-        ProbPoissonPura = probPoissonPura;
-        ProbDixonColes = probDixonColes;
-        ProbImplicitaDaOdd = probImplicitaDaOdd;
-        Vantagem = vantagem;
-        OddDeMercado = oddDeMercado;
-        AprovadaNoFiltro = aprovadaNoFiltro;
-        MotivoDoDescarte = motivoDoDescarte;
-        DecisaoDoClaude = DecisaoDoClaude.NaoAvaliada;
-        CriadaEmUtc = criadaEmUtc;
+
     }
 
     public Guid Id { get; private set; }
@@ -73,18 +51,20 @@ public sealed class AnaliseDePartida : Entity
         string? motivoDoDescarte,
         DateTime criadaEmUtc)
     {
-        var analise = new AnaliseDePartida(
-            Guid.NewGuid(),
-            partidaId,
-            mercado,
-            probPoissonPura,
-            probDixonColes,
-            probImplicitaDaOdd,
-            vantagem,
-            oddDeMercado,
-            aprovadaNoFiltro,
-            motivoDoDescarte,
-            criadaEmUtc);
+        var analise = new AnaliseDePartida
+        { 
+            Id = Guid.NewGuid(),
+            PartidaId = partidaId,
+            Mercado = mercado,
+            ProbPoissonPura = probPoissonPura,
+            ProbDixonColes = probDixonColes,
+            ProbImplicitaDaOdd = probImplicitaDaOdd,
+            Vantagem = vantagem,
+            OddDeMercado = oddDeMercado,
+            AprovadaNoFiltro = aprovadaNoFiltro,
+            MotivoDoDescarte = motivoDoDescarte,
+            CriadaEmUtc = criadaEmUtc
+        };
 
         analise.Raise(new AnaliseCriadaDomainEvent(analise.Id));
 

@@ -4,12 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.Equipes;
 
 public sealed class Equipe : Entity
 {
-    private Equipe(Guid id, string idExterno, string nome, Guid ligaId)
+    private Equipe()
     {
-        Id = id;
-        IdExterno = idExterno;
-        Nome = nome;
-        LigaId = ligaId;
     }
 
     public Guid Id { get; private set; }
@@ -22,7 +18,13 @@ public sealed class Equipe : Entity
 
     public static Equipe Create(string idExterno, string nome, Guid ligaId)
     {
-        var equipe = new Equipe(Guid.NewGuid(), idExterno, nome, ligaId);
+        var equipe = new Equipe
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExterno,
+            Nome = nome,
+            LigaId = ligaId
+        };
 
         equipe.Raise(new EquipeCriadaDomainEvent(equipe.Id));
 

@@ -5,15 +5,8 @@ namespace Oddify.Modules.Apostas.Domain.PernasDeAposta;
 
 public sealed class PernaDeAposta : Entity
 {
-    private PernaDeAposta(Guid id, Guid apostaMultiplaId, Guid analiseId, Guid partidaId, string mercado, decimal odd)
+    private PernaDeAposta()
     {
-        Id = id;
-        ApostaMultiplaId = apostaMultiplaId;
-        AnaliseId = analiseId;
-        PartidaId = partidaId;
-        Mercado = mercado;
-        Odd = odd;
-        Resultado = ResultadoDaAposta.Pendente;
     }
 
     public Guid Id { get; private set; }
@@ -30,8 +23,19 @@ public sealed class PernaDeAposta : Entity
 
     public ResultadoDaAposta Resultado { get; private set; }
 
-    public static PernaDeAposta Create(Guid apostaMultiplaId, Guid analiseId, Guid partidaId, string mercado, decimal odd) =>
-        new(Guid.NewGuid(), apostaMultiplaId, analiseId, partidaId, mercado, odd);
+    public static PernaDeAposta Create(Guid apostaMultiplaId, Guid analiseId, Guid partidaId, string mercado, decimal odd)
+    {
+        return new PernaDeAposta
+        {
+            Id = Guid.NewGuid(),
+            ApostaMultiplaId = apostaMultiplaId,
+            AnaliseId = analiseId,
+            PartidaId = partidaId,
+            Mercado = mercado,
+            Odd = odd,
+            Resultado = ResultadoDaAposta.Pendente
+        };
+    }
 
     public Result Resolver(bool ganhou)
     {

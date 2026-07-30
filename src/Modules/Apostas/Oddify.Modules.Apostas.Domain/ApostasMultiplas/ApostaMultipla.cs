@@ -4,14 +4,8 @@ namespace Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 
 public sealed class ApostaMultipla : Entity
 {
-    private ApostaMultipla(Guid id, Guid bancaId, decimal oddCombinada, decimal stake, DateTime criadaEmUtc)
+    private ApostaMultipla()
     {
-        Id = id;
-        BancaId = bancaId;
-        OddCombinada = oddCombinada;
-        Stake = stake;
-        Resultado = ResultadoDaAposta.Pendente;
-        CriadaEmUtc = criadaEmUtc;
     }
 
     public Guid Id { get; private set; }
@@ -30,8 +24,18 @@ public sealed class ApostaMultipla : Entity
 
     public static ApostaMultipla Create(Guid bancaId, decimal oddCombinada, decimal stake, DateTime criadaEmUtc)
     {
-        var apostaMultipla = new ApostaMultipla(Guid.NewGuid(), bancaId, oddCombinada, stake, criadaEmUtc);
+        var apostaMultipla = new ApostaMultipla
+        {
+            Id = Guid.NewGuid(),
+            BancaId = bancaId,
+            OddCombinada = oddCombinada,
+            Stake = stake,
+            Resultado = ResultadoDaAposta.Pendente,
+            CriadaEmUtc = criadaEmUtc
+        };
+
         apostaMultipla.Raise(new ApostaMultiplaCriadaDomainEvent(apostaMultipla.Id));
+
         return apostaMultipla;
     }
 

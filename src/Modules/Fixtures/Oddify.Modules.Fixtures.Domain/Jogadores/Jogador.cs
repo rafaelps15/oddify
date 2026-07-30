@@ -4,13 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.Jogadores;
 
 public sealed class Jogador : Entity
 {
-    private Jogador(Guid id, string idExterno, Guid equipeId, string nome, string posicao)
+    private Jogador()
     {
-        Id = id;
-        IdExterno = idExterno;
-        EquipeId = equipeId;
-        Nome = nome;
-        Posicao = posicao;
     }
 
     public Guid Id { get; private set; }
@@ -25,7 +20,14 @@ public sealed class Jogador : Entity
 
     public static Jogador Create(string idExterno, Guid equipeId, string nome, string posicao)
     {
-        var jogador = new Jogador(Guid.NewGuid(), idExterno, equipeId, nome, posicao);
+        var jogador = new Jogador
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExterno,
+            EquipeId = equipeId,
+            Nome = nome,
+            Posicao = posicao
+        };
 
         jogador.Raise(new JogadorCriadoDomainEvent(jogador.Id));
 

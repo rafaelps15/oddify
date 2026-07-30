@@ -4,22 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.EstatisticasDeEquipe;
 
 public sealed class EstatisticaEquipe : Entity
 {
-    private EstatisticaEquipe(
-        Guid id,
-        Guid partidaId,
-        Guid equipeId,
-        int gols,
-        int finalizacoes,
-        int escanteios,
-        decimal posse)
+    private EstatisticaEquipe()
     {
-        Id = id;
-        PartidaId = partidaId;
-        EquipeId = equipeId;
-        Gols = gols;
-        Finalizacoes = finalizacoes;
-        Escanteios = escanteios;
-        Posse = posse;
     }
 
     public Guid Id { get; private set; }
@@ -44,14 +30,16 @@ public sealed class EstatisticaEquipe : Entity
         int escanteios,
         decimal posse)
     {
-        var estatistica = new EstatisticaEquipe(
-            Guid.NewGuid(),
-            partidaId,
-            equipeId,
-            gols,
-            finalizacoes,
-            escanteios,
-            posse);
+        var estatistica = new EstatisticaEquipe
+        {
+            Id = Guid.NewGuid(),
+            PartidaId = partidaId,
+            EquipeId = equipeId,
+            Gols = gols,
+            Finalizacoes = finalizacoes,
+            Escanteios = escanteios,
+            Posse = posse
+        };
 
         estatistica.Raise(new EstatisticaEquipeRegistradaDomainEvent(estatistica.Id));
 

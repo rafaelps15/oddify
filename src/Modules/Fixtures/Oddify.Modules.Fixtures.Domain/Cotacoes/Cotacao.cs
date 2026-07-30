@@ -4,14 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.Cotacoes;
 
 public sealed class Cotacao : Entity
 {
-    private Cotacao(Guid id, Guid partidaId, string mercado, decimal odd, string casa, DateTime coletadaEmUtc)
+    private Cotacao()
     {
-        Id = id;
-        PartidaId = partidaId;
-        Mercado = mercado;
-        Odd = odd;
-        Casa = casa;
-        ColetadaEmUtc = coletadaEmUtc;
     }
 
     public Guid Id { get; private set; }
@@ -33,7 +27,15 @@ public sealed class Cotacao : Entity
             return Result.Failure<Cotacao>(CotacaoErrors.OddInvalida);
         }
 
-        var cotacao = new Cotacao(Guid.NewGuid(), partidaId, mercado, odd, casa, coletadaEmUtc);
+        var cotacao = new Cotacao
+        {
+            Id = Guid.NewGuid(),
+            PartidaId = partidaId,
+            Mercado = mercado,
+            Odd = odd,
+            Casa = casa,
+            ColetadaEmUtc = coletadaEmUtc
+        };
 
         cotacao.Raise(new CotacaoColetadaDomainEvent(cotacao.Id));
 

@@ -119,6 +119,80 @@ internal sealed class CompleteTodoItemCommandHandler(ITodoItemRepository todoIte
 }
 ```
 
+## A3. Command that needs data from another module — never inline it
+
+If the command handler needs to read state owned by a different module (via that module's
+`PublicApi`) or an external system, **do not** call it directly from the command handler, and
+**do not** wrap it in a MediatR query either — a query handler's contract forces a `Result<T>`
+return, which just reintroduces the unwrap-in-the-handler shape this rule exists to avoid. See
+`CLAUDE.md`'s "Command handler shape" for the rule (no `*Response`-suffixed type, and no
+`Result<T>` from a cross-module read, may appear in a command handler) and its worked example.
+
+Instead, scaffold a plain injected service whose method signature reads exactly like a
+repository lookup — `Task<T?>`, nullable, no `Result<T>` at the call site:
+
+**`Application/Abstractions/Assignees/IAssigneeSummaryService.cs`** (public — injected across
+an assembly boundary):
+```csharp
+namespace <ProjectName>.Modules.Tasks.Application.Abstractions.Assignees;
+
+public interface IAssigneeSummaryService
+{
+    Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken);
+}
+
+public sealed record AssigneeSummary(Guid UserId, string DisplayName);
+```
+
+**`Infrastructure/Assignees/AssigneeSummaryService.cs`** (`internal sealed class` — owns the
+other module's `PublicApi` call and its `Result.IsFailure` handling; any failure collapses to
+`null` here, it never reaches the command handler):
+```csharp
+internal sealed class AssigneeSummaryService(IUsersApi usersApi) : IAssigneeSummaryService
+{
+    public async Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        Result<UserResponse> user = await usersApi.ObterUsuarioAsync(userId, cancellationToken);
+        if (user.IsFailure)
+        {
+            return null;
+        }
+
+        return new AssigneeSummary(user.Value.Id, user.Value.DisplayName);
+    }
+}
+```
+Register it by hand in `TasksModule.AddInfrastructure` — `services.AddScoped<IAssigneeSummaryService, AssigneeSummaryService>();`
+(it's a plain service, not a handler/validator/endpoint, so assembly scanning doesn't pick it up).
+
+**`CreateTodoItemCommandHandler.cs`** then reads like any other repository-backed lookup:
+```csharp
+internal sealed class CreateTodoItemCommandHandler(
+    IAssigneeSummaryService assigneeSummaryService, ITodoItemRepository todoItemRepository, IUnitOfWork unitOfWork)
+    : ICommandHandler<CreateTodoItemCommand, Guid>
+{
+    public async Task<Result<Guid>> Handle(CreateTodoItemCommand request, CancellationToken cancellationToken)
+    {
+        AssigneeSummary? assignee = await assigneeSummaryService.ObterAsync(request.AssigneeUserId, cancellationToken);
+        if (assignee is null)
+        {
+            return Result.Failure<Guid>(TodoItemErrors.AssigneeUnavailable(request.AssigneeUserId));
+        }
+
+        var todoItem = TodoItem.Create(request.Title, assignee.DisplayName, DateTime.UtcNow);
+
+        todoItemRepository.Insert(todoItem);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return todoItem.Id;
+    }
+}
+```
+For a real, fully worked instance of this exact shape in this repo, read
+`AnalisarPartidaCommandHandler` +
+`IAnaliseDePartidaDadosService`/`AnaliseDePartidaDadosService`.
+
 ## B. Query feature — `Application/TodoItems/GetTodoItem/` and `GetTodoItems/`
 
 Only create a `Response` record when this is the "canonical" query for the shape (typically

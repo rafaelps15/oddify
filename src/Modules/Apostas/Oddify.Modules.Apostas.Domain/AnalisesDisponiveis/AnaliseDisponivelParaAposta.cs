@@ -4,17 +4,8 @@ namespace Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 
 public sealed class AnaliseDisponivelParaAposta : Entity
 {
-    private AnaliseDisponivelParaAposta(
-        Guid id, Guid partidaId, string mercado, decimal oddDeMercado,
-        decimal probabilidadeConfirmada, bool reduzida)
+    private AnaliseDisponivelParaAposta()
     {
-        Id = id;
-        PartidaId = partidaId;
-        Mercado = mercado;
-        OddDeMercado = oddDeMercado;
-        ProbabilidadeConfirmada = probabilidadeConfirmada;
-        Reduzida = reduzida;
-        JaUtilizada = false;
     }
 
     public Guid Id { get; private set; }
@@ -33,8 +24,19 @@ public sealed class AnaliseDisponivelParaAposta : Entity
 
     public static AnaliseDisponivelParaAposta Create(
         Guid analiseId, Guid partidaId, string mercado, decimal oddDeMercado,
-        decimal probabilidadeConfirmada, bool reduzida) =>
-        new(analiseId, partidaId, mercado, oddDeMercado, probabilidadeConfirmada, reduzida);
+        decimal probabilidadeConfirmada, bool reduzida)
+    {
+        return new AnaliseDisponivelParaAposta
+        {
+            Id = analiseId,
+            PartidaId = partidaId,
+            Mercado = mercado,
+            OddDeMercado = oddDeMercado,
+            ProbabilidadeConfirmada = probabilidadeConfirmada,
+            Reduzida = reduzida,
+            JaUtilizada = false
+        };
+    }
 
     public Result MarcarComoUtilizada()
     {

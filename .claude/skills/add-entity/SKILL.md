@@ -29,13 +29,8 @@ namespace <ProjectName>.Modules.Tasks.Domain.TodoItems;
 
 public sealed class TodoItem : Entity
 {
-    private TodoItem(Guid id, string title, string description, DateTime createdAtUtc)
+    private TodoItem()
     {
-        Id = id;
-        Title = title;
-        Description = description;
-        IsCompleted = false;
-        CreatedAtUtc = createdAtUtc;
     }
 
     public Guid Id { get; private set; }
@@ -48,7 +43,14 @@ public sealed class TodoItem : Entity
 
     public static TodoItem Create(string title, string description, DateTime createdAtUtc)
     {
-        var todoItem = new TodoItem(Guid.NewGuid(), title, description, createdAtUtc);
+        var todoItem = new TodoItem
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            Description = description,
+            IsCompleted = false,
+            CreatedAtUtc = createdAtUtc
+        };
 
         todoItem.Raise(new TodoItemCreatedDomainEvent(todoItem.Id));
 
@@ -86,9 +88,10 @@ public sealed class TodoItem : Entity
 ```
 
 Rules, no exceptions: `sealed class : Entity`; every settable property is
-`{ get; private set; }`; a private constructor (parameterless if EF needs no required fields
-set, or taking the required fields directly — match whichever style sibling entities in this
-module already use); a `public static Create(...)` factory. Raise a `TodoItemCreatedDomainEvent`
+`{ get; private set; }`; a private **parameterless** constructor (EF); a `public static
+Create(...)` factory that assembles the instance via an **object initializer** — never a
+parameterized private constructor, and never split field assignment between a constructor
+argument list and the initializer. Raise a `TodoItemCreatedDomainEvent`
 from `Create(...)` when creation is itself a business event other handlers should react to
 (the common case) — skip it only for an entity that exists purely to mirror/project state from
 elsewhere (e.g. a local read-model copy of another module's aggregate, synced via an

@@ -4,21 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.Partidas;
 
 public sealed class Partida : Entity
 {
-    private Partida(
-        Guid id,
-        string idExterno,
-        Guid ligaId,
-        Guid equipeCasaId,
-        Guid equipeVisitanteId,
-        DateTime dataUtc)
+    private Partida()
     {
-        Id = id;
-        IdExterno = idExterno;
-        LigaId = ligaId;
-        EquipeCasaId = equipeCasaId;
-        EquipeVisitanteId = equipeVisitanteId;
-        DataUtc = dataUtc;
-        Situacao = SituacaoDaPartida.Agendada;
     }
 
     public Guid Id { get; private set; }
@@ -41,7 +28,16 @@ public sealed class Partida : Entity
 
     public static Partida Create(string idExterno, Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId, DateTime dataUtc)
     {
-        var partida = new Partida(Guid.NewGuid(), idExterno, ligaId, equipeCasaId, equipeVisitanteId, dataUtc);
+        var partida = new Partida
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExterno,
+            LigaId = ligaId,
+            EquipeCasaId = equipeCasaId,
+            EquipeVisitanteId = equipeVisitanteId,
+            DataUtc = dataUtc,
+            Situacao = SituacaoDaPartida.Agendada
+        };
 
         partida.Raise(new PartidaAgendadaDomainEvent(partida.Id));
 

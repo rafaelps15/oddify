@@ -4,12 +4,8 @@ namespace Oddify.Modules.Users.Domain.Users;
 
 public sealed class RefreshToken : Entity
 {
-    private RefreshToken(Guid id, Guid userId, string token, DateTime expiresAtUtc)
+    private RefreshToken()
     {
-        Id = id;
-        UserId = userId;
-        Token = token;
-        ExpiresAtUtc = expiresAtUtc;
     }
 
     public Guid Id { get; private set; }
@@ -20,8 +16,16 @@ public sealed class RefreshToken : Entity
 
     public DateTime ExpiresAtUtc { get; private set; }
 
-    public static RefreshToken Create(Guid userId, string token, DateTime expiresAtUtc) =>
-        new(Guid.NewGuid(), userId, token, expiresAtUtc);
+    public static RefreshToken Create(Guid userId, string token, DateTime expiresAtUtc)
+    {
+        return new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Token = token,
+            ExpiresAtUtc = expiresAtUtc
+        };
+    }
 
     public void Rotate(string newToken, DateTime newExpiresAtUtc)
     {

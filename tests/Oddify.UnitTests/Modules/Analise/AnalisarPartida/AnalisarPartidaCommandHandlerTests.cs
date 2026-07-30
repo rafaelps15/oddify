@@ -1,53 +1,37 @@
 using FluentAssertions;
 using NSubstitute;
 using Oddify.Common.Domain;
+using Oddify.Modules.Analise.Application.Abstractions.Analises;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Application.Analises.AnalisarPartida;
+using Oddify.Modules.Analise.Application.Calculo;
 using Oddify.Modules.Analise.Domain.Analises;
-using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.UnitTests.Modules.Analise.AnalisarPartida;
 
 public sealed class AnalisarPartidaCommandHandlerTests
 {
-    private readonly IFixturesApi _fixturesApi = Substitute.For<IFixturesApi>();
+    private readonly IAnaliseDePartidaDadosService _dadosService = Substitute.For<IAnaliseDePartidaDadosService>();
     private readonly IAnaliseDePartidaRepository _analiseRepository = Substitute.For<IAnaliseDePartidaRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly Guid _partidaId = Guid.NewGuid();
-    private readonly Guid _ligaId = Guid.NewGuid();
-    private readonly Guid _equipeCasaId = Guid.NewGuid();
-    private readonly Guid _equipeVisitanteId = Guid.NewGuid();
 
-    private AnalisarPartidaCommandHandler CriarHandler() => new(_fixturesApi, _analiseRepository, _unitOfWork);
-
-    private void ConfigurarDependenciasFelizes(decimal odd, bool ligaCalibrada = true, int amostra = 10)
-    {
-        _fixturesApi.ObterPartidaAsync(_partidaId, Arg.Any<CancellationToken>())
-            .Returns(new PartidaResponse(_partidaId, _ligaId, _equipeCasaId, _equipeVisitanteId, DateTime.UtcNow, "Agendada", null, null));
-
-        _fixturesApi.ObterLigaAsync(_ligaId, Arg.Any<CancellationToken>())
-            .Returns(new LigaResponse(_ligaId, "Liga de Teste", 2.5m, 1.1m, ligaCalibrada));
-
-        // Time da casa ataca bem acima da média e o visitante defende mal (e vice-versa) para dar
-        // uma margem folgada de vantagem, evitando que a correção de Dixon-Coles ou arredondamento
-        // decimal empurrem o resultado para o lado errado do limiar de 4%.
-        _fixturesApi.ObterHistoricoRecenteAsync(_equipeCasaId, Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new HistoricoDeEquipeResponse(amostra, 3.0m, 1.0m));
-
-        _fixturesApi.ObterHistoricoRecenteAsync(_equipeVisitanteId, Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new HistoricoDeEquipeResponse(amostra, 1.0m, 3.0m));
-
-        _fixturesApi.ObterCotacaoMaisRecenteAsync(_partidaId, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new CotacaoResponse(Guid.NewGuid(), _partidaId, "vitoria_casa", odd, "casa-de-apostas", DateTime.UtcNow));
-    }
+    private AnalisarPartidaCommandHandler CriarHandler() => new(_dadosService, _analiseRepository, _unitOfWork);
 
     [Fact]
-    public async Task Handle_should_approve_analysis_when_advantage_and_odd_are_within_filter_range()
+    public async Task Handle_should_create_and_persist_analise_when_dados_are_available()
     {
-        // Time da casa ataca mais e defende melhor que a média -> lambda casa alto ->
-        // probabilidade de vitória da casa bem superior à implícita de uma odd de 1.5.
-        ConfigurarDependenciasFelizes(odd: 1.5m);
+        var calculo = new AnaliseCalculada(
+            ProbPoissonPura: 0.642m,
+            ProbDixonColes: 0.65m,
+            ProbImplicitaDaOdd: 0.5m,
+            Vantagem: 0.15m,
+            Odd: 2.0m,
+            Aprovada: true,
+            Motivo: null);
+
+        _dadosService.ObterAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>()).Returns(calculo);
 
         var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
 
@@ -64,31 +48,17 @@ public sealed class AnalisarPartidaCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_should_reject_analysis_with_motivo_when_odd_is_outside_filter_range()
+    public async Task Handle_should_return_failure_and_not_persist_when_dados_are_unavailable()
     {
-        ConfigurarDependenciasFelizes(odd: 3.0m);
-
-        var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
-
-        Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
-
-        resultado.IsSuccess.Should().BeTrue();
-
-        _analiseRepository.Received(1).Insert(Arg.Is<AnaliseDePartida>(a =>
-            !a.AprovadaNoFiltro && a.MotivoDoDescarte != null && a.MotivoDoDescarte.Contains("Odd")));
-    }
-
-    [Fact]
-    public async Task Handle_should_return_failure_when_partida_not_found()
-    {
-        _fixturesApi.ObterPartidaAsync(_partidaId, Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PartidaResponse>(Error.NotFound("Partidas.NotFound", "não encontrada")));
+        _dadosService.ObterAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>()).Returns((AnaliseCalculada?)null);
 
         var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
 
         Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
 
         resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Code.Should().Be("Analises.DadosIndisponiveis");
         _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

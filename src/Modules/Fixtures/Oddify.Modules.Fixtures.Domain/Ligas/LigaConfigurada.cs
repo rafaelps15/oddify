@@ -4,14 +4,8 @@ namespace Oddify.Modules.Fixtures.Domain.Ligas;
 
 public sealed class LigaConfigurada : Entity
 {
-    private LigaConfigurada(Guid id, string idExterno, string nome, decimal mediaDeGols, decimal fatorCasa)
+    private LigaConfigurada()
     {
-        Id = id;
-        IdExterno = idExterno;
-        Nome = nome;
-        MediaDeGols = mediaDeGols;
-        FatorCasa = fatorCasa;
-        Calibrada = false;
     }
 
     public Guid Id { get; private set; }
@@ -28,7 +22,15 @@ public sealed class LigaConfigurada : Entity
 
     public static LigaConfigurada Create(string idExterno, string nome, decimal mediaDeGols, decimal fatorCasa)
     {
-        var liga = new LigaConfigurada(Guid.NewGuid(), idExterno, nome, mediaDeGols, fatorCasa);
+        var liga = new LigaConfigurada
+        {
+            Id = Guid.NewGuid(),
+            IdExterno = idExterno,
+            Nome = nome,
+            MediaDeGols = mediaDeGols,
+            FatorCasa = fatorCasa,
+            Calibrada = false
+        };
 
         liga.Raise(new LigaConfiguradaCriadaDomainEvent(liga.Id));
 
