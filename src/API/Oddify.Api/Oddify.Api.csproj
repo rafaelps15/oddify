@@ -5,6 +5,11 @@
     <!-- Dockerfile COPYs paths relative to the repo root (it needs every referenced .csproj),
          so the build context has to be the repo root, not this project's own folder. -->
     <DockerfileContext>..\..\..</DockerfileContext>
+    <!-- Fixed host port for the "Container (Dockerfile)" launch profile — without this,
+         publishAllPorts:false would publish no ports at all. -->
+    <DockerfileRunArguments>-p 8080:8080</DockerfileRunArguments>
+    <UserSecretsId>441f12ff-345d-4785-b7b1-24c769844446</UserSecretsId>
+    <DockerComposeProjectPath>..\..\..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
 
   <ItemGroup>

@@ -36,7 +36,7 @@
         "ConnectionStrings__Cache": "host.docker.internal:6379",
         "Serilog__WriteTo__1__Args__serverUrl": "http://host.docker.internal:5341"
       },
-      "publishAllPorts": true,
+      "publishAllPorts": false,
       "useSSL": false
     }
   },

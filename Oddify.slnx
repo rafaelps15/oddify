@@ -55,4 +55,7 @@
     <Project Path="tests/Oddify.IntegrationTests/Oddify.IntegrationTests.csproj" />
     <Project Path="tests/Oddify.UnitTests/Oddify.UnitTests.csproj" />
   </Folder>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
 </Solution>

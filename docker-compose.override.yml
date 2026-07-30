@@ -1,5 +1,19 @@
-# Reservado para overrides locais de docker-compose.yml (ex.: portas, volumes, variáveis de
-# ambiente específicas de uma máquina de desenvolvimento). Carregado automaticamente pelo
-# `docker compose` quando presente; vazio por padrão — não altera o comportamento de
-# docker-compose.yml até que algo seja adicionado aqui.
-services: {}
+services:
+  oddify.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      # Service names, not localhost — inside the compose network the API reaches its
+      # dependencies by service name, not by the host-mapped ports used outside Docker.
+      - ConnectionStrings__Database=Host=oddify.database;Port=5432;Database=oddify;Username=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__Cache=oddify.redis:6379
+      - Serilog__WriteTo__1__Args__serverUrl=http://oddify.seq:5341
+      # Repassadas do shell host — precisam estar setadas antes do `docker compose up`.
+      - APIFOOTBALL_API_KEY=${APIFOOTBALL_API_KEY}
+      - THEODDSAPI_API_KEY=${THEODDSAPI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
