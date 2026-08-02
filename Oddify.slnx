@@ -31,7 +31,6 @@
     <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Application/Oddify.Modules.Apostas.Application.csproj" />
     <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Domain/Oddify.Modules.Apostas.Domain.csproj" />
     <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Infrastructure/Oddify.Modules.Apostas.Infrastructure.csproj" />
-    <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.IntegrationEvents/Oddify.Modules.Apostas.IntegrationEvents.csproj" />
     <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.Presentation/Oddify.Modules.Apostas.Presentation.csproj" />
     <Project Path="src/Modules/Apostas/Oddify.Modules.Apostas.PublicApi/Oddify.Modules.Apostas.PublicApi.csproj" />
   </Folder>

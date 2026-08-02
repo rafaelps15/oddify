@@ -1,20 +1,18 @@
-using Oddify.Common.Domain;
-
 namespace Oddify.Modules.Fixtures.PublicApi;
 
 public interface IFixturesApi
 {
-    Task<Result<LigaResponse>> ObterLigaAsync(Guid ligaId, CancellationToken cancellationToken = default);
+    Task<LigaResponse?> ObterLigaAsync(Guid ligaId, CancellationToken cancellationToken = default);
 
-    Task<Result<HistoricoDeEquipeResponse>> ObterHistoricoRecenteAsync(
+    Task<HistoricoDeEquipeResponse?> ObterHistoricoRecenteAsync(
         Guid equipeId,
         int minimoDeJogos,
         CancellationToken cancellationToken = default);
 
-    Task<Result<CotacaoResponse>> ObterCotacaoMaisRecenteAsync(
+    Task<CotacaoResponse?> ObterCotacaoMaisRecenteAsync(
         Guid partidaId,
         string mercado,
         CancellationToken cancellationToken = default);
 
-    Task<Result<PartidaResponse>> ObterPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task<PartidaResponse?> ObterPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
 }

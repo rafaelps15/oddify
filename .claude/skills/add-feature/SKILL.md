@@ -131,26 +131,31 @@ return, which just reintroduces the unwrap-in-the-handler shape this rule exists
 Instead, scaffold a plain injected service whose method signature reads exactly like a
 repository lookup — `Task<T?>`, nullable, no `Result<T>` at the call site:
 
-**`Application/Abstractions/Assignees/IAssigneeSummaryService.cs`** (public — injected across
-an assembly boundary):
+Both interface **and** implementation live in `Application/Abstractions/Assignees/` — this
+service has no real infrastructure dependency (no EF, no external SDK, just another module's
+already-abstracted `PublicApi`), so it stays in Application, not Infrastructure. Both are
+`internal` (only Domain entities, commands/queries, and cross-module contracts are `public` in
+this template):
+
+**`Application/Abstractions/Assignees/IAssigneeSummaryService.cs`**
 ```csharp
 namespace <ProjectName>.Modules.Tasks.Application.Abstractions.Assignees;
 
-public interface IAssigneeSummaryService
+internal interface IAssigneeSummaryService
 {
-    Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken);
+    Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
-public sealed record AssigneeSummary(Guid UserId, string DisplayName);
+internal sealed record AssigneeSummary(Guid UserId, string DisplayName);
 ```
 
-**`Infrastructure/Assignees/AssigneeSummaryService.cs`** (`internal sealed class` — owns the
-other module's `PublicApi` call and its `Result.IsFailure` handling; any failure collapses to
-`null` here, it never reaches the command handler):
+**`Application/Abstractions/Assignees/AssigneeSummaryService.cs`** (owns the other module's
+`PublicApi` call and its `Result.IsFailure` handling; any failure collapses to `null` here, it
+never reaches the command handler):
 ```csharp
 internal sealed class AssigneeSummaryService(IUsersApi usersApi) : IAssigneeSummaryService
 {
-    public async Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<AssigneeSummary?> ObterAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         Result<UserResponse> user = await usersApi.ObterUsuarioAsync(userId, cancellationToken);
         if (user.IsFailure)
@@ -163,7 +168,21 @@ internal sealed class AssigneeSummaryService(IUsersApi usersApi) : IAssigneeSumm
 }
 ```
 Register it by hand in `TasksModule.AddInfrastructure` — `services.AddScoped<IAssigneeSummaryService, AssigneeSummaryService>();`
-(it's a plain service, not a handler/validator/endpoint, so assembly scanning doesn't pick it up).
+(it's a plain service, not a handler/validator/endpoint, so assembly scanning doesn't pick it up;
+`TasksModule` lives in the Infrastructure project, so it needs
+`<InternalsVisibleTo Include="<ProjectName>.Modules.Tasks.Infrastructure" />` in the Application
+`.csproj` to see this `internal` type — same mechanism already used for `Oddify.UnitTests`, and
+also add `<InternalsVisibleTo Include="DynamicProxyGenAssembly2" />` if a unit test mocks this
+interface with NSubstitute, since its dynamic proxy needs the same visibility). A service that
+*does* wrap a real third-party SDK (an LLM client, a payment gateway) is the one case where
+implementation-in-Infrastructure is correct — don't default to that split for a service that
+only calls another module's `PublicApi`.
+
+If the method needs more than one sequential dependent read (each one needing an id from the
+previous), don't repeat the `Result<T> x = await ...; if (x.IsFailure) { return null; } T y = x.Value;`
+block per call — extract a small private `Task<T?> ObterOuNuloAsync<T>(Task<Result<T>> chamada)`
+helper once, so each read is one line. See `AnaliseDePartidaDadosService` in this repo for a
+worked example with five sequential reads collapsed this way.
 
 **`CreateTodoItemCommandHandler.cs`** then reads like any other repository-backed lookup:
 ```csharp

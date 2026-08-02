@@ -63,16 +63,14 @@ public sealed class GetResultadosDasPernasQueryHandlerTests
     {
         var pernaId = Guid.NewGuid();
         var partidaId = Guid.NewGuid();
-        var erro = Error.NotFound("Partidas.NotFound", "não encontrada");
 
-        _fixturesApi.ObterPartidaAsync(partidaId, Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PartidaResponse>(erro));
+        _fixturesApi.ObterPartidaAsync(partidaId, Arg.Any<CancellationToken>()).Returns((PartidaResponse?)null);
 
         var query = new GetResultadosDasPernasQuery([new PernaParaResolver(pernaId, partidaId, "vitoria_casa")]);
 
         Result<IReadOnlyDictionary<Guid, bool>> resultado = await CriarHandler().Handle(query, CancellationToken.None);
 
         resultado.IsFailure.Should().BeTrue();
-        resultado.Error.Should().Be(erro);
+        resultado.Error.Code.Should().Be("ApostasMultiplas.PartidaNaoEncontrada");
     }
 }

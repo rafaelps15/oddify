@@ -27,13 +27,13 @@ internal sealed class GetLigaQueryHandler(IDbConnectionFactory dbConnectionFacto
              WHERE id = @LigaId
              """;
 
-        LigaResponse? result = await connection.QuerySingleOrDefaultAsync<LigaResponse>(sql, request);
+        LigaResponse? liga = await connection.QuerySingleOrDefaultAsync<LigaResponse>(sql, request);
 
-        if (result is null)
+        if (liga is null)
         {
             return Result.Failure<LigaResponse>(LigaConfiguradaErrors.NotFound(request.LigaId));
         }
 
-        return result;
+        return liga;
     }
 }

@@ -1,7 +1,7 @@
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
-using Oddify.Modules.Analise.Application.Abstractions.Analises;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
+using Oddify.Modules.Analise.Application.Abstractions.Fixtures;
 using Oddify.Modules.Analise.Application.Calculo;
 using Oddify.Modules.Analise.Domain.Analises;
 

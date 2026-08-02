@@ -65,7 +65,45 @@ enforced by `ProjectReference`s, not just convention:
   whether it's actually wired before assuming another module calls it; once it is, this is the
   established way to read another module's data — always from inside a dedicated read
   abstraction (a plain injected service, not a MediatR handler), never straight from a command
-  handler (see "Command handler shape" below).
+  handler (see "Command handler shape" below). Every `PublicApi` method returns a plain
+  nullable DTO — `Task<FooResponse?>`, never `Task<Result<FooResponse>>`. `Result<T>` is an
+  internal concern of the module that owns it; the module's own `PublicApi` implementation
+  (in its `Infrastructure` project) is where a `Result<T>` from an internal MediatR query gets
+  unwrapped and collapsed to `null` on failure — it never crosses the module boundary as
+  `Result<T>`, so the *consuming* module never has to unwrap it again on the other side.
+  The module's own internal Application-layer response DTO (e.g.
+  `<Module>.Application.Foos.GetFoo.FooResponse`, the one the Dapper query handler returns) and
+  its `PublicApi` contract DTO (e.g. `<Module>.PublicApi.FooResponse`) legitimately share the
+  same short name but live in different namespaces — don't rename one to dodge the collision.
+  Resolve it with a **type alias** on the `PublicApi` one only (`using FooResponse =
+  <ProjectName>.Modules.<Module>.PublicApi.FooResponse;`), so it reads unqualified everywhere
+  in the implementing class (return types, `new FooResponse(...)`), and reference the internal
+  one only where you actually need it (the `sender.Send(...)` result), qualified relative to
+  the sibling `Application` namespace (`Application.Foos.GetFoo.FooResponse` — resolves fine
+  since `<Module>.Infrastructure.PublicApi` and `<Module>.Application` share the `<Module>`
+  ancestor). Don't reach for a blanket `using Contracts = <Module>.PublicApi;` alias sprinkled
+  as a prefix on every type in the file — it works, but it's noisier than aliasing just the
+  handful of colliding names. Example implementation:
+  ```csharp
+  using FooResponse = <ProjectName>.Modules.<Module>.PublicApi.FooResponse;
+
+  namespace <ProjectName>.Modules.<Module>.Infrastructure.PublicApi;
+
+  internal sealed class <Module>Api(ISender sender) : I<Module>Api
+  {
+      public async Task<FooResponse?> GetFooAsync(Guid fooId, CancellationToken cancellationToken = default)
+      {
+          Result<Application.Foos.GetFoo.FooResponse> result = await sender.Send(new GetFooQuery(fooId), cancellationToken);
+
+          if (result.IsFailure)
+          {
+              return null;
+          }
+
+          return new FooResponse(result.Value.Id, result.Value.Name);
+      }
+  }
+  ```
 - **`<Module>.IntegrationEvents`** (only on modules that publish) — just the `IntegrationEvent` record contracts other modules consume, referencing `Common.Application` only.
 
 `<ProjectName>.Api` only ever references each module's `Infrastructure.csproj` (which
@@ -156,17 +194,46 @@ data for `Create(...)` comes from:
 
   var todoItem = TodoItem.Create(request.Title, assignee.DisplayName, DateTime.UtcNow);
   ```
-  Interface in `Application/Abstractions/<Area>/IAssigneeSummaryService.cs` (public — it's
-  injected across an assembly boundary), implementation `internal sealed class` in
-  `Infrastructure/<Area>/AssigneeSummaryService.cs`, registered by hand in
-  `<Module>Module.AddInfrastructure` (it's a plain service, not a MediatR
-  handler/validator/endpoint, so assembly scanning doesn't pick it up). Internally it may still
-  unwrap `Result<T>` from the `PublicApi` calls it makes — that unwrapping just never leaves the
-  service; any failure collapses to `null` at the public method boundary. For a real, fully
-  worked instance of this exact shape, read `AnalisarPartidaCommandHandler` +
-  `IAnaliseDePartidaDadosService`/`AnaliseDePartidaDadosService` in this repo. A command's *own*
-  declared return type (e.g. `AccessTokensResponse` in `LoginCommandHandler`) is not a
-  "contaminant" under this rule — that's the command's output contract, built at the very end of
+  Interface **and** implementation both live in `Application/Abstractions/<Area>/` — this
+  service has no real infrastructure dependency (no EF, no external SDK, just another module's
+  already-abstracted `PublicApi`), so it belongs in Application, not Infrastructure. Both stay
+  `internal` (per this repo's visibility rule: only Domain entities, commands/queries, and
+  cross-module contracts are `public`); the module's Infrastructure project still needs to
+  register it by hand in `<Module>Module.AddInfrastructure`, so add
+  `<InternalsVisibleTo Include="<ProjectName>.Modules.<Module>.Infrastructure" />` to the
+  Application `.csproj` (same mechanism already used for `Oddify.UnitTests`) instead of making
+  the type `public` just to route around the assembly boundary. (A service that *does* wrap a
+  real third-party SDK — e.g. `ClaudeAvaliadorCriticoService` wrapping the Anthropic client — is
+  the one case where interface-in-Application/implementation-in-Infrastructure is correct; don't
+  default to that split for a service that only calls another module's `PublicApi`.) Same shape
+  as any other service in this codebase either way — `internal sealed class X : IX` with
+  focused, single-purpose async methods (no unrelated concerns bolted onto one class), kept
+  flat and direct, e.g.:
+  ```csharp
+  internal sealed class AssigneeSummaryService : IAssigneeSummaryService
+  {
+      public Task<AssigneeSummary?> ObterAsync(Guid assigneeUserId, CancellationToken cancellationToken = default)
+      {
+          return Task.FromResult<AssigneeSummary?>(new AssigneeSummary(assigneeUserId, "Jane Doe"));
+      }
+
+      public Task NotificarAsync(Guid assigneeUserId, string mensagem, CancellationToken cancellationToken = default)
+      {
+          return Task.CompletedTask;
+      }
+  }
+  ```
+  Since the `PublicApi` it calls already returns plain nullable DTOs (see the `PublicApi`
+  bullet under "Architecture" above), this service never touches `Result<T>` at all — it just
+  awaits each `PublicApi` call and null-checks the result directly. If a method needs several
+  reads to build its result, keep it a short, flat orchestration: fetch the first one, null-check
+  it, fetch the rest, then null-check and combine — no private per-read wrapper methods and no
+  generic `ObterOuNuloAsync<T>` helper, because there's nothing left to unwrap at this point.
+  For a real, fully worked instance of this exact shape, read
+  `AnalisarPartidaCommandHandler` + `IAnaliseDePartidaDadosService`/`AnaliseDePartidaDadosService`
+  in this repo. A command's *own* declared return type (e.g. `AccessTokensResponse` in
+  `LoginCommandHandler`) is not a "contaminant" under this rule — that's the command's output
+  contract, built at the very end of
   `Handle`, not an externally-fetched DTO threaded through the handler's logic.
 
 ### Domain entities
