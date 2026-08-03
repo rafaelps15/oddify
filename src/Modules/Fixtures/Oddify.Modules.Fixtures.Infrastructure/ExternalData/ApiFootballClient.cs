@@ -6,7 +6,7 @@ using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.ExternalData;
 
-internal sealed class ApiFootballClient(HttpClient httpClient) : IApiFootballClient
+internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequisicoesApiFootball orcamento) : IApiFootballClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -15,6 +15,12 @@ internal sealed class ApiFootballClient(HttpClient httpClient) : IApiFootballCli
         int temporada,
         CancellationToken cancellationToken = default)
     {
+        if (!await orcamento.TentarConsumirAsync())
+        {
+            return Result.Failure<IReadOnlyCollection<FixtureExternoDto>>(
+                Error.Failure("Fixtures.OrcamentoDeRequisicoesEsgotado", "Cota diária de requisições da API-Football foi esgotada."));
+        }
+
         try
         {
             FixturesResponse? resposta = await httpClient.GetFromJsonAsync<FixturesResponse>(

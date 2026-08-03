@@ -1,6 +1,7 @@
 using MediatR;
 using Oddify.Common.Domain;
 using Oddify.Modules.Fixtures.Application.Cotacoes.GetCotacaoMaisRecente;
+using Oddify.Modules.Fixtures.Application.Cotacoes.GetCotacoesPorPartida;
 using Oddify.Modules.Fixtures.Application.Ligas.GetLiga;
 using Oddify.Modules.Fixtures.Application.Partidas.GetHistoricoRecentePorEquipe;
 using Oddify.Modules.Fixtures.Application.Partidas.GetPartida;
@@ -62,6 +63,23 @@ internal sealed class FixturesApi(ISender sender) : IFixturesApi
             result.Value.Odd,
             result.Value.Casa,
             result.Value.ColetadaEmUtc);
+    }
+
+    public async Task<IReadOnlyCollection<CotacaoResponse>> ObterCotacoesPorPartidaAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default)
+    {
+        Result<IReadOnlyCollection<Application.Cotacoes.GetCotacoesPorPartida.CotacaoResponse>> result =
+            await sender.Send(new GetCotacoesPorPartidaQuery(partidaId), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return [];
+        }
+
+        return result.Value
+            .Select(c => new CotacaoResponse(c.Id, c.PartidaId, c.Mercado, c.Odd, c.Casa, c.ColetadaEmUtc))
+            .ToList();
     }
 
     public async Task<PartidaResponse?> ObterPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)

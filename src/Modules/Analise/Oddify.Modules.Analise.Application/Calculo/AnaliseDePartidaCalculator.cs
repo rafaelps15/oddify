@@ -9,6 +9,7 @@ public static class AnaliseDePartidaCalculator
         HistoricoDeEquipeResponse historicoCasa,
         HistoricoDeEquipeResponse historicoVisitante,
         CotacaoResponse cotacao,
+        IReadOnlyDictionary<string, decimal> oddsDoGrupoDeMercado,
         string mercado)
     {
         (decimal lambdaCasa, decimal lambdaVisitante) = PoissonCalculator.CalcularLambdas(
@@ -25,7 +26,7 @@ public static class AnaliseDePartidaCalculator
         decimal[,] matrizCorrigida = DixonColesCorrecao.Aplicar(matrizPura, lambdaCasa, lambdaVisitante);
         decimal probDixonColes = ProbabilidadeDeMercadoCalculator.Calcular(matrizCorrigida, mercado);
 
-        decimal probImplicitaDaOdd = 1m / cotacao.Odd;
+        decimal probImplicitaDaOdd = RemovedorDeMargem.Remover(mercado, oddsDoGrupoDeMercado);
         decimal vantagem = probDixonColes - probImplicitaDaOdd;
         int amostraMinima = Math.Min(historicoCasa.AmostraDeJogos, historicoVisitante.AmostraDeJogos);
 

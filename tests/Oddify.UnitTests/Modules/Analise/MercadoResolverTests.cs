@@ -37,4 +37,52 @@ public sealed class MercadoResolverTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Theory]
+    [InlineData("vitoria_casa")]
+    [InlineData("empate")]
+    [InlineData("vitoria_visitante")]
+    public void ObterGrupoDeMercados_should_return_the_three_1x2_outcomes(string mercado)
+    {
+        IReadOnlyCollection<string> grupo = MercadoResolver.ObterGrupoDeMercados(mercado);
+
+        grupo.Should().BeEquivalentTo("vitoria_casa", "empate", "vitoria_visitante");
+    }
+
+    [Theory]
+    [InlineData("ambos_marcam")]
+    [InlineData("ambos_marcam_nao")]
+    public void ObterGrupoDeMercados_should_return_the_two_btts_outcomes(string mercado)
+    {
+        IReadOnlyCollection<string> grupo = MercadoResolver.ObterGrupoDeMercados(mercado);
+
+        grupo.Should().BeEquivalentTo("ambos_marcam", "ambos_marcam_nao");
+    }
+
+    [Theory]
+    [InlineData("over_2_5")]
+    [InlineData("under_2_5")]
+    public void ObterGrupoDeMercados_should_return_the_over_and_under_of_the_same_line(string mercado)
+    {
+        IReadOnlyCollection<string> grupo = MercadoResolver.ObterGrupoDeMercados(mercado);
+
+        grupo.Should().BeEquivalentTo("over_2_5", "under_2_5");
+    }
+
+    [Fact]
+    public void ObterGrupoDeMercados_should_not_mix_different_lines()
+    {
+        IReadOnlyCollection<string> grupo = MercadoResolver.ObterGrupoDeMercados("over_1_5");
+
+        grupo.Should().NotContain("under_2_5");
+        grupo.Should().BeEquivalentTo("over_1_5", "under_1_5");
+    }
+
+    [Fact]
+    public void ObterGrupoDeMercados_should_throw_when_mercado_is_unknown()
+    {
+        Action act = () => MercadoResolver.ObterGrupoDeMercados("mercado_inexistente");
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

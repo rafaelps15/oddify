@@ -40,4 +40,22 @@ public sealed class KellyCalculatorTests
 
         stakeComDoisMilBanca.Should().Be(stakeComMilBanca * 2);
     }
+
+    [Fact]
+    public void CalcularStake_should_cap_at_five_percent_of_banca_when_kelly_fraction_exceeds_it()
+    {
+        // probabilidade 0.95, odd 3.0 -> kelly = (0.95*3.0 - 1) / (3.0 - 1) = 0.925
+        // stake sem teto seria 1000 * 0.925 * 0.25 = 231,25 — bem acima do teto de 5% (50)
+        decimal stake = KellyCalculator.CalcularStake(saldoDaBanca: 1000m, probabilidade: 0.95m, odd: 3.0m);
+
+        stake.Should().Be(1000m * KellyCalculator.TetoDeStakeSobreABanca);
+    }
+
+    [Fact]
+    public void CalcularStake_should_not_cap_when_kelly_fraction_stake_is_within_the_limit()
+    {
+        decimal stake = KellyCalculator.CalcularStake(saldoDaBanca: 1000m, probabilidade: 0.55m, odd: 2.0m);
+
+        stake.Should().BeLessThan(1000m * KellyCalculator.TetoDeStakeSobreABanca);
+    }
 }

@@ -14,5 +14,10 @@ public interface IFixturesApi
         string mercado,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Todas as cotações já coletadas para a partida (todos os mercados e casas), mais recentes primeiro.</summary>
+    Task<IReadOnlyCollection<CotacaoResponse>> ObterCotacoesPorPartidaAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default);
+
     Task<PartidaResponse?> ObterPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
 }

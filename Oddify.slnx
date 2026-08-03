@@ -10,7 +10,7 @@
   <File Path="docker-compose.override.yml" />
   <Folder Name="/src/" />
   <Folder Name="/src/API/">
-    <Project Path="src/API/Oddify.Api/Oddify.Api.csproj" />
+    <Project Path="src/API/Oddify.Api/Oddify.Api.csproj" DefaultStartup="true" />
   </Folder>
   <Folder Name="/src/Common/">
     <Project Path="src/Common/Oddify.Common.Application/Oddify.Common.Application.csproj" />

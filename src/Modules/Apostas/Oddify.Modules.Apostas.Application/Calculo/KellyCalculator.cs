@@ -3,6 +3,7 @@ namespace Oddify.Modules.Apostas.Application.Calculo;
 internal static class KellyCalculator
 {
     public const decimal FracaoDeKelly = 0.25m;
+    public const decimal TetoDeStakeSobreABanca = 0.05m;
 
     public static decimal CalcularStake(decimal saldoDaBanca, decimal probabilidade, decimal odd)
     {
@@ -13,6 +14,9 @@ internal static class KellyCalculator
             return 0m;
         }
 
-        return saldoDaBanca * kelly * FracaoDeKelly;
+        decimal stake = saldoDaBanca * kelly * FracaoDeKelly;
+        decimal tetoDeStake = saldoDaBanca * TetoDeStakeSobreABanca;
+
+        return Math.Min(stake, tetoDeStake);
     }
 }

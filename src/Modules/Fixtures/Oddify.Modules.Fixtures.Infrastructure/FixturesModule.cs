@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
@@ -64,16 +65,18 @@ public static class FixturesModule
 
         services.Configure<SincronizacaoExternaOptions>(configuration.GetSection("Fixtures:SincronizacaoExterna"));
 
+        services.TryAddSingleton<OrcamentoDeRequisicoesApiFootball>();
+
         services.AddHttpClient<IApiFootballClient, ApiFootballClient>(client =>
         {
             client.BaseAddress = new Uri("https://v3.football.api-sports.io/");
             client.DefaultRequestHeaders.Add("x-apisports-key", Environment.GetEnvironmentVariable("APIFOOTBALL_API_KEY") ?? string.Empty);
-        });
+        }).AddStandardResilienceHandler();
 
         services.AddHttpClient<ITheOddsApiClient, TheOddsApiClient>(client =>
         {
             client.BaseAddress = new Uri("https://api.the-odds-api.com/v4/");
-        });
+        }).AddStandardResilienceHandler();
 
         services.AddHostedService<SincronizacaoExternaBackgroundService>();
 
