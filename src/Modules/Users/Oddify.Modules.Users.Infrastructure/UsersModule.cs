@@ -3,11 +3,16 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Oddify.Common.Application.Authorization;
+using Oddify.Common.Application.Caching;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Users.Application.Abstractions.Data;
+using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
+using Oddify.Modules.Users.Infrastructure.Authorization;
 using Oddify.Modules.Users.Infrastructure.Database;
+using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
 
 namespace Oddify.Modules.Users.Infrastructure;
@@ -37,5 +42,14 @@ public static class UsersModule
         services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+        services.AddScoped<IRoleRepository, RoleRepository>();
+
+        services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+
+        services.AddScoped<PermissionService>();
+
+        services.AddScoped<IPermissionService>(sp =>
+            new CachedPermissionService(sp.GetRequiredService<PermissionService>(), sp.GetRequiredService<ICacheService>()));
     }
 }

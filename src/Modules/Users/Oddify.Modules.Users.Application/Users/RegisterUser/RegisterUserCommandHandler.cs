@@ -2,12 +2,14 @@ using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Users.Application.Abstractions.Data;
+using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
 
 namespace Oddify.Modules.Users.Application.Users.RegisterUser;
 
 internal sealed class RegisterUserCommandHandler(
     IUserRepository userRepository,
+    IUserRoleRepository userRoleRepository,
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher)
     : ICommandHandler<RegisterUserCommand, Guid>
@@ -26,6 +28,15 @@ internal sealed class RegisterUserCommandHandler(
         var user = User.Create(request.Email, passwordHash, request.FirstName, request.LastName);
 
         userRepository.Insert(user);
+
+        bool hasOwner = await userRoleRepository.AnyWithRoleAsync(WellKnownRoles.OwnerId, cancellationToken);
+
+        if (!hasOwner)
+        {
+            userRoleRepository.Insert(UserRole.Create(user.Id, WellKnownRoles.OwnerId));
+        }
+
+        userRoleRepository.Insert(UserRole.Create(user.Id, WellKnownRoles.RegisteredId));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

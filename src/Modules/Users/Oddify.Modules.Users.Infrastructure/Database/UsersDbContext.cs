@@ -1,6 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Users.Application.Abstractions.Data;
+using Oddify.Modules.Users.Domain.Permissions;
+using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
+using Oddify.Modules.Users.Infrastructure.Permissions;
+using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
 
 namespace Oddify.Modules.Users.Infrastructure.Database;
@@ -11,11 +15,23 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
 
     internal DbSet<RefreshToken> RefreshTokens { get; set; }
 
+    internal DbSet<Role> Roles { get; set; }
+
+    internal DbSet<Permission> Permissions { get; set; }
+
+    internal DbSet<RolePermission> RolePermissions { get; set; }
+
+    internal DbSet<UserRole> UserRoles { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Users);
 
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new RoleConfiguration());
+        modelBuilder.ApplyConfiguration(new PermissionConfiguration());
+        modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
+        modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
     }
 }

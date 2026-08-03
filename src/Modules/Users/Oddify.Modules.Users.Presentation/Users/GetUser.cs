@@ -6,6 +6,7 @@ using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Results;
 using Oddify.Modules.Users.Application.Users.GetUser;
+using Oddify.Modules.Users.Domain.Permissions;
 
 namespace Oddify.Modules.Users.Presentation.Users;
 
@@ -18,6 +19,7 @@ internal sealed class GetUser : IEndpoint
             Result<UserResponse> result = await sender.Send(new GetUserQuery(id));
             return result.Match(Results.Ok, ApiResults.Problem);
         })
+        .RequireAuthorization(WellKnownPermissions.UsersRead)
         .WithTags(Tags.Users);
     }
 }
