@@ -17,6 +17,12 @@ internal sealed class SincronizacaoExternaBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!opcoes.Value.Habilitada)
+        {
+            logger.LogInformation("Sincronização externa de fixtures está desabilitada — job não será iniciado.");
+            return;
+        }
+
         using var timer = new PeriodicTimer(opcoes.Value.Intervalo);
 
         do

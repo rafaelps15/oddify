@@ -11,5 +11,7 @@ internal sealed class CriarPartidaCommandValidator : AbstractValidator<CriarPart
         RuleFor(c => c.EquipeCasaId).NotEmpty();
         RuleFor(c => c.EquipeVisitanteId).NotEmpty();
         RuleFor(c => c.DataUtc).NotEmpty();
+        RuleFor(c => c.Rodada).GreaterThan(0);
+        RuleFor(c => c.Temporada).InclusiveBetween(2000, 2100);
     }
 }

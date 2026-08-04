@@ -11,7 +11,11 @@ public sealed record FixtureExternoDto(
     DateTime DataUtc,
     bool Encerrada,
     int? GolsCasa,
-    int? GolsVisitante);
+    int? GolsVisitante,
+    // Extraído de league.round (ex.: "Regular Season - 4") — a api-football não expõe um número
+    // de rodada isolado, só esse rótulo textual; quando o formato não termina em número (fases de
+    // playoff/grupo com outro rótulo), fica 0 (ver ApiFootballClient.ExtrairRodada).
+    int Rodada);
 
 public interface IApiFootballClient
 {

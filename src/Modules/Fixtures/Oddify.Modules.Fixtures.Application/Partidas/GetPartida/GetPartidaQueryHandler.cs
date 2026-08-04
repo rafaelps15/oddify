@@ -25,7 +25,9 @@ internal sealed class GetPartidaQueryHandler(IDbConnectionFactory dbConnectionFa
                  data_utc AS {nameof(PartidaResponse.DataUtc)},
                  situacao AS {nameof(PartidaResponse.Situacao)},
                  gols_casa AS {nameof(PartidaResponse.GolsCasa)},
-                 gols_visitante AS {nameof(PartidaResponse.GolsVisitante)}
+                 gols_visitante AS {nameof(PartidaResponse.GolsVisitante)},
+                 rodada AS {nameof(PartidaResponse.Rodada)},
+                 temporada AS {nameof(PartidaResponse.Temporada)}
              FROM fixtures.partidas
              WHERE id = @PartidaId
              """;

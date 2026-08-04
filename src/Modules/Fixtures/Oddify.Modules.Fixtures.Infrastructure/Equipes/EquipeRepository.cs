@@ -11,9 +11,9 @@ internal sealed class EquipeRepository(FixturesDbContext context) : IEquipeRepos
         return await context.Equipes.SingleOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
-    public async Task<Equipe?> GetByIdExternoAsync(string idExterno, CancellationToken cancellationToken = default)
+    public async Task<Equipe?> GetByIdExternoAsync(string idExterno, Guid ligaId, CancellationToken cancellationToken = default)
     {
-        return await context.Equipes.SingleOrDefaultAsync(e => e.IdExterno == idExterno, cancellationToken);
+        return await context.Equipes.SingleOrDefaultAsync(e => e.IdExterno == idExterno && e.LigaId == ligaId, cancellationToken);
     }
 
     public void Insert(Equipe equipe)

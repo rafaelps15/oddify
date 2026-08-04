@@ -7,4 +7,6 @@ public sealed record CriarPartidaCommand(
     Guid LigaId,
     Guid EquipeCasaId,
     Guid EquipeVisitanteId,
-    DateTime DataUtc) : ICommand<Guid>;
+    DateTime DataUtc,
+    int Rodada,
+    int Temporada) : ICommand<Guid>;

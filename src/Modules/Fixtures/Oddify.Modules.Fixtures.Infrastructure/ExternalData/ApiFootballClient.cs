@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Oddify.Common.Domain;
 using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
 
@@ -64,19 +65,38 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
             fixture.Teams.Home.Name,
             fixture.Teams.Away.Id.ToString(CultureInfo.InvariantCulture),
             fixture.Teams.Away.Name,
-            fixture.Fixture.Date,
+            fixture.Fixture.Date.UtcDateTime,
             encerrada,
             fixture.Goals.Home,
-            fixture.Goals.Away);
+            fixture.Goals.Away,
+            ExtrairRodada(fixture.League.Round));
+    }
+
+    // league.round da api-football é um rótulo textual (ex.: "Regular Season - 4", "Relegation
+    // Round - 3"), não um número isolado — extrai o inteiro final. Rótulos sem número no final
+    // (grupos/eliminatórias com nome próprio) caem em 0; não é tratado como erro, só "sem rodada
+    // numerada conhecida".
+    private static int ExtrairRodada(string? round)
+    {
+        if (string.IsNullOrWhiteSpace(round))
+        {
+            return 0;
+        }
+
+        Match match = Regex.Match(round, @"\d+$");
+
+        return match.Success ? int.Parse(match.Value, CultureInfo.InvariantCulture) : 0;
     }
 
     private sealed record FixturesResponse(IReadOnlyCollection<FixtureDto>? Response);
 
-    private sealed record FixtureDto(FixtureInfoDto Fixture, TeamsDto Teams, GoalsDto Goals);
+    private sealed record FixtureDto(FixtureInfoDto Fixture, TeamsDto Teams, GoalsDto Goals, LeagueDto League);
 
-    private sealed record FixtureInfoDto(long Id, DateTime Date, FixtureStatusDto Status);
+    private sealed record FixtureInfoDto(long Id, DateTimeOffset Date, FixtureStatusDto Status);
 
     private sealed record FixtureStatusDto(string Short);
+
+    private sealed record LeagueDto(string? Round);
 
     private sealed record TeamsDto(TeamDto Home, TeamDto Away);
 

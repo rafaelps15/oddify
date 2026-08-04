@@ -47,7 +47,9 @@ internal sealed class CriarPartidaCommandHandler(
             request.LigaId,
             request.EquipeCasaId,
             request.EquipeVisitanteId,
-            request.DataUtc);
+            request.DataUtc,
+            request.Rodada,
+            request.Temporada);
 
         partidaRepository.Insert(partida);
 

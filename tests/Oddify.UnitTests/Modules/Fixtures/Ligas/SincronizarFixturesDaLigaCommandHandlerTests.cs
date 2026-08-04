@@ -23,8 +23,8 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     private SincronizarFixturesDaLigaCommandHandler CriarHandler() =>
         new(_ligaRepository, _equipeRepository, _partidaRepository, _apiFootballClient, _unitOfWork);
 
-    private static FixtureExternoDto CriarFixture(bool encerrada = false, int? golsCasa = null, int? golsVisitante = null) =>
-        new("fixture-1", "time-casa", "Flamengo", "time-visitante", "Palmeiras", DateTime.UtcNow.AddDays(1), encerrada, golsCasa, golsVisitante);
+    private static FixtureExternoDto CriarFixture(bool encerrada = false, int? golsCasa = null, int? golsVisitante = null, int rodada = 1) =>
+        new("fixture-1", "time-casa", "Flamengo", "time-visitante", "Palmeiras", DateTime.UtcNow.AddDays(1), encerrada, golsCasa, golsVisitante, rodada);
 
     [Fact]
     public async Task Handle_should_fail_when_liga_not_found()
@@ -45,7 +45,7 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
         _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
         _apiFootballClient.GetFixturesAsync(Liga.IdExterno, 2026, Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyCollection<FixtureExternoDto>>([CriarFixture()]));
-        _equipeRepository.GetByIdExternoAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((Equipe?)null);
+        _equipeRepository.GetByIdExternoAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Equipe?)null);
         _partidaRepository.GetByIdExternoAsync("fixture-1", Arg.Any<CancellationToken>()).Returns((Partida?)null);
 
         var command = new SincronizarFixturesDaLigaCommand(Liga.Id, 2026);
@@ -64,13 +64,13 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     {
         var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
         var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
-        var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(1));
+        var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(1), rodada: 1, temporada: 2026);
 
         _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
         _apiFootballClient.GetFixturesAsync(Liga.IdExterno, 2026, Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyCollection<FixtureExternoDto>>([CriarFixture()]));
-        _equipeRepository.GetByIdExternoAsync("time-casa", Arg.Any<CancellationToken>()).Returns(equipeCasa);
-        _equipeRepository.GetByIdExternoAsync("time-visitante", Arg.Any<CancellationToken>()).Returns(equipeVisitante);
+        _equipeRepository.GetByIdExternoAsync("time-casa", Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(equipeCasa);
+        _equipeRepository.GetByIdExternoAsync("time-visitante", Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(equipeVisitante);
         _partidaRepository.GetByIdExternoAsync("fixture-1", Arg.Any<CancellationToken>()).Returns(partidaExistente);
 
         var command = new SincronizarFixturesDaLigaCommand(Liga.Id, 2026);
@@ -87,13 +87,13 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     {
         var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
         var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
-        var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(-1));
+        var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(-1), rodada: 1, temporada: 2026);
 
         _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
         _apiFootballClient.GetFixturesAsync(Liga.IdExterno, 2026, Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyCollection<FixtureExternoDto>>([CriarFixture(encerrada: true, golsCasa: 2, golsVisitante: 1)]));
-        _equipeRepository.GetByIdExternoAsync("time-casa", Arg.Any<CancellationToken>()).Returns(equipeCasa);
-        _equipeRepository.GetByIdExternoAsync("time-visitante", Arg.Any<CancellationToken>()).Returns(equipeVisitante);
+        _equipeRepository.GetByIdExternoAsync("time-casa", Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(equipeCasa);
+        _equipeRepository.GetByIdExternoAsync("time-visitante", Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(equipeVisitante);
         _partidaRepository.GetByIdExternoAsync("fixture-1", Arg.Any<CancellationToken>()).Returns(partidaExistente);
 
         var command = new SincronizarFixturesDaLigaCommand(Liga.Id, 2026);

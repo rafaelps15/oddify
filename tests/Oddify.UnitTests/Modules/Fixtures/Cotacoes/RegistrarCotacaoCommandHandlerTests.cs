@@ -19,7 +19,7 @@ public sealed class RegistrarCotacaoCommandHandlerTests
     [Fact]
     public async Task Handle_should_create_cotacao_and_persist_when_partida_exists_and_odd_is_valid()
     {
-        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, rodada: 1, temporada: 2026);
         _partidaRepository.GetAsync(partida.Id, Arg.Any<CancellationToken>()).Returns(partida);
 
         var command = new RegistrarCotacaoCommand(partida.Id, "vitoria_casa", 1.5m, "casa-de-apostas", DateTime.UtcNow);
@@ -49,7 +49,7 @@ public sealed class RegistrarCotacaoCommandHandlerTests
     [Fact]
     public async Task Handle_should_return_failure_when_odd_is_invalid()
     {
-        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, rodada: 1, temporada: 2026);
         _partidaRepository.GetAsync(partida.Id, Arg.Any<CancellationToken>()).Returns(partida);
 
         var command = new RegistrarCotacaoCommand(partida.Id, "vitoria_casa", 0.9m, "casa-de-apostas", DateTime.UtcNow);

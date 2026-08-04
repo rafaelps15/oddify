@@ -31,7 +31,7 @@ public sealed class SincronizarCotacoesCommandHandlerTests
 
     private Partida CriarPartidaProxima()
     {
-        var partida = Partida.Create("fixture-1", Liga.Id, EquipeCasa.Id, EquipeVisitante.Id, DataDaPartida);
+        var partida = Partida.Create("fixture-1", Liga.Id, EquipeCasa.Id, EquipeVisitante.Id, DataDaPartida, rodada: 1, temporada: 2026);
 
         _partidaRepository.ListarAgendadasEntreAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<Partida>)[partida]);

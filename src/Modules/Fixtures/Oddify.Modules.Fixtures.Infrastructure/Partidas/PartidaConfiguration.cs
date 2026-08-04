@@ -12,6 +12,11 @@ internal sealed class PartidaConfiguration : IEntityTypeConfiguration<Partida>
     {
         builder.Property(p => p.IdExterno).HasMaxLength(100);
 
+        // Suporta os filtros de liga+temporada+rodada da tela de Partidas (GetPartidasQuery,
+        // GetRodadasDisponiveisQuery, GetRodadaMaisRecenteEncerradaQuery) — não é unique, várias
+        // partidas compartilham a mesma combinação.
+        builder.HasIndex(p => new { p.LigaId, p.Temporada, p.Rodada });
+
         builder.HasOne<LigaConfigurada>().WithMany().HasForeignKey(p => p.LigaId);
 
         builder.HasOne<Equipe>()

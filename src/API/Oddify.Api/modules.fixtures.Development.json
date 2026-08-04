@@ -1,7 +1,19 @@
 {
   "Fixtures": {
     "SincronizacaoExterna": {
-      "Intervalo": "00:01:00"
+      "Habilitada": false,
+      "Intervalo": "06:00:00",
+      "ApiFootballTemporadas": {
+        "78": 2023,
+        "140": 2023,
+        "61": 2023,
+        "39": 2023,
+        "135": 2023,
+        "71": 2023,
+        "72": 2023,
+        "2": 2023,
+        "3": 2023
+      }
     }
   }
 }

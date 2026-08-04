@@ -7,7 +7,7 @@ namespace Oddify.UnitTests.Modules.Fixtures.Partidas;
 public sealed class PartidaTests
 {
     private static Partida CriarPartidaAgendada() =>
-        Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddDays(1));
+        Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddDays(1), rodada: 1, temporada: 2026);
 
     [Fact]
     public void Create_should_raise_PartidaAgendadaDomainEvent_and_start_agendada()

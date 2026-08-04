@@ -56,5 +56,64 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task GetSugestaoDeStake_should_return_the_same_stake_KellyCalculator_would_produce()
+    {
+        // probabilidade 0.60, odd 2.0 -> kelly = (0.60*2.0 - 1) / (2.0 - 1) = 0.20
+        // stake = saldo * kelly * fracaoDeKelly(0.25) = 1000 * 0.20 * 0.25 = 50 (mesma conta de KellyCalculatorTests)
+        HttpResponseMessage response = await _client.GetAsync("bancas/sugestao-de-stake?saldoDaBanca=1000&odd=2.0&probabilidade=0.60");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        SugestaoDeStakeResponse? sugestao = await response.Content.ReadFromJsonAsync<SugestaoDeStakeResponse>();
+
+        sugestao.Should().NotBeNull();
+        sugestao!.StakeSugerido.Should().Be(50m);
+        sugestao.ProbabilidadeImplicita.Should().Be(0.5m);
+        sugestao.Vantagem.Should().Be(0.10m);
+        sugestao.FracaoDeKelly.Should().Be(0.25m);
+        sugestao.TetoDeStakeSobreABanca.Should().Be(0.05m);
+    }
+
+    [Fact]
+    public async Task GetSugestaoDeStake_should_use_the_explicit_fracaoDeKelly_when_provided()
+    {
+        // kelly = (0.52*2.0 - 1) / (2.0 - 1) = 0.04 -> stake = 1000 * 0.04 * 1 = 40, abaixo do
+        // teto de 5% da banca (50) — escolhido pra não confundir "efeito da fração" com "efeito
+        // do teto" no mesmo teste (ver KellyCalculatorTests pros dois cenários separados).
+        HttpResponseMessage response = await _client.GetAsync(
+            "bancas/sugestao-de-stake?saldoDaBanca=1000&odd=2.0&probabilidade=0.52&fracaoDeKelly=1.0");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        SugestaoDeStakeResponse? sugestao = await response.Content.ReadFromJsonAsync<SugestaoDeStakeResponse>();
+
+        sugestao!.FracaoDeKelly.Should().Be(1.0m);
+        sugestao.StakeSugerido.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task GetSugestaoDeStake_should_return_problem_when_odd_is_not_greater_than_one()
+    {
+        HttpResponseMessage response = await _client.GetAsync("bancas/sugestao-de-stake?saldoDaBanca=1000&odd=1.0&probabilidade=0.60");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task GetAnalisesDisponiveisParaAposta_should_return_an_empty_list_when_nothing_was_synced_yet()
+    {
+        HttpResponseMessage response = await _client.GetAsync("apostas-multiplas/analises-disponiveis");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        List<object>? disponiveis = await response.Content.ReadFromJsonAsync<List<object>>();
+        disponiveis.Should().BeEmpty();
+    }
+
     private sealed record BancaResponse(Guid Id, decimal SaldoAtual, bool ModoPaperTrading);
+
+    private sealed record SugestaoDeStakeResponse(
+        decimal ProbabilidadeImplicita,
+        decimal Vantagem,
+        decimal StakeSugerido,
+        decimal FracaoDeKelly,
+        decimal TetoDeStakeSobreABanca);
 }

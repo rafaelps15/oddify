@@ -17,7 +17,7 @@ public sealed class RegistrarResultadoCommandHandlerTests
     [Fact]
     public async Task Handle_should_register_resultado_and_persist_when_partida_exists()
     {
-        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, rodada: 1, temporada: 2026);
         _partidaRepository.GetAsync(partida.Id, Arg.Any<CancellationToken>()).Returns(partida);
 
         var command = new RegistrarResultadoCommand(partida.Id, 2, 1);
@@ -45,7 +45,7 @@ public sealed class RegistrarResultadoCommandHandlerTests
     [Fact]
     public async Task Handle_should_return_failure_when_partida_already_encerrada()
     {
-        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow);
+        var partida = Partida.Create("partida-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, rodada: 1, temporada: 2026);
         partida.RegistrarResultado(1, 1);
         _partidaRepository.GetAsync(partida.Id, Arg.Any<CancellationToken>()).Returns(partida);
 

@@ -58,4 +58,37 @@ public sealed class KellyCalculatorTests
 
         stake.Should().BeLessThan(1000m * KellyCalculator.TetoDeStakeSobreABanca);
     }
+
+    [Fact]
+    public void CalcularStake_with_explicit_fracaoDeKelly_should_scale_the_suggested_stake_when_under_the_cap()
+    {
+        // kelly = (0.52*2.0 - 1) / (2.0 - 1) = 0.04. Kelly cheio (fração 1) deve sugerir 4x o que
+        // a fração real (0.25) sugeriria — ambos abaixo do teto de 5% da banca (50) nesse cenário.
+        decimal stakeFracaoReal = KellyCalculator.CalcularStake(1000m, 0.52m, 2.0m, KellyCalculator.FracaoDeKelly);
+        decimal stakeKellyCheio = KellyCalculator.CalcularStake(1000m, 0.52m, 2.0m, fracaoDeKelly: 1m);
+
+        stakeFracaoReal.Should().Be(10m);
+        stakeKellyCheio.Should().Be(40m);
+        stakeKellyCheio.Should().Be(stakeFracaoReal * 4);
+    }
+
+    [Fact]
+    public void CalcularStake_with_explicit_fracaoDeKelly_should_still_respect_the_cap_even_at_full_kelly()
+    {
+        // Mesmo cenário do teste "positive stake" (kelly = 0.20): mesmo pedindo Kelly cheio
+        // (fração 1), a stake sugerida nunca ultrapassa o teto de 5% da banca (50) — o teto não
+        // é algo que a fração escolhida pelo usuário possa contornar.
+        decimal stakeKellyCheio = KellyCalculator.CalcularStake(1000m, 0.60m, 2.0m, fracaoDeKelly: 1m);
+
+        stakeKellyCheio.Should().Be(1000m * KellyCalculator.TetoDeStakeSobreABanca);
+    }
+
+    [Fact]
+    public void CalcularStake_three_argument_overload_should_match_the_four_argument_overload_with_the_real_fraction()
+    {
+        decimal viaOverloadPadrao = KellyCalculator.CalcularStake(1000m, 0.60m, 2.0m);
+        decimal viaOverloadExplicito = KellyCalculator.CalcularStake(1000m, 0.60m, 2.0m, KellyCalculator.FracaoDeKelly);
+
+        viaOverloadPadrao.Should().Be(viaOverloadExplicito);
+    }
 }

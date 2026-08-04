@@ -33,9 +33,14 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
             return Result.Failure(fixturesResult.Error);
         }
 
+        // Cache local por execução: o time aparece em várias partidas (casa/fora) antes do
+        // SaveChangesAsync ser chamado, então a consulta ao repositório não veria as inserções
+        // ainda não persistidas e recriaria o mesmo time repetidas vezes.
+        var equipesSincronizadas = new Dictionary<string, Equipe>();
+
         foreach (FixtureExternoDto fixture in fixturesResult.Value)
         {
-            await SincronizarFixtureAsync(liga.Id, fixture, cancellationToken);
+            await SincronizarFixtureAsync(liga.Id, fixture, request.Temporada, equipesSincronizadas, cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -43,16 +48,21 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
         return Result.Success();
     }
 
-    private async Task SincronizarFixtureAsync(Guid ligaId, FixtureExternoDto fixture, CancellationToken cancellationToken)
+    private async Task SincronizarFixtureAsync(
+        Guid ligaId,
+        FixtureExternoDto fixture,
+        int temporada,
+        Dictionary<string, Equipe> equipesSincronizadas,
+        CancellationToken cancellationToken)
     {
-        Equipe equipeCasa = await ObterOuCriarEquipeAsync(fixture.EquipeCasaIdExterno, fixture.NomeEquipeCasa, ligaId, cancellationToken);
-        Equipe equipeVisitante = await ObterOuCriarEquipeAsync(fixture.EquipeVisitanteIdExterno, fixture.NomeEquipeVisitante, ligaId, cancellationToken);
+        Equipe equipeCasa = await ObterOuCriarEquipeAsync(fixture.EquipeCasaIdExterno, fixture.NomeEquipeCasa, ligaId, equipesSincronizadas, cancellationToken);
+        Equipe equipeVisitante = await ObterOuCriarEquipeAsync(fixture.EquipeVisitanteIdExterno, fixture.NomeEquipeVisitante, ligaId, equipesSincronizadas, cancellationToken);
 
         Partida? partida = await partidaRepository.GetByIdExternoAsync(fixture.IdExterno, cancellationToken);
 
         if (partida is null)
         {
-            partida = Partida.Create(fixture.IdExterno, ligaId, equipeCasa.Id, equipeVisitante.Id, fixture.DataUtc);
+            partida = Partida.Create(fixture.IdExterno, ligaId, equipeCasa.Id, equipeVisitante.Id, fixture.DataUtc, fixture.Rodada, temporada);
             partidaRepository.Insert(partida);
         }
 
@@ -62,17 +72,27 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
         }
     }
 
-    private async Task<Equipe> ObterOuCriarEquipeAsync(string idExterno, string nome, Guid ligaId, CancellationToken cancellationToken)
+    private async Task<Equipe> ObterOuCriarEquipeAsync(
+        string idExterno,
+        string nome,
+        Guid ligaId,
+        Dictionary<string, Equipe> equipesSincronizadas,
+        CancellationToken cancellationToken)
     {
-        Equipe? equipe = await equipeRepository.GetByIdExternoAsync(idExterno, cancellationToken);
-
-        if (equipe is not null)
+        if (equipesSincronizadas.TryGetValue(idExterno, out Equipe? equipeEmMemoria))
         {
-            return equipe;
+            return equipeEmMemoria;
         }
 
-        equipe = Equipe.Create(idExterno, nome, ligaId);
-        equipeRepository.Insert(equipe);
+        Equipe? equipe = await equipeRepository.GetByIdExternoAsync(idExterno, ligaId, cancellationToken);
+
+        if (equipe is null)
+        {
+            equipe = Equipe.Create(idExterno, nome, ligaId);
+            equipeRepository.Insert(equipe);
+        }
+
+        equipesSincronizadas[idExterno] = equipe;
 
         return equipe;
     }

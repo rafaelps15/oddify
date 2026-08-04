@@ -26,7 +26,18 @@ public sealed class Partida : Entity
 
     public int? GolsVisitante { get; private set; }
 
-    public static Partida Create(string idExterno, Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId, DateTime dataUtc)
+    public int Rodada { get; private set; }
+
+    public int Temporada { get; private set; }
+
+    public static Partida Create(
+        string idExterno,
+        Guid ligaId,
+        Guid equipeCasaId,
+        Guid equipeVisitanteId,
+        DateTime dataUtc,
+        int rodada,
+        int temporada)
     {
         var partida = new Partida
         {
@@ -36,7 +47,9 @@ public sealed class Partida : Entity
             EquipeCasaId = equipeCasaId,
             EquipeVisitanteId = equipeVisitanteId,
             DataUtc = dataUtc,
-            Situacao = SituacaoDaPartida.Agendada
+            Situacao = SituacaoDaPartida.Agendada,
+            Rodada = rodada,
+            Temporada = temporada
         };
 
         partida.Raise(new PartidaAgendadaDomainEvent(partida.Id));

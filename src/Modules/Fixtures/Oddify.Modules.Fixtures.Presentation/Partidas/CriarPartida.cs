@@ -21,7 +21,9 @@ internal sealed class CriarPartida : IEndpoint
                     request.LigaId,
                     request.EquipeCasaId,
                     request.EquipeVisitanteId,
-                    request.DataUtc));
+                    request.DataUtc,
+                    request.Rodada,
+                    request.Temporada));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
@@ -39,5 +41,9 @@ internal sealed class CriarPartida : IEndpoint
         public Guid EquipeVisitanteId { get; init; }
 
         public DateTime DataUtc { get; init; }
+
+        public int Rodada { get; init; }
+
+        public int Temporada { get; init; }
     }
 }

@@ -11,4 +11,6 @@ public sealed record PartidaResponse(
     DateTime DataUtc,
     SituacaoDaPartida Situacao,
     int? GolsCasa,
-    int? GolsVisitante);
+    int? GolsVisitante,
+    int Rodada,
+    int Temporada);
