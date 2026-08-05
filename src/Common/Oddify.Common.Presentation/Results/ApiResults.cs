@@ -26,7 +26,7 @@ public static class ApiResults
                 ErrorType.Problem => error.Code,
                 ErrorType.NotFound => error.Code,
                 ErrorType.Conflict => error.Code,
-                _ => "Server failure"
+                _ => "Falha no servidor"
             };
 
         static string GetDetail(Error error) =>
@@ -36,7 +36,7 @@ public static class ApiResults
                 ErrorType.Problem => error.Description,
                 ErrorType.NotFound => error.Description,
                 ErrorType.Conflict => error.Description,
-                _ => "An unexpected error occurred"
+                _ => "Ocorreu um erro inesperado"
             };
 
         static string GetType(ErrorType errorType) =>

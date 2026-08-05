@@ -6,6 +6,6 @@ internal sealed class RefreshAccessTokenCommandValidator : AbstractValidator<Ref
 {
     public RefreshAccessTokenCommandValidator()
     {
-        RuleFor(c => c.RefreshToken).NotEmpty();
+        RuleFor(c => c.RefreshToken).NotEmpty().WithMessage("O refresh token é obrigatório");
     }
 }

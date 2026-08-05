@@ -6,8 +6,10 @@ internal sealed class CriarEquipeCommandValidator : AbstractValidator<CriarEquip
 {
     public CriarEquipeCommandValidator()
     {
-        RuleFor(c => c.IdExterno).NotEmpty().MaximumLength(100);
-        RuleFor(c => c.Nome).NotEmpty().MaximumLength(200);
-        RuleFor(c => c.LigaId).NotEmpty();
+        RuleFor(c => c.IdExterno).NotEmpty().WithMessage("O identificador externo é obrigatório")
+            .MaximumLength(100).WithMessage("O identificador externo deve ter no máximo 100 caracteres");
+        RuleFor(c => c.Nome).NotEmpty().WithMessage("O nome da equipe é obrigatório")
+            .MaximumLength(200).WithMessage("O nome da equipe deve ter no máximo 200 caracteres");
+        RuleFor(c => c.LigaId).NotEmpty().WithMessage("O identificador da liga é obrigatório");
     }
 }

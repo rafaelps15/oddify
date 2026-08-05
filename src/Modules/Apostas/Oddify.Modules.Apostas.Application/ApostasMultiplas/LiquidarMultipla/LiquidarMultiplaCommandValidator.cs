@@ -6,6 +6,6 @@ internal sealed class LiquidarMultiplaCommandValidator : AbstractValidator<Liqui
 {
     public LiquidarMultiplaCommandValidator()
     {
-        RuleFor(c => c.ApostaMultiplaId).NotEmpty();
+        RuleFor(c => c.ApostaMultiplaId).NotEmpty().WithMessage("O identificador da aposta múltipla é obrigatório");
     }
 }

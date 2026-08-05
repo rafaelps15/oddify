@@ -6,6 +6,6 @@ internal sealed class AvaliarComClaudeCommandValidator : AbstractValidator<Avali
 {
     public AvaliarComClaudeCommandValidator()
     {
-        RuleFor(c => c.AnaliseId).NotEmpty();
+        RuleFor(c => c.AnaliseId).NotEmpty().WithMessage("O identificador da análise é obrigatório");
     }
 }

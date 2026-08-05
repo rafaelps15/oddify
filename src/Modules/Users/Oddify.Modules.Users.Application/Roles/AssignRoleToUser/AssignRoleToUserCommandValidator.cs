@@ -6,7 +6,8 @@ internal sealed class AssignRoleToUserCommandValidator : AbstractValidator<Assig
 {
     public AssignRoleToUserCommandValidator()
     {
-        RuleFor(c => c.UserId).NotEmpty();
-        RuleFor(c => c.RoleName).NotEmpty().MaximumLength(100);
+        RuleFor(c => c.UserId).NotEmpty().WithMessage("O identificador do usuário é obrigatório");
+        RuleFor(c => c.RoleName).NotEmpty().WithMessage("O nome do papel é obrigatório")
+            .MaximumLength(100).WithMessage("O nome do papel deve ter no máximo 100 caracteres");
     }
 }

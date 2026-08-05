@@ -5,25 +5,25 @@ namespace Oddify.Modules.Users.Domain.Users;
 public static class UserErrors
 {
     public static Error NotFound(Guid userId) =>
-        Error.NotFound("Users.NotFound", $"The user with the identifier {userId} not found");
+        Error.NotFound("Users.NotFound", $"O usuário com o identificador {userId} não foi encontrado");
 
     public static readonly Error EmailAlreadyRegistered = Error.Conflict(
         "Users.EmailAlreadyRegistered",
-        "A user with this email is already registered");
+        "Já existe um usuário cadastrado com este e-mail");
 
     public static readonly Error InvalidCredentials = Error.Problem(
         "Users.InvalidCredentials",
-        "The provided email or password is incorrect");
+        "O e-mail ou a senha informados estão incorretos");
 
     public static readonly Error InvalidRefreshToken = Error.Problem(
         "Users.InvalidRefreshToken",
-        "The provided refresh token is invalid or has expired");
+        "O refresh token informado é inválido ou está expirado");
 
     public static readonly Error EmailAlreadyVerified = Error.Problem(
         "Users.EmailAlreadyVerified",
-        "This account's email is already verified");
+        "O e-mail desta conta já foi verificado");
 
     public static readonly Error EmailNotVerified = Error.Problem(
         "Users.EmailNotVerified",
-        "This account's email has not been verified yet");
+        "O e-mail desta conta ainda não foi verificado");
 }

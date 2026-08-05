@@ -6,11 +6,11 @@ internal sealed class RegistrarEstatisticaJogadorCommandValidator : AbstractVali
 {
     public RegistrarEstatisticaJogadorCommandValidator()
     {
-        RuleFor(c => c.PartidaId).NotEmpty();
-        RuleFor(c => c.JogadorId).NotEmpty();
-        RuleFor(c => c.Gols).GreaterThanOrEqualTo(0);
-        RuleFor(c => c.Assistencias).GreaterThanOrEqualTo(0);
-        RuleFor(c => c.Minutos).InclusiveBetween(0, 120);
-        RuleFor(c => c.Nota).InclusiveBetween(0, 10);
+        RuleFor(c => c.PartidaId).NotEmpty().WithMessage("O identificador da partida é obrigatório");
+        RuleFor(c => c.JogadorId).NotEmpty().WithMessage("O identificador do jogador é obrigatório");
+        RuleFor(c => c.Gols).GreaterThanOrEqualTo(0).WithMessage("Os gols não podem ser negativos");
+        RuleFor(c => c.Assistencias).GreaterThanOrEqualTo(0).WithMessage("As assistências não podem ser negativas");
+        RuleFor(c => c.Minutos).InclusiveBetween(0, 120).WithMessage("Os minutos jogados devem estar entre 0 e 120");
+        RuleFor(c => c.Nota).InclusiveBetween(0, 10).WithMessage("A nota deve estar entre 0 e 10");
     }
 }

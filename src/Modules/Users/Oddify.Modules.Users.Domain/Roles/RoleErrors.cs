@@ -5,16 +5,16 @@ namespace Oddify.Modules.Users.Domain.Roles;
 public static class RoleErrors
 {
     public static Error NotFound(Guid roleId) =>
-        Error.NotFound("Roles.NotFound", $"The role with the identifier {roleId} not found");
+        Error.NotFound("Roles.NotFound", $"O papel com o identificador {roleId} não foi encontrado");
 
     public static Error NotFoundByName(string name) =>
-        Error.NotFound("Roles.NotFoundByName", $"The role with the name {name} not found");
+        Error.NotFound("Roles.NotFoundByName", $"O papel com o nome {name} não foi encontrado");
 
     public static readonly Error AlreadyAssigned = Error.Conflict(
         "Roles.AlreadyAssigned",
-        "The user already has this role assigned");
+        "O usuário já possui este papel atribuído");
 
     public static readonly Error NotAssigned = Error.Problem(
         "Roles.NotAssigned",
-        "The user does not have this role assigned");
+        "O usuário não possui este papel atribuído");
 }

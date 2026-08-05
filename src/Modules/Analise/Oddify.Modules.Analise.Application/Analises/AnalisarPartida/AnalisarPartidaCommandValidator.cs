@@ -6,7 +6,8 @@ internal sealed class AnalisarPartidaCommandValidator : AbstractValidator<Analis
 {
     public AnalisarPartidaCommandValidator()
     {
-        RuleFor(c => c.PartidaId).NotEmpty();
-        RuleFor(c => c.Mercado).NotEmpty().MaximumLength(100);
+        RuleFor(c => c.PartidaId).NotEmpty().WithMessage("O identificador da partida é obrigatório");
+        RuleFor(c => c.Mercado).NotEmpty().WithMessage("O mercado é obrigatório")
+            .MaximumLength(100).WithMessage("O mercado deve ter no máximo 100 caracteres");
     }
 }

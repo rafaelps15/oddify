@@ -6,9 +6,21 @@ internal sealed class RegisterUserCommandValidator : AbstractValidator<RegisterU
 {
     public RegisterUserCommandValidator()
     {
-        RuleFor(c => c.Email).NotEmpty().EmailAddress().MaximumLength(300);
-        RuleFor(c => c.Password).NotEmpty().MinimumLength(8).MaximumLength(100);
-        RuleFor(c => c.FirstName).NotEmpty().MaximumLength(200);
-        RuleFor(c => c.LastName).NotEmpty().MaximumLength(200);
+        RuleFor(c => c.Email)
+            .NotEmpty().WithMessage("O e-mail é obrigatório")
+            .EmailAddress().WithMessage("O e-mail informado é inválido")
+            .MaximumLength(300).WithMessage("O e-mail deve ter no máximo 300 caracteres")
+            .Must(email => !email.Any(char.IsUpper))
+            .WithMessage("O e-mail não pode conter letras maiúsculas");
+        RuleFor(c => c.Password)
+            .NotEmpty().WithMessage("A senha é obrigatória")
+            .MinimumLength(6).WithMessage("A senha deve ter no mínimo 6 caracteres")
+            .MaximumLength(100).WithMessage("A senha deve ter no máximo 100 caracteres")
+            .Must(password => password.Any(char.IsLetter)).WithMessage("A senha deve conter pelo menos uma letra")
+            .Must(password => password.Any(char.IsDigit)).WithMessage("A senha deve conter pelo menos um número");
+        RuleFor(c => c.FirstName).NotEmpty().WithMessage("O nome é obrigatório")
+            .MaximumLength(200).WithMessage("O nome deve ter no máximo 200 caracteres");
+        RuleFor(c => c.LastName).NotEmpty().WithMessage("O sobrenome é obrigatório")
+            .MaximumLength(200).WithMessage("O sobrenome deve ter no máximo 200 caracteres");
     }
 }

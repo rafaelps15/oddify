@@ -6,6 +6,6 @@ internal sealed class VerifyEmailCommandValidator : AbstractValidator<VerifyEmai
 {
     public VerifyEmailCommandValidator()
     {
-        RuleFor(c => c.Token).NotEmpty();
+        RuleFor(c => c.Token).NotEmpty().WithMessage("O token é obrigatório");
     }
 }

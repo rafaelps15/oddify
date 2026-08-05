@@ -6,6 +6,6 @@ internal sealed class CalibrarLigaCommandValidator : AbstractValidator<CalibrarL
 {
     public CalibrarLigaCommandValidator()
     {
-        RuleFor(c => c.LigaId).NotEmpty();
+        RuleFor(c => c.LigaId).NotEmpty().WithMessage("O identificador da liga é obrigatório");
     }
 }

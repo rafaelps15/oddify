@@ -6,8 +6,8 @@ internal sealed class AtualizarMediasDaLigaCommandValidator : AbstractValidator<
 {
     public AtualizarMediasDaLigaCommandValidator()
     {
-        RuleFor(c => c.LigaId).NotEmpty();
-        RuleFor(c => c.MediaDeGols).GreaterThan(0);
-        RuleFor(c => c.FatorCasa).GreaterThan(0);
+        RuleFor(c => c.LigaId).NotEmpty().WithMessage("O identificador da liga é obrigatório");
+        RuleFor(c => c.MediaDeGols).GreaterThan(0).WithMessage("A média de gols deve ser maior que zero");
+        RuleFor(c => c.FatorCasa).GreaterThan(0).WithMessage("O fator casa deve ser maior que zero");
     }
 }
