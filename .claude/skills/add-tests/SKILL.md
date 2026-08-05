@@ -1,30 +1,44 @@
 ---
 name: add-tests
-description: Scaffold unit tests, architecture-fitness tests, and integration tests for this modular monolith, bootstrapping test projects with xUnit + FluentAssertions (+ NetArchTest/NSubstitute/Testcontainers as needed) and wiring them into the solution.
+description: Scaffold unit tests, architecture-fitness tests, and integration tests for this modular monolith, bootstrapping test projects with xUnit (+ FluentAssertions/NSubstitute/NetArchTest.Rules/Testcontainers as needed) and wiring them into the solution.
 ---
 
 # add-tests
 
-**Check the repo's actual state before assuming anything.** This template's test projects
+**Check the repo's actual state before assuming anything — do not trust this skill's own
+description of "the" stack over what's really there.** This template's test projects
 (`tests/<ProjectName>.UnitTests`, `tests/<ProjectName>.ArchitectureTests`,
-`tests/<ProjectName>.IntegrationTests`) may already contain real tests, be empty scaffolds not
-even wired into the solution, or not exist at all — verify with `git status`/`ls` and by
-checking whether they're referenced in the `.sln` before deciding whether this is "bootstrap
-from scratch" or "extend what's there." If real tests already exist, mirror their exact style
-instead of the templates below. The established stack for this template is **xUnit +
-FluentAssertions** (+ **NSubstitute** for mocking, **NetArchTest.Rules** for architecture
-tests, **Testcontainers** + **Respawn** for integration tests) — don't introduce a different
-framework (Moq, Shouldly, NUnit, etc.) unless the repo already uses it or the user asks. Below,
-the examples cover a fictional `TodoItem` entity in a fictional `Tasks` module (a stand-in that
-doesn't collide with any real entity in this repo) with a `CreateTodoItem` command — swap for
-whatever the user is actually covering. `<ProjectName>` stands for this repo's actual root
-namespace/solution name.
+`tests/<ProjectName>.IntegrationTests`) may already contain real tests, be non-existent, or be a
+half-finished scaffold: a folder with only `bin`/`obj` and **no `.csproj`, no `.cs` files at all**
+— i.e. a project that was `dotnet new xunit`'d at some point (its `obj/*.nuget.g.props` shows a
+restore that pulled in nothing but `xunit.analyzers`) and then never actually committed or
+finished. Verify with `git status`/`ls`/`find <dir> -type f` and by checking whether each project
+is referenced in the `.sln` before deciding whether this is "bootstrap from scratch," "finish an
+abandoned scaffold," or "extend what's there." If real tests already exist, mirror their exact
+style instead of the templates below — they're the actual ground truth for this repo, this skill
+is only the fallback for when there's nothing to mirror yet.
 
-## 0. One-time bootstrap (skip any project that already exists and is wired in)
+If you're bootstrapping from nothing (or from an abandoned `xunit`-only scaffold), the
+**recommended** stack — matching this template's overall style (primary-constructor DI, fluent
+assertions elsewhere in the codebase's own conventions) and Milan Jovanović-style Modular
+Monolith courses this template descends from — is **xUnit + FluentAssertions + NSubstitute** for
+mocking, **NetArchTest.Rules** for architecture tests, **Testcontainers** + **Respawn** for
+integration tests. Treat this as a recommendation to confirm with the user, not a pre-existing
+fact about this repo — say explicitly that these are new dependencies being introduced, the same
+way step 5 below already asks you to. Don't substitute a different framework (Moq, Shouldly,
+NUnit, MSTest, etc.) unless the repo already uses it or the user asks. Below, the examples cover
+a fictional `TodoItem` entity in a fictional `Tasks` module (a stand-in that won't collide with
+any real entity in this repo) with a `CreateTodoItem` command — swap for whatever the user is
+actually covering. `<ProjectName>` stands for this repo's actual root namespace/solution name.
 
-For each missing test project, `dotnet new xunit -o tests/<ProjectName>.<X>Tests -n <ProjectName>.<X>Tests`,
+## 0. One-time bootstrap (skip any project that already exists, is wired in, and has real code)
+
+For each missing or empty-scaffold test project:
+```
+dotnet new xunit -o tests/<ProjectName>.<X>Tests -n <ProjectName>.<X>Tests
+```
 then set `TargetFramework` in the new `.csproj` to match this repo's `Directory.Build.props`
-(don't leave whatever the template defaults to), then wire it into the solution:
+(don't leave whatever the template default is), then wire it into the solution:
 ```
 dotnet sln <ProjectName>.sln add tests/<ProjectName>.UnitTests/<ProjectName>.UnitTests.csproj
 dotnet sln <ProjectName>.sln add tests/<ProjectName>.ArchitectureTests/<ProjectName>.ArchitectureTests.csproj
@@ -36,22 +50,25 @@ populating right now:
 
 - **`<ProjectName>.UnitTests`** — add a `ProjectReference` to the module project(s) under test
   (e.g. `<ProjectName>.Modules.Tasks.Application`, `<ProjectName>.Modules.Tasks.Domain`) plus
-  `<ProjectName>.Common.Domain`. Add `NSubstitute` for mocking repositories/`IUnitOfWork` if no
-  mocking library exists yet — it pairs naturally with FluentAssertions and this template's
-  primary-constructor DI style; don't introduce Moq unless the user asks for it.
+  `<ProjectName>.Common.Domain`. Add `NSubstitute` for mocking repositories/`IUnitOfWork`/
+  `IDateTimeProvider` if no mocking library exists yet — it pairs naturally with
+  FluentAssertions and this template's primary-constructor DI style; don't introduce Moq unless
+  the user asks for it.
 - **`<ProjectName>.ArchitectureTests`** — add `NetArchTest.Rules` (if not present) and a
   `ProjectReference` to every assembly whose layering you want to assert
-  (`<ProjectName>.Modules.Tasks.Domain/Application/Infrastructure/Presentation` for each
-  module you're covering).
+  (`<ProjectName>.Modules.Tasks.Domain/Application/Infrastructure/Presentation` for each module
+  you're covering).
 - **`<ProjectName>.IntegrationTests`** — add `Microsoft.AspNetCore.Mvc.Testing`,
-  `Testcontainers.PostgreSql` (or whatever datastore this repo actually uses), and a
+  `Testcontainers.PostgreSql` (or whatever datastore this repo actually uses — check for Redis
+  too, since a `Cart`/cache-backed feature needs a Testcontainers Redis image as well), and a
   `ProjectReference` to the API host project (needs `WebApplicationFactory<Program>` — check
   whether `Program.cs` needs a `public partial class Program {}` marker for the factory to see
-  it, and add one if missing).
+  it, and add one if missing — top-level statement `Program.cs` files don't expose the class by
+  default).
 
-Code must build warning-free under this repo's `Directory.Build.props`/`.editorconfig`
-settings (check for `TreatWarningsAsErrors`, `AnalysisMode`, mandatory file-scoped namespaces
-and braces) — write scaffolded test code in that style, not throwaway style.
+Code must build warning-free under this repo's `Directory.Build.props`/`.editorconfig` settings
+(`TreatWarningsAsErrors`, `AnalysisMode=All`, mandatory file-scoped namespaces and braces on every
+`if`) — write scaffolded test code in that style, not throwaway style.
 
 ## 1. Unit test — command/query handler
 
@@ -89,8 +106,9 @@ public sealed class CreateTodoItemCommandHandlerTests
     }
 }
 ```
-For a handler that loads an existing aggregate first (e.g. `CompleteTodoItemCommandHandler`),
-add one failure test per guard clause (not-found, business-rule violation) plus the happy path:
+For a handler that loads an existing aggregate first (e.g. `CompleteTodoItemCommandHandler`), add
+one failure test per guard clause (not-found, business-rule violation) plus the happy path, and
+mock any injected `IDateTimeProvider` explicitly rather than leaving it to wall-clock time:
 ```csharp
 [Fact]
 public async Task Handle_should_return_failure_when_todo_item_not_found()
@@ -98,7 +116,7 @@ public async Task Handle_should_return_failure_when_todo_item_not_found()
     var command = new CompleteTodoItemCommand(Guid.NewGuid());
     _todoItemRepository.GetAsync(command.TodoItemId, Arg.Any<CancellationToken>()).Returns((TodoItem?)null);
 
-    var handler = new CompleteTodoItemCommandHandler(_todoItemRepository, _unitOfWork);
+    var handler = new CompleteTodoItemCommandHandler(_todoItemRepository, _dateTimeProvider, _unitOfWork);
 
     Result result = await handler.Handle(command, CancellationToken.None);
 
@@ -106,16 +124,18 @@ public async Task Handle_should_return_failure_when_todo_item_not_found()
     result.Error.Should().Be(TodoItemErrors.NotFound(command.TodoItemId));
 }
 ```
-Use xUnit's `[Fact]`/`[Theory]`, method names as `MethodOrScenario_should_expectedBehavior_when_condition`
-(check `.editorconfig` for a `CA1707` underscore-naming suppression — commonly allowed for
-tests in this template). Build the arrange step through the entity's real `Create`/behavior
-methods, never by reflection or bypassing invariants — that's the whole point of testing
-against the domain model.
+Use xUnit's `[Fact]`/`[Theory]`, method names as
+`MethodOrScenario_should_expectedBehavior_when_condition` (check `.editorconfig` for a `CA1707`
+underscore-naming suppression scoped to test projects — add one if it's missing and the build
+otherwise rejects underscored test names under `TreatWarningsAsErrors`). Build the arrange step
+through the entity's real `Create`/behavior methods, never by reflection or bypassing invariants
+— that's the whole point of testing against the domain model instead of a data bag.
 
 ## 2. Unit test — domain entity behavior
 
 `tests/<ProjectName>.UnitTests/Modules/Tasks/TodoItems/TodoItemTests.cs`:
 ```csharp
+using <ProjectName>.Common.Domain;
 using <ProjectName>.Modules.Tasks.Domain.TodoItems;
 using FluentAssertions;
 using Xunit;
@@ -127,7 +147,7 @@ public sealed class TodoItemTests
     [Fact]
     public void Create_should_raise_TodoItemCreatedDomainEvent()
     {
-        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole", DateTime.UtcNow);
+        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
 
         todoItem.DomainEvents.Should().ContainSingle(e => e is TodoItemCreatedDomainEvent);
     }
@@ -135,18 +155,30 @@ public sealed class TodoItemTests
     [Fact]
     public void Complete_should_return_failure_when_already_completed()
     {
-        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole", DateTime.UtcNow);
+        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
         todoItem.Complete(DateTime.UtcNow);
 
         Result result = todoItem.Complete(DateTime.UtcNow);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(TodoItemErrors.AlreadyCompleted(todoItem.Id));
+        result.Error.Should().Be(TodoItemErrors.AlreadyCompleted);
     }
 
-    // For a no-op behavior method: assert DomainEvents stays empty when the value doesn't change.
+    [Fact]
+    public void ChangeTitle_should_not_raise_event_when_title_unchanged()
+    {
+        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
+        todoItem.ClearDomainEvents();
+
+        todoItem.ChangeTitle("Buy milk");
+
+        todoItem.DomainEvents.Should().BeEmpty();
+    }
 }
 ```
+The no-op-behavior-method test (`ChangeTitle` above) is not optional filler — it's the concrete
+proof for the "raise only when state actually changed" rule this template's `CLAUDE.md`
+documents; write it for every behavior method that has an early-return guard.
 
 ## 3. Architecture-fitness test (NetArchTest.Rules)
 
@@ -200,29 +232,44 @@ public sealed class LayerDependencyTests
 
         result.IsSuccessful.Should().BeTrue();
     }
+
+    [Fact]
+    public void Repositories_should_only_be_implemented_in_infrastructure()
+    {
+        TestResult result = Types.InAssembly(typeof(<ProjectName>.Modules.Tasks.Infrastructure.TasksModule).Assembly)
+            .That()
+            .ImplementInterface(typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.ITodoItemRepository))
+            .Should()
+            .ResideInNamespace(InfrastructureNamespace)
+            .GetResult();
+
+        result.IsSuccessful.Should().BeTrue();
+    }
 }
 ```
 (If the module's Domain project has no `AssemblyReference` class, use
-`typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.TodoItem).Assembly` instead, as above.)
-Add one cross-module rule too:
+`typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.TodoItem).Assembly` instead, as above.) Add
+one cross-module rule too, but only assert what this repo's `CLAUDE.md` actually documents as the
+allowed exception (an `IntegrationEvents` project reference) — don't invent a `PublicApi`
+assertion that would currently fail simply because those projects sit unused:
 ```csharp
 [Fact]
 public void Modules_should_not_reference_each_others_domain_or_application()
 {
-    // For each pair of modules, assert neither's Domain/Application namespace is referenced
-    // by the other's Domain/Application/Infrastructure/Presentation — only an
-    // <Module>.IntegrationEvents-style project is an allowed cross-module reference, if this
-    // repo has that mechanism (check CLAUDE.md/existing consumers first).
+    // For each pair of modules, assert neither's Domain/Application namespace is referenced by
+    // the other's Domain/Application/Infrastructure/Presentation — the only allowed cross-module
+    // reference is <ModuleA>.Presentation depending on <ModuleB>.IntegrationEvents, per this
+    // repo's CLAUDE.md §10.
 }
 ```
 
 ## 4. Integration test — hitting an endpoint
 
-`tests/<ProjectName>.IntegrationTests/Modules/Tasks/TodoItems/CreateTodoItemTests.cs`, backed
-by a shared `WebApplicationFactory` fixture with real dependencies (DB, cache, etc.) via
-Testcontainers (create `tests/<ProjectName>.IntegrationTests/<ProjectName>WebAppFactory.cs`
-once, reuse via an xUnit `IClassFixture<<ProjectName>WebAppFactory>` / collection fixture
-across all integration tests — don't spin up a container per test class):
+`tests/<ProjectName>.IntegrationTests/Modules/Tasks/TodoItems/CreateTodoItemTests.cs`, backed by
+a shared `WebApplicationFactory` fixture with real dependencies (DB, cache, etc.) via
+Testcontainers (create `tests/<ProjectName>.IntegrationTests/<ProjectName>WebAppFactory.cs` once,
+reuse via an xUnit `IClassFixture<<ProjectName>WebAppFactory>` / collection fixture across all
+integration tests — don't spin up a container per test class):
 
 ```csharp
 using System.Net;
@@ -250,13 +297,17 @@ public sealed class CreateTodoItemTests(<ProjectName>WebAppFactory factory) : IC
 }
 ```
 Reset database state between tests with Respawn (add the `Respawn` package) rather than
-recreating containers. Check whether this repo has authentication on its endpoints — if not,
-no auth bypass plumbing is needed; if it does, add token/auth setup matching whatever the
-existing endpoints/tests already use.
+recreating containers. Check whether this repo actually has authentication configured anywhere
+(`AddAuthentication`/`[Authorize]`) before adding any auth/token setup to the test factory — per
+this repo's `CLAUDE.md`, an `.AllowAnonymous()` call existing on one endpoint does **not** by
+itself mean authentication is wired up; verify the real state rather than inferring it from a
+single attribute.
 
 ## 5. After scaffolding
 
-Run `dotnet test` on the affected project(s). If `NetArchTest.Rules`/`Testcontainers`/etc.
-were just added, mention to the user that these are new dependencies being introduced (not
-pre-existing in this repo) so they can veto a choice (e.g. prefer Moq over NSubstitute)
-before it spreads across many files.
+Run `dotnet test` on the affected project(s). If `FluentAssertions`/`NSubstitute`/
+`NetArchTest.Rules`/`Testcontainers`/`Respawn` were just added, explicitly tell the user these are
+new dependencies being introduced — this repo's own test projects, where they exist at all,
+previously had nothing beyond a bare `dotnet new xunit` scaffold, so don't present this stack as
+something already established here. Give the user the chance to veto a choice (e.g. prefer Moq
+over NSubstitute) before it spreads across many files.

@@ -78,4 +78,18 @@ public sealed class CriarPartidaCommandHandlerTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(EquipeErrors.NotFound(EquipeCasa.Id));
     }
+
+    [Fact]
+    public async Task Handle_should_fail_when_equipe_visitante_not_found()
+    {
+        _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
+        _equipeRepository.GetAsync(EquipeCasa.Id, Arg.Any<CancellationToken>()).Returns(EquipeCasa);
+        _equipeRepository.GetAsync(EquipeVisitante.Id, Arg.Any<CancellationToken>()).Returns((Equipe?)null);
+
+        Result<Guid> resultado = await CriarHandler().Handle(CriarComando(), CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(EquipeErrors.NotFound(EquipeVisitante.Id));
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
 }
