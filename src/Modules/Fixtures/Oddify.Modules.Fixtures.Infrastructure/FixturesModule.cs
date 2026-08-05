@@ -47,7 +47,8 @@ public static class FixturesModule
         services.AddDbContext<FixturesDbContext>((sp, options) =>
             options
                 .UseNpgsql(databaseConnectionString, npgsqlOptions => npgsqlOptions
-                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Fixtures))
+                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Fixtures)
+                    .EnableRetryOnFailure())
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
 

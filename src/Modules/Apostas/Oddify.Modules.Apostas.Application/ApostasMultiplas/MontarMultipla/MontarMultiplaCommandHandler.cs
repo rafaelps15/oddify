@@ -1,3 +1,4 @@
+using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
@@ -14,12 +15,13 @@ internal sealed class MontarMultiplaCommandHandler(
     IAnaliseDisponivelParaApostaRepository analiseDisponivelRepository,
     IApostaMultiplaRepository apostaMultiplaRepository,
     IPernaDeApostaRepository pernaDeApostaRepository,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IUserContext userContext)
     : ICommandHandler<MontarMultiplaCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(MontarMultiplaCommand request, CancellationToken cancellationToken)
     {
-        Banca? banca = await bancaRepository.GetAsync(request.BancaId, cancellationToken);
+        Banca? banca = await bancaRepository.GetAsync(request.BancaId, userContext.UserId, cancellationToken);
         if (banca is null)
         {
             return Result.Failure<Guid>(BancaErrors.NotFound(request.BancaId));
@@ -64,7 +66,8 @@ internal sealed class MontarMultiplaCommandHandler(
             return Result.Failure<Guid>(ApostaMultiplaErrors.StakeNulo);
         }
 
-        var apostaMultipla = ApostaMultipla.Create(request.BancaId, oddCombinada, stake, DateTime.UtcNow);
+        var apostaMultipla = ApostaMultipla.Create(
+            userContext.UserId, request.BancaId, oddCombinada, stake, OrigemDaAposta.ManualEntry, request.Descricao, DateTime.UtcNow);
         apostaMultiplaRepository.Insert(apostaMultipla);
 
         foreach (AnaliseDisponivelParaAposta disponivel in disponiveis)

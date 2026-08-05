@@ -10,11 +10,13 @@ using Oddify.Modules.Apostas.Application.Abstractions.Data;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
 using Oddify.Modules.Apostas.Infrastructure.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Infrastructure.ApostasMultiplas;
 using Oddify.Modules.Apostas.Infrastructure.Bancas;
 using Oddify.Modules.Apostas.Infrastructure.Database;
+using Oddify.Modules.Apostas.Infrastructure.MovimentacoesDaBanca;
 using Oddify.Modules.Apostas.Infrastructure.PernasDeAposta;
 using Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 
@@ -29,8 +31,11 @@ public static class ApostasModule
         return services;
     }
 
-    public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator) =>
+    public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator)
+    {
         registrationConfigurator.AddConsumer<AnaliseConfirmadaIntegrationEventConsumer>();
+        registrationConfigurator.AddConsumer<EmailVerifiedIntegrationEventConsumer>();
+    }
 
     private static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -39,7 +44,8 @@ public static class ApostasModule
         services.AddDbContext<ApostasDbContext>((sp, options) =>
             options
                 .UseNpgsql(databaseConnectionString, npgsqlOptions => npgsqlOptions
-                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Apostas))
+                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Apostas)
+                    .EnableRetryOnFailure())
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
 
@@ -49,5 +55,6 @@ public static class ApostasModule
         services.AddScoped<IApostaMultiplaRepository, ApostaMultiplaRepository>();
         services.AddScoped<IPernaDeApostaRepository, PernaDeApostaRepository>();
         services.AddScoped<IAnaliseDisponivelParaApostaRepository, AnaliseDisponivelParaApostaRepository>();
+        services.AddScoped<IMovimentacaoDaBancaRepository, MovimentacaoDaBancaRepository>();
     }
 }

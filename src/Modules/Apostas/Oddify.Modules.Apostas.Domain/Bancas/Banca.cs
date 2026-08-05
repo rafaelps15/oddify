@@ -10,22 +10,53 @@ public sealed class Banca : Entity
 
     public Guid Id { get; private set; }
 
+    public Guid UsuarioId { get; private set; }
+
+    public string Nome { get; private set; }
+
+    public decimal SaldoInicial { get; private set; }
+
     public decimal SaldoAtual { get; private set; }
+
+    public decimal PercentualPorEntrada { get; private set; }
 
     public bool ModoPaperTrading { get; private set; }
 
-    public static Banca Create(decimal saldoInicial, bool modoPaperTrading)
+    public bool Ativa { get; private set; }
+
+    public DateTime CriadoEmUtc { get; private set; }
+
+    public DateTime AtualizadoEmUtc { get; private set; }
+
+    // Não persistido — derivado a cada leitura, nunca fica desatualizado em relação a SaldoAtual.
+    public decimal ValorDaUnidade => SaldoAtual * PercentualPorEntrada;
+
+    public static Banca Create(
+        Guid usuarioId,
+        string nome,
+        decimal saldoInicial,
+        decimal percentualPorEntrada,
+        bool modoPaperTrading,
+        DateTime criadoEmUtc)
     {
         return new Banca
         {
             Id = Guid.NewGuid(),
+            UsuarioId = usuarioId,
+            Nome = nome,
+            SaldoInicial = saldoInicial,
             SaldoAtual = saldoInicial,
-            ModoPaperTrading = modoPaperTrading
+            PercentualPorEntrada = percentualPorEntrada,
+            ModoPaperTrading = modoPaperTrading,
+            Ativa = true,
+            CriadoEmUtc = criadoEmUtc,
+            AtualizadoEmUtc = criadoEmUtc
         };
     }
 
-    public void AjustarSaldo(decimal delta)
+    public void AjustarSaldo(decimal delta, DateTime atualizadoEmUtc)
     {
         SaldoAtual += delta;
+        AtualizadoEmUtc = atualizadoEmUtc;
     }
 }

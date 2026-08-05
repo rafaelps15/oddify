@@ -26,6 +26,7 @@ public sealed class LoginCommandHandlerTests
     public async Task Handle_should_return_tokens_when_credentials_are_valid()
     {
         var user = User.Create("user@example.com", "hashed-password", "Ada", "Lovelace");
+        user.MarkEmailAsVerified(DateTime.UtcNow);
         _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
         _passwordHasher.Verify("Password123!", "hashed-password").Returns(true);
         _tokenProvider.Create(user).Returns("access-token");
@@ -40,6 +41,22 @@ public sealed class LoginCommandHandlerTests
         resultado.Value.Should().Be(new AccessTokensResponse("access-token", "refresh-token"));
         _refreshTokenRepository.Received(1).Insert(Arg.Is<RefreshToken>(rt => rt.UserId == user.Id && rt.Token == "refresh-token"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_should_fail_with_email_not_verified_when_account_is_unverified()
+    {
+        var user = User.Create("user@example.com", "hashed-password", "Ada", "Lovelace");
+        _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
+        _passwordHasher.Verify("Password123!", "hashed-password").Returns(true);
+
+        var command = new LoginCommand("user@example.com", "Password123!");
+
+        Result<AccessTokensResponse> resultado = await CriarHandler().Handle(command, CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(UserErrors.EmailNotVerified);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

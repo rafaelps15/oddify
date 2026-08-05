@@ -27,6 +27,11 @@ internal sealed class LoginCommandHandler(
             return Result.Failure<AccessTokensResponse>(UserErrors.InvalidCredentials);
         }
 
+        if (!user.IsEmailVerified)
+        {
+            return Result.Failure<AccessTokensResponse>(UserErrors.EmailNotVerified);
+        }
+
         string accessToken = tokenProvider.Create(user);
         string refreshTokenValue = tokenProvider.GenerateRefreshToken();
 

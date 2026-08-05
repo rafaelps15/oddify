@@ -1,8 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Users.Application.Abstractions.Data;
+using Oddify.Modules.Users.Domain.EmailVerification;
 using Oddify.Modules.Users.Domain.Permissions;
 using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
+using Oddify.Modules.Users.Infrastructure.EmailVerification;
+using Oddify.Modules.Users.Infrastructure.Outbox;
 using Oddify.Modules.Users.Infrastructure.Permissions;
 using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
@@ -23,6 +26,10 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
 
     internal DbSet<UserRole> UserRoles { get; set; }
 
+    internal DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
+
+    internal DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Users);
@@ -33,5 +40,7 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new EmailVerificationTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }
 }

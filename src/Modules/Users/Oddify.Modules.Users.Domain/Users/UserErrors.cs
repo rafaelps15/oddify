@@ -18,4 +18,12 @@ public static class UserErrors
     public static readonly Error InvalidRefreshToken = Error.Problem(
         "Users.InvalidRefreshToken",
         "The provided refresh token is invalid or has expired");
+
+    public static readonly Error EmailAlreadyVerified = Error.Problem(
+        "Users.EmailAlreadyVerified",
+        "This account's email is already verified");
+
+    public static readonly Error EmailNotVerified = Error.Problem(
+        "Users.EmailNotVerified",
+        "This account's email has not been verified yet");
 }

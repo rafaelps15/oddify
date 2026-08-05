@@ -15,7 +15,8 @@ internal sealed class CriarBanca : IEndpoint
     {
         app.MapPost("bancas", async (Request request, ISender sender) =>
         {
-            Result<Guid> result = await sender.Send(new CriarBancaCommand(request.SaldoInicial, request.ModoPaperTrading));
+            Result<Guid> result = await sender.Send(new CriarBancaCommand(
+                request.Nome, request.SaldoInicial, request.PercentualPorEntrada, request.ModoPaperTrading));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
@@ -24,7 +25,11 @@ internal sealed class CriarBanca : IEndpoint
 
     internal sealed class Request
     {
+        public string Nome { get; init; }
+
         public decimal SaldoInicial { get; init; }
+
+        public decimal PercentualPorEntrada { get; init; }
 
         public bool ModoPaperTrading { get; init; }
     }

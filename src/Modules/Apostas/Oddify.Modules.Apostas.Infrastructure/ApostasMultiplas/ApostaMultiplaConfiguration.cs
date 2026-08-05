@@ -10,5 +10,9 @@ internal sealed class ApostaMultiplaConfiguration : IEntityTypeConfiguration<Apo
     public void Configure(EntityTypeBuilder<ApostaMultipla> builder)
     {
         builder.HasOne<Banca>().WithMany().HasForeignKey(a => a.BancaId);
+
+        builder.Property(a => a.Descricao).HasMaxLength(500);
+
+        builder.HasIndex(a => a.UsuarioId);
     }
 }

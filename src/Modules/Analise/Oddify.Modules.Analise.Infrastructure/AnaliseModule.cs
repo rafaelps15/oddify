@@ -34,7 +34,8 @@ public static class AnaliseModule
         services.AddDbContext<AnaliseDbContext>((sp, options) =>
             options
                 .UseNpgsql(databaseConnectionString, npgsqlOptions => npgsqlOptions
-                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Analise))
+                    .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Analise)
+                    .EnableRetryOnFailure())
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
 

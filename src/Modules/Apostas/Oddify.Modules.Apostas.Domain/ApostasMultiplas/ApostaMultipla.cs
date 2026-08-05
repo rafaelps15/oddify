@@ -10,11 +10,19 @@ public sealed class ApostaMultipla : Entity
 
     public Guid Id { get; private set; }
 
+    public Guid UsuarioId { get; private set; }
+
     public Guid BancaId { get; private set; }
+
+    public string? Descricao { get; private set; }
 
     public decimal OddCombinada { get; private set; }
 
     public decimal Stake { get; private set; }
+
+    public decimal RetornoPotencial { get; private set; }
+
+    public OrigemDaAposta Origem { get; private set; }
 
     public ResultadoDaAposta Resultado { get; private set; }
 
@@ -22,16 +30,30 @@ public sealed class ApostaMultipla : Entity
 
     public DateTime CriadaEmUtc { get; private set; }
 
-    public static ApostaMultipla Create(Guid bancaId, decimal oddCombinada, decimal stake, DateTime criadaEmUtc)
+    public DateTime AtualizadoEmUtc { get; private set; }
+
+    public static ApostaMultipla Create(
+        Guid usuarioId,
+        Guid bancaId,
+        decimal oddCombinada,
+        decimal stake,
+        OrigemDaAposta origem,
+        string? descricao,
+        DateTime criadaEmUtc)
     {
         var apostaMultipla = new ApostaMultipla
         {
             Id = Guid.NewGuid(),
+            UsuarioId = usuarioId,
             BancaId = bancaId,
+            Descricao = descricao,
             OddCombinada = oddCombinada,
             Stake = stake,
+            RetornoPotencial = stake * oddCombinada,
+            Origem = origem,
             Resultado = ResultadoDaAposta.Pendente,
-            CriadaEmUtc = criadaEmUtc
+            CriadaEmUtc = criadaEmUtc,
+            AtualizadoEmUtc = criadaEmUtc
         };
 
         apostaMultipla.Raise(new ApostaMultiplaCriadaDomainEvent(apostaMultipla.Id));
@@ -39,7 +61,7 @@ public sealed class ApostaMultipla : Entity
         return apostaMultipla;
     }
 
-    public Result Liquidar(bool ganhou)
+    public Result Liquidar(bool ganhou, DateTime atualizadoEmUtc)
     {
         if (Resultado != ResultadoDaAposta.Pendente)
         {
@@ -48,6 +70,7 @@ public sealed class ApostaMultipla : Entity
 
         Resultado = ganhou ? ResultadoDaAposta.Ganha : ResultadoDaAposta.Perdida;
         LucroOuPerda = ganhou ? Stake * (OddCombinada - 1) : -Stake;
+        AtualizadoEmUtc = atualizadoEmUtc;
 
         Raise(new ApostaMultiplaLiquidadaDomainEvent(Id, LucroOuPerda.Value));
 

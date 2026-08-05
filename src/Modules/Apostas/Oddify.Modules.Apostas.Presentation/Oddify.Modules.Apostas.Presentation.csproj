@@ -3,5 +3,6 @@
     <ProjectReference Include="..\..\..\Common\Oddify.Common.Presentation\Oddify.Common.Presentation.csproj" />
     <ProjectReference Include="..\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
     <ProjectReference Include="..\..\Analise\Oddify.Modules.Analise.IntegrationEvents\Oddify.Modules.Analise.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\Users\Oddify.Modules.Users.IntegrationEvents\Oddify.Modules.Users.IntegrationEvents.csproj" />
   </ItemGroup>
 </Project>

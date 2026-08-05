@@ -1,3 +1,5 @@
+using Oddify.Common.Application.Authentication;
+using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
@@ -5,12 +7,22 @@ using Oddify.Modules.Apostas.Domain.Bancas;
 
 namespace Oddify.Modules.Apostas.Application.Bancas.CriarBanca;
 
-internal sealed class CriarBancaCommandHandler(IBancaRepository bancaRepository, IUnitOfWork unitOfWork)
+internal sealed class CriarBancaCommandHandler(
+    IBancaRepository bancaRepository,
+    IUnitOfWork unitOfWork,
+    IUserContext userContext,
+    IDateTimeProvider dateTimeProvider)
     : ICommandHandler<CriarBancaCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(CriarBancaCommand request, CancellationToken cancellationToken)
     {
-        var banca = Banca.Create(request.SaldoInicial, request.ModoPaperTrading);
+        var banca = Banca.Create(
+            userContext.UserId,
+            request.Nome,
+            request.SaldoInicial,
+            request.PercentualPorEntrada,
+            request.ModoPaperTrading,
+            dateTimeProvider.UtcNow);
 
         bancaRepository.Insert(banca);
 

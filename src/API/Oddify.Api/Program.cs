@@ -39,7 +39,7 @@ string redisConnectionString = builder.Configuration.GetConnectionString("Cache"
 
 builder.Services.AddInfrastructure(
     builder.Configuration,
-    [ApostasModule.ConfigureConsumers],
+    [ApostasModule.ConfigureConsumers, UsersModule.ConfigureConsumers],
     databaseConnectionString,
     redisConnectionString);
 

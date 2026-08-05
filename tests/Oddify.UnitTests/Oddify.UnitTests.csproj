@@ -32,8 +32,11 @@
     <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
     <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Domain\Oddify.Modules.Apostas.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Presentation\Oddify.Modules.Apostas.Presentation.csproj" />
     <ProjectReference Include="..\..\src\Modules\Users\Oddify.Modules.Users.Domain\Oddify.Modules.Users.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Users\Oddify.Modules.Users.Application\Oddify.Modules.Users.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\Oddify.Modules.Users.Presentation\Oddify.Modules.Users.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\Oddify.Modules.Users.IntegrationEvents\Oddify.Modules.Users.IntegrationEvents.csproj" />
   </ItemGroup>
 
 </Project>

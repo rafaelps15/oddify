@@ -18,6 +18,10 @@ public sealed class User : Entity
 
     public string LastName { get; private set; }
 
+    public bool IsEmailVerified { get; private set; }
+
+    public DateTime? EmailVerifiedAtUtc { get; private set; }
+
     public static User Create(string email, string passwordHash, string firstName, string lastName)
     {
         var user = new User
@@ -26,7 +30,8 @@ public sealed class User : Entity
             Email = email,
             PasswordHash = passwordHash,
             FirstName = firstName,
-            LastName = lastName
+            LastName = lastName,
+            IsEmailVerified = false
         };
 
         user.Raise(new UserRegisteredDomainEvent(user.Id));
@@ -45,5 +50,20 @@ public sealed class User : Entity
         LastName = lastName;
 
         Raise(new UserProfileUpdatedDomainEvent(Id, firstName, lastName));
+    }
+
+    public Result MarkEmailAsVerified(DateTime verifiedAtUtc)
+    {
+        if (IsEmailVerified)
+        {
+            return Result.Failure(UserErrors.EmailAlreadyVerified);
+        }
+
+        IsEmailVerified = true;
+        EmailVerifiedAtUtc = verifiedAtUtc;
+
+        Raise(new EmailVerifiedDomainEvent(Id));
+
+        return Result.Success();
     }
 }
