@@ -2,7 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Oddify.Common.Infrastructure.Authorization;
 
-internal sealed class PermissionRequirement(string permission) : IAuthorizationRequirement
+internal sealed class PermissionRequirement : IAuthorizationRequirement
 {
-    public string Permission { get; } = permission;
+    public PermissionRequirement(string permission)
+    {
+        Permission = permission;
+    }
+
+    public string Permission { get; }
 }

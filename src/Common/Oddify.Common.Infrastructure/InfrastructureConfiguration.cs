@@ -1,14 +1,13 @@
-using System.Text;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Oddify.Common.Application.Authentication;
-using Oddify.Common.Application.Authorization;
 using Oddify.Common.Application.Caching;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Data;
@@ -58,16 +57,20 @@ public static class InfrastructureConfiguration
 
         services.TryAddSingleton<IEventBus, EventBus.EventBus>();
 
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        services
+            .AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                JwtOptions jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>()!;
+                JwtOptions jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
                 options.MapInboundClaims = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+                    IssuerSigningKey = jwtOptions.GetSecurityKey(),
                     ValidIssuer = jwtOptions.Issuer,
                     ValidAudience = jwtOptions.Audience,
                     ClockSkew = TimeSpan.Zero
@@ -77,6 +80,7 @@ public static class InfrastructureConfiguration
         services.AddAuthorization();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddScoped<PermissionProvider>();
         services.AddHttpContextAccessor();
         services.TryAddScoped<IUserContext, UserContext>();
         services.TryAddSingleton<IPasswordHasher, PasswordHasher>();

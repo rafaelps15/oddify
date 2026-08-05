@@ -27,7 +27,7 @@ internal sealed class LoginCommandHandler(
             return Result.Failure<AccessTokensResponse>(UserErrors.InvalidCredentials);
         }
 
-        string accessToken = tokenProvider.Create(user.Id, user.Email);
+        string accessToken = tokenProvider.Create(user);
         string refreshTokenValue = tokenProvider.GenerateRefreshToken();
 
         var refreshToken = RefreshToken.Create(

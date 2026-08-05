@@ -31,7 +31,7 @@ public sealed class RefreshAccessTokenCommandHandlerTests
         _dateTimeProvider.UtcNow.Returns(agora);
         _refreshTokenRepository.GetByTokenAsync("old-refresh-token", Arg.Any<CancellationToken>()).Returns(refreshToken);
         _userRepository.GetAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
-        _tokenProvider.Create(user.Id, user.Email).Returns("new-access-token");
+        _tokenProvider.Create(user).Returns("new-access-token");
         _tokenProvider.GenerateRefreshToken().Returns("new-refresh-token");
 
         var command = new RefreshAccessTokenCommand("old-refresh-token");

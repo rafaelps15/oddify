@@ -1,38 +1,39 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Oddify.Common.Application.Authentication;
+using Oddify.Modules.Users.Domain.Users;
 
 namespace Oddify.Common.Infrastructure.Authentication;
 
-internal sealed class TokenProvider(IOptions<JwtOptions> options) : ITokenProvider
+internal sealed class TokenProvider(IOptionsMonitor<JwtOptions> optionsMonitor) : ITokenProvider
 {
-    private JwtOptions Options => options.Value;
-
-    public string Create(Guid userId, string email)
+    public string Create(User user)
     {
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Options.Secret));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        JwtOptions options = optionsMonitor.CurrentValue;
+
+        var credentials = new SigningCredentials(options.GetSecurityKey(), SecurityAlgorithms.HmacSha256);
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(
             [
-                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, email)
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email)
             ]),
-            Expires = DateTime.UtcNow.AddMinutes(Options.ExpirationInMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(options.ExpirationInMinutes),
             SigningCredentials = credentials,
-            Issuer = Options.Issuer,
-            Audience = Options.Audience
+            Issuer = options.Issuer,
+            Audience = options.Audience
         };
 
         var handler = new JsonWebTokenHandler();
 
-        return handler.CreateToken(tokenDescriptor);
+        string token = handler.CreateToken(tokenDescriptor);
+
+        return token;
     }
 
     public string GenerateRefreshToken()

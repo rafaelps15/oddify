@@ -3,9 +3,16 @@ using Microsoft.Extensions.Options;
 
 namespace Oddify.Common.Infrastructure.Authorization;
 
-internal sealed class PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options)
-    : DefaultAuthorizationPolicyProvider(options)
+internal sealed class PermissionAuthorizationPolicyProvider : DefaultAuthorizationPolicyProvider
 {
+    private readonly AuthorizationOptions _authorizationOptions;
+
+    public PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options)
+        : base(options)
+    {
+        _authorizationOptions = options.Value;
+    }
+
     public override async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
         AuthorizationPolicy? policy = await base.GetPolicyAsync(policyName);
@@ -15,9 +22,12 @@ internal sealed class PermissionAuthorizationPolicyProvider(IOptions<Authorizati
             return policy;
         }
 
-        return new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
+        AuthorizationPolicy permissionPolicy = new AuthorizationPolicyBuilder()
             .AddRequirements(new PermissionRequirement(policyName))
             .Build();
+
+        _authorizationOptions.AddPolicy(policyName, permissionPolicy);
+
+        return permissionPolicy;
     }
 }

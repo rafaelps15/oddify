@@ -1,24 +1,28 @@
 using Microsoft.AspNetCore.Authorization;
-using Oddify.Common.Application.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Infrastructure.Authentication;
 
 namespace Oddify.Common.Infrastructure.Authorization;
 
-internal sealed class PermissionAuthorizationHandler(IPermissionService permissionService)
+internal sealed class PermissionAuthorizationHandler(IServiceScopeFactory serviceScopeFactory)
     : AuthorizationHandler<PermissionRequirement>
 {
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (context.User.Identity?.IsAuthenticated != true)
+        if (context.User is not { Identity.IsAuthenticated: true })
         {
             return;
         }
 
+        using IServiceScope scope = serviceScopeFactory.CreateScope();
+
+        PermissionProvider permissionProvider = scope.ServiceProvider.GetRequiredService<PermissionProvider>();
+
         Guid userId = context.User.GetUserId();
 
-        IReadOnlySet<string> permissions = await permissionService.GetPermissionsAsync(userId);
+        HashSet<string> permissions = await permissionProvider.GetForUserIdAsync(userId);
 
         if (permissions.Contains(requirement.Permission))
         {

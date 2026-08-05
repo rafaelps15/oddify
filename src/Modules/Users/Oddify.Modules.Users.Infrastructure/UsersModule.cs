@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Application.Authorization;
 using Oddify.Common.Application.Caching;
+using Oddify.Common.Infrastructure.Authorization;
 using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Users.Application.Abstractions.Data;
@@ -47,9 +48,10 @@ public static class UsersModule
 
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 
-        services.AddScoped<PermissionService>();
-
+        // PermissionProvider é registrado em Common.Infrastructure/InfrastructureConfiguration.cs —
+        // vive lá porque PermissionAuthorizationHandler (autorização cross-cutting) o resolve
+        // diretamente, sem depender de nenhum módulo específico.
         services.AddScoped<IPermissionService>(sp =>
-            new CachedPermissionService(sp.GetRequiredService<PermissionService>(), sp.GetRequiredService<ICacheService>()));
+            new CachedPermissionService(sp.GetRequiredService<PermissionProvider>(), sp.GetRequiredService<ICacheService>()));
     }
 }

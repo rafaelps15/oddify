@@ -8,6 +8,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Users\Oddify.Modules.Users.Domain\Oddify.Modules.Users.Domain.csproj" />
     <ProjectReference Include="..\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
   </ItemGroup>
 </Project>

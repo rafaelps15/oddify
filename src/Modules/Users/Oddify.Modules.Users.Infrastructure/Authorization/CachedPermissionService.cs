@@ -1,9 +1,10 @@
 using Oddify.Common.Application.Authorization;
 using Oddify.Common.Application.Caching;
+using Oddify.Common.Infrastructure.Authorization;
 
 namespace Oddify.Modules.Users.Infrastructure.Authorization;
 
-internal sealed class CachedPermissionService(PermissionService inner, ICacheService cache) : IPermissionService
+internal sealed class CachedPermissionService(PermissionProvider inner, ICacheService cache) : IPermissionService
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
@@ -20,7 +21,7 @@ internal sealed class CachedPermissionService(PermissionService inner, ICacheSer
             return cached;
         }
 
-        IReadOnlySet<string> permissions = await inner.GetPermissionsAsync(userId, cancellationToken);
+        HashSet<string> permissions = await inner.GetForUserIdAsync(userId, cancellationToken);
 
         await cache.SetAsync(key, permissions, CacheDuration, cancellationToken);
 
