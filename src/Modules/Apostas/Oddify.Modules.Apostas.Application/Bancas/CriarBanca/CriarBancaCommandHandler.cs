@@ -21,6 +21,7 @@ internal sealed class CriarBancaCommandHandler(
             request.Nome,
             request.SaldoInicial,
             request.PercentualPorEntrada,
+            request.PerfilDeRisco,
             request.ModoPaperTrading,
             dateTimeProvider.UtcNow);
 

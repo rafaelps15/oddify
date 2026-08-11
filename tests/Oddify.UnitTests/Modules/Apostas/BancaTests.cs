@@ -6,7 +6,14 @@ namespace Oddify.UnitTests.Modules.Apostas;
 public sealed class BancaTests
 {
     private static Banca CriarBanca(decimal saldoInicial = 1000m, decimal percentualPorEntrada = 0.05m) =>
-        Banca.Create(Guid.NewGuid(), "Banca principal", saldoInicial, percentualPorEntrada, modoPaperTrading: true, DateTime.UtcNow);
+        Banca.Create(
+            Guid.NewGuid(),
+            "Banca principal",
+            saldoInicial,
+            percentualPorEntrada,
+            PerfilDeRisco.Moderado,
+            modoPaperTrading: true,
+            DateTime.UtcNow);
 
     [Fact]
     public void AjustarSaldo_should_add_positive_delta()
@@ -38,5 +45,13 @@ public sealed class BancaTests
         banca.AjustarSaldo(1000m, DateTime.UtcNow);
 
         banca.ValorDaUnidade.Should().Be(100m);
+    }
+
+    [Fact]
+    public void Create_should_set_perfil_de_risco()
+    {
+        Banca banca = CriarBanca();
+
+        banca.PerfilDeRisco.Should().Be(PerfilDeRisco.Moderado);
     }
 }

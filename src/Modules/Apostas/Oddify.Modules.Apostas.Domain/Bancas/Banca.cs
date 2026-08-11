@@ -20,6 +20,8 @@ public sealed class Banca : Entity
 
     public decimal PercentualPorEntrada { get; private set; }
 
+    public PerfilDeRisco PerfilDeRisco { get; private set; }
+
     public bool ModoPaperTrading { get; private set; }
 
     public bool Ativa { get; private set; }
@@ -36,6 +38,7 @@ public sealed class Banca : Entity
         string nome,
         decimal saldoInicial,
         decimal percentualPorEntrada,
+        PerfilDeRisco perfilDeRisco,
         bool modoPaperTrading,
         DateTime criadoEmUtc)
     {
@@ -47,6 +50,7 @@ public sealed class Banca : Entity
             SaldoInicial = saldoInicial,
             SaldoAtual = saldoInicial,
             PercentualPorEntrada = percentualPorEntrada,
+            PerfilDeRisco = perfilDeRisco,
             ModoPaperTrading = modoPaperTrading,
             Ativa = true,
             CriadoEmUtc = criadoEmUtc,

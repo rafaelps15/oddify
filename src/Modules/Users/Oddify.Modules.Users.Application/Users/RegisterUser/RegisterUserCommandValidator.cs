@@ -16,8 +16,8 @@ internal sealed class RegisterUserCommandValidator : AbstractValidator<RegisterU
             .NotEmpty().WithMessage("A senha é obrigatória")
             .MinimumLength(6).WithMessage("A senha deve ter no mínimo 6 caracteres")
             .MaximumLength(100).WithMessage("A senha deve ter no máximo 100 caracteres")
-            .Must(password => password.Any(char.IsLetter)).WithMessage("A senha deve conter pelo menos uma letra")
-            .Must(password => password.Any(char.IsDigit)).WithMessage("A senha deve conter pelo menos um número");
+            .Must(password => password.Any(char.IsDigit)).WithMessage("A senha deve conter pelo menos um número")
+            .Must(password => password.Any(c => !char.IsLetterOrDigit(c))).WithMessage("A senha deve conter pelo menos um caractere especial");
         RuleFor(c => c.FirstName).NotEmpty().WithMessage("O nome é obrigatório")
             .MaximumLength(200).WithMessage("O nome deve ter no máximo 200 caracteres");
         RuleFor(c => c.LastName).NotEmpty().WithMessage("O sobrenome é obrigatório")

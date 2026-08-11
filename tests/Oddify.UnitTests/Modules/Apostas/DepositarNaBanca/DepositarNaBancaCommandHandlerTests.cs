@@ -20,7 +20,7 @@ public sealed class DepositarNaBancaCommandHandlerTests
     private readonly Guid _usuarioId = Guid.NewGuid();
 
     private Banca CriarBanca(decimal saldoInicial) =>
-        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, modoPaperTrading: true, DateTime.UtcNow);
+        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, PerfilDeRisco.Moderado, modoPaperTrading: true, DateTime.UtcNow);
 
     private DepositarNaBancaCommandHandler CriarHandler()
     {

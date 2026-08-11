@@ -18,7 +18,10 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
     {
         HttpResponseMessage criarResponse = await _client.PostAsJsonAsync("bancas", new
         {
+            Nome = "Banca principal",
             SaldoInicial = 1000m,
+            PercentualPorEntrada = 0.05m,
+            PerfilDeRisco = 1, // Moderado
             ModoPaperTrading = true,
         });
 
@@ -32,7 +35,10 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
 
         BancaResponse? banca = await getResponse.Content.ReadFromJsonAsync<BancaResponse>();
         banca.Should().NotBeNull();
-        banca!.SaldoAtual.Should().Be(1000m);
+        banca!.Nome.Should().Be("Banca principal");
+        banca.SaldoAtual.Should().Be(1000m);
+        banca.PercentualPorEntrada.Should().Be(0.05m);
+        banca.PerfilDeRisco.Should().Be(1);
         banca.ModoPaperTrading.Should().BeTrue();
     }
 
@@ -42,6 +48,35 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         HttpResponseMessage response = await _client.GetAsync($"bancas/{Guid.NewGuid()}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetBancas_should_list_the_bancas_just_created()
+    {
+        await _client.PostAsJsonAsync("bancas", new
+        {
+            Nome = "Banca principal",
+            SaldoInicial = 1000m,
+            PercentualPorEntrada = 0.05m,
+            PerfilDeRisco = 1, // Moderado
+            ModoPaperTrading = true,
+        });
+        await _client.PostAsJsonAsync("bancas", new
+        {
+            Nome = "Banca paper trading",
+            SaldoInicial = 500m,
+            PercentualPorEntrada = 0.03m,
+            PerfilDeRisco = 0, // Conservador
+            ModoPaperTrading = true,
+        });
+
+        HttpResponseMessage response = await _client.GetAsync("bancas");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        List<BancaResponse>? bancas = await response.Content.ReadFromJsonAsync<List<BancaResponse>>();
+        bancas.Should().NotBeNull();
+        bancas!.Should().HaveCount(2);
+        bancas!.Select(b => b.Nome).Should().BeEquivalentTo("Banca principal", "Banca paper trading");
     }
 
     [Fact]
@@ -108,7 +143,7 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         disponiveis.Should().BeEmpty();
     }
 
-    private sealed record BancaResponse(Guid Id, decimal SaldoAtual, bool ModoPaperTrading);
+    private sealed record BancaResponse(Guid Id, string Nome, decimal SaldoAtual, decimal PercentualPorEntrada, int PerfilDeRisco, bool ModoPaperTrading);
 
     private sealed record SugestaoDeStakeResponse(
         decimal ProbabilidadeImplicita,

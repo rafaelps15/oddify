@@ -1,16 +1,17 @@
 using System.Data.Common;
 using Dapper;
+using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
-using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Application.Bancas.GetBanca;
 
-namespace Oddify.Modules.Apostas.Application.Bancas.GetBanca;
+namespace Oddify.Modules.Apostas.Application.Bancas.GetBancas;
 
-internal sealed class GetBancaQueryHandler(IDbConnectionFactory dbConnectionFactory)
-    : IQueryHandler<GetBancaQuery, BancaResponse>
+internal sealed class GetBancasQueryHandler(IDbConnectionFactory dbConnectionFactory, IUserContext userContext)
+    : IQueryHandler<GetBancasQuery, IReadOnlyCollection<BancaResponse>>
 {
-    public async Task<Result<BancaResponse>> Handle(GetBancaQuery request, CancellationToken cancellationToken)
+    public async Task<Result<IReadOnlyCollection<BancaResponse>>> Handle(GetBancasQuery request, CancellationToken cancellationToken)
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
@@ -24,16 +25,12 @@ internal sealed class GetBancaQueryHandler(IDbConnectionFactory dbConnectionFact
                  perfil_de_risco AS {nameof(BancaResponse.PerfilDeRisco)},
                  modo_paper_trading AS {nameof(BancaResponse.ModoPaperTrading)}
              FROM apostas.bancas
-             WHERE id = @BancaId
+             WHERE usuario_id = @UserId AND ativa
+             ORDER BY criado_em_utc
              """;
 
-        BancaResponse? result = await connection.QuerySingleOrDefaultAsync<BancaResponse>(sql, request);
+        List<BancaResponse> bancas = (await connection.QueryAsync<BancaResponse>(sql, new { userContext.UserId })).AsList();
 
-        if (result is null)
-        {
-            return Result.Failure<BancaResponse>(BancaErrors.NotFound(request.BancaId));
-        }
-
-        return result;
+        return bancas;
     }
 }

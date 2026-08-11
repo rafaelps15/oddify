@@ -6,6 +6,7 @@ using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Results;
 using Oddify.Modules.Apostas.Application.Bancas.CriarBanca;
+using Oddify.Modules.Apostas.Domain.Bancas;
 
 namespace Oddify.Modules.Apostas.Presentation.Bancas;
 
@@ -16,7 +17,7 @@ internal sealed class CriarBanca : IEndpoint
         app.MapPost("bancas", async (Request request, ISender sender) =>
         {
             Result<Guid> result = await sender.Send(new CriarBancaCommand(
-                request.Nome, request.SaldoInicial, request.PercentualPorEntrada, request.ModoPaperTrading));
+                request.Nome, request.SaldoInicial, request.PercentualPorEntrada, request.PerfilDeRisco, request.ModoPaperTrading));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
@@ -30,6 +31,8 @@ internal sealed class CriarBanca : IEndpoint
         public decimal SaldoInicial { get; init; }
 
         public decimal PercentualPorEntrada { get; init; }
+
+        public PerfilDeRisco PerfilDeRisco { get; init; }
 
         public bool ModoPaperTrading { get; init; }
     }

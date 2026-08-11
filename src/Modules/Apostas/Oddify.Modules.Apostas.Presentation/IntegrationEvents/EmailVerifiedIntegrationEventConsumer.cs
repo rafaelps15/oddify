@@ -10,6 +10,7 @@ public sealed class EmailVerifiedIntegrationEventConsumer(IBancaRepository banca
 {
     private const string NomeDaBancaInicial = "Banca principal";
     private const decimal PercentualPorEntradaPadrao = 0.05m;
+    private const PerfilDeRisco PerfilDeRiscoPadrao = PerfilDeRisco.Moderado;
 
     public async Task Consume(ConsumeContext<EmailVerifiedIntegrationEvent> context)
     {
@@ -29,6 +30,7 @@ public sealed class EmailVerifiedIntegrationEventConsumer(IBancaRepository banca
             NomeDaBancaInicial,
             saldoInicial: 0m,
             PercentualPorEntradaPadrao,
+            PerfilDeRiscoPadrao,
             modoPaperTrading: true,
             evento.OccurredOnUtc);
 

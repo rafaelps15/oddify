@@ -28,7 +28,7 @@ public sealed class MontarMultiplaCommandHandlerTests
     }
 
     private Banca CriarBanca(decimal saldoInicial) =>
-        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, modoPaperTrading: true, DateTime.UtcNow);
+        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, PerfilDeRisco.Moderado, modoPaperTrading: true, DateTime.UtcNow);
 
     private static AnaliseDisponivelParaAposta CriarDisponivel(Guid partidaId, decimal odd, decimal probabilidade, bool reduzida = false) =>
         AnaliseDisponivelParaAposta.Create(Guid.NewGuid(), partidaId, "vitoria_casa", odd, probabilidade, reduzida);
