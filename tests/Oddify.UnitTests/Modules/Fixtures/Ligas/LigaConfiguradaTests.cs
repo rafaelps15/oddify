@@ -8,7 +8,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void Create_should_raise_LigaConfiguradaCriadaDomainEvent_and_start_uncalibrated()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
 
         liga.DomainEvents.Should().ContainSingle(e => e is LigaConfiguradaCriadaDomainEvent);
         liga.Calibrada.Should().BeFalse();
@@ -17,7 +17,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void AtualizarMedias_should_update_values_and_raise_event_when_changed()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.ClearDomainEvents();
 
         liga.AtualizarMedias(2.8m, 1.2m);
@@ -30,7 +30,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void AtualizarMedias_should_not_raise_event_when_values_are_unchanged()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.ClearDomainEvents();
 
         liga.AtualizarMedias(2.5m, 1.1m);
@@ -41,7 +41,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void Calibrar_should_set_calibrada_true_and_raise_event()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.ClearDomainEvents();
 
         liga.Calibrar();
@@ -53,7 +53,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void Calibrar_should_be_a_no_op_when_already_calibrada()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.Calibrar();
         liga.ClearDomainEvents();
 
@@ -65,7 +65,7 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void Descalibrar_should_set_calibrada_false_and_raise_event()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.Calibrar();
         liga.ClearDomainEvents();
 
@@ -78,10 +78,33 @@ public sealed class LigaConfiguradaTests
     [Fact]
     public void Descalibrar_should_be_a_no_op_when_already_descalibrada()
     {
-        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         liga.ClearDomainEvents();
 
         liga.Descalibrar();
+
+        liga.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AtualizarBandeira_should_update_bandeiraUrl_and_raise_event_when_changed()
+    {
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
+        liga.ClearDomainEvents();
+
+        liga.AtualizarBandeira("https://media.api-sports.io/flags/gb.svg");
+
+        liga.Bandeira.Should().Be("https://media.api-sports.io/flags/gb.svg");
+        liga.DomainEvents.Should().ContainSingle(e => e is LigaBandeiraAtualizadaDomainEvent);
+    }
+
+    [Fact]
+    public void AtualizarBandeira_should_be_a_no_op_when_bandeiraUrl_is_unchanged()
+    {
+        var liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: "https://media.api-sports.io/flags/gb.svg");
+        liga.ClearDomainEvents();
+
+        liga.AtualizarBandeira("https://media.api-sports.io/flags/gb.svg");
 
         liga.DomainEvents.Should().BeEmpty();
     }

@@ -33,6 +33,9 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
             return Result.Failure(fixturesResult.Error);
         }
 
+        string? bandeira = fixturesResult.Value.Select(fixture => fixture.LigaFlag).FirstOrDefault(flag => flag is not null);
+        liga.AtualizarBandeira(bandeira);
+
         // Cache local por execução: o time aparece em várias partidas (casa/fora) antes do
         // SaveChangesAsync ser chamado, então a consulta ao repositório não veria as inserções
         // ainda não persistidas e recriaria o mesmo time repetidas vezes.
@@ -55,8 +58,10 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
         Dictionary<string, Equipe> equipesSincronizadas,
         CancellationToken cancellationToken)
     {
-        Equipe equipeCasa = await ObterOuCriarEquipeAsync(fixture.EquipeCasaIdExterno, fixture.NomeEquipeCasa, ligaId, equipesSincronizadas, cancellationToken);
-        Equipe equipeVisitante = await ObterOuCriarEquipeAsync(fixture.EquipeVisitanteIdExterno, fixture.NomeEquipeVisitante, ligaId, equipesSincronizadas, cancellationToken);
+        Equipe equipeCasa = await ObterOuCriarEquipeAsync(
+            fixture.EquipeCasaIdExterno, fixture.NomeEquipeCasa, fixture.EquipeCasaLogo, ligaId, equipesSincronizadas, cancellationToken);
+        Equipe equipeVisitante = await ObterOuCriarEquipeAsync(
+            fixture.EquipeVisitanteIdExterno, fixture.NomeEquipeVisitante, fixture.EquipeVisitanteLogo, ligaId, equipesSincronizadas, cancellationToken);
 
         Partida? partida = await partidaRepository.GetByIdExternoAsync(fixture.IdExterno, cancellationToken);
 
@@ -75,6 +80,7 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
     private async Task<Equipe> ObterOuCriarEquipeAsync(
         string idExterno,
         string nome,
+        string? logo,
         Guid ligaId,
         Dictionary<string, Equipe> equipesSincronizadas,
         CancellationToken cancellationToken)
@@ -88,8 +94,12 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
 
         if (equipe is null)
         {
-            equipe = Equipe.Create(idExterno, nome, ligaId);
+            equipe = Equipe.Create(idExterno, nome, ligaId, logo);
             equipeRepository.Insert(equipe);
+        }
+        else
+        {
+            equipe.AtualizarLogo(logo);
         }
 
         equipesSincronizadas[idExterno] = equipe;

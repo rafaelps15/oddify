@@ -63,13 +63,16 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
             fixture.Fixture.Id.ToString(CultureInfo.InvariantCulture),
             fixture.Teams.Home.Id.ToString(CultureInfo.InvariantCulture),
             fixture.Teams.Home.Name,
+            fixture.Teams.Home.Logo,
             fixture.Teams.Away.Id.ToString(CultureInfo.InvariantCulture),
             fixture.Teams.Away.Name,
+            fixture.Teams.Away.Logo,
             fixture.Fixture.Date.UtcDateTime,
             encerrada,
             fixture.Goals.Home,
             fixture.Goals.Away,
-            ExtrairRodada(fixture.League.Round));
+            ExtrairRodada(fixture.League.Round),
+            fixture.League.Flag);
     }
 
     // league.round da api-football é um rótulo textual (ex.: "Regular Season - 4", "Relegation
@@ -96,11 +99,11 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
 
     private sealed record FixtureStatusDto(string Short);
 
-    private sealed record LeagueDto(string? Round);
+    private sealed record LeagueDto(string? Round, string? Flag);
 
     private sealed record TeamsDto(TeamDto Home, TeamDto Away);
 
-    private sealed record TeamDto(long Id, string Name);
+    private sealed record TeamDto(long Id, string Name, string? Logo);
 
     private sealed record GoalsDto(int? Home, int? Away);
 }

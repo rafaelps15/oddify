@@ -16,14 +16,17 @@ public sealed class Equipe : Entity
 
     public Guid LigaId { get; private set; }
 
-    public static Equipe Create(string idExterno, string nome, Guid ligaId)
+    public string? Logo { get; private set; }
+
+    public static Equipe Create(string idExterno, string nome, Guid ligaId, string? logo)
     {
         var equipe = new Equipe
         {
             Id = Guid.NewGuid(),
             IdExterno = idExterno,
             Nome = nome,
-            LigaId = ligaId
+            LigaId = ligaId,
+            Logo = logo
         };
 
         equipe.Raise(new EquipeCriadaDomainEvent(equipe.Id));
@@ -41,5 +44,17 @@ public sealed class Equipe : Entity
         Nome = nome;
 
         Raise(new EquipeRenomeadaDomainEvent(Id, nome));
+    }
+
+    public void AtualizarLogo(string? logo)
+    {
+        if (Logo == logo)
+        {
+            return;
+        }
+
+        Logo = logo;
+
+        Raise(new EquipeLogoAtualizadoDomainEvent(Id, logo));
     }
 }

@@ -11,6 +11,7 @@ internal sealed class EquipeConfiguration : IEntityTypeConfiguration<Equipe>
     {
         builder.Property(e => e.IdExterno).HasMaxLength(100);
         builder.Property(e => e.Nome).HasMaxLength(200);
+        builder.Property(e => e.Logo).HasMaxLength(500);
 
         builder.HasOne<LigaConfigurada>().WithMany().HasForeignKey(e => e.LigaId);
     }

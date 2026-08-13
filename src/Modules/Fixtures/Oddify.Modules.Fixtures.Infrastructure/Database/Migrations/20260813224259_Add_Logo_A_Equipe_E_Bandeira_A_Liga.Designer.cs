@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Oddify.Modules.Fixtures.Infrastructure.Database;
@@ -11,9 +12,11 @@ using Oddify.Modules.Fixtures.Infrastructure.Database;
 namespace Oddify.Modules.Fixtures.Infrastructure.Database.Migrations;
 
 [DbContext(typeof(FixturesDbContext))]
-partial class FixturesDbContextModelSnapshot : ModelSnapshot
+[Migration("20260813224259_Add_Logo_A_Equipe_E_Bandeira_A_Liga")]
+partial class Add_Logo_A_Equipe_E_Bandeira_A_Liga
 {
-    protected override void BuildModel(ModelBuilder modelBuilder)
+    /// <inheritdoc />
+    protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder

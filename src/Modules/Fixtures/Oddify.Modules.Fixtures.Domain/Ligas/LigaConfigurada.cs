@@ -20,7 +20,9 @@ public sealed class LigaConfigurada : Entity
 
     public bool Calibrada { get; private set; }
 
-    public static LigaConfigurada Create(string idExterno, string nome, decimal mediaDeGols, decimal fatorCasa)
+    public string? Bandeira { get; private set; }
+
+    public static LigaConfigurada Create(string idExterno, string nome, decimal mediaDeGols, decimal fatorCasa, string? bandeira)
     {
         var liga = new LigaConfigurada
         {
@@ -29,7 +31,8 @@ public sealed class LigaConfigurada : Entity
             Nome = nome,
             MediaDeGols = mediaDeGols,
             FatorCasa = fatorCasa,
-            Calibrada = false
+            Calibrada = false,
+            Bandeira = bandeira
         };
 
         liga.Raise(new LigaConfiguradaCriadaDomainEvent(liga.Id));
@@ -72,5 +75,17 @@ public sealed class LigaConfigurada : Entity
         Calibrada = false;
 
         Raise(new LigaCalibradaAlteradaDomainEvent(Id, Calibrada));
+    }
+
+    public void AtualizarBandeira(string? bandeira)
+    {
+        if (Bandeira == bandeira)
+        {
+            return;
+        }
+
+        Bandeira = bandeira;
+
+        Raise(new LigaBandeiraAtualizadaDomainEvent(Id, bandeira));
     }
 }

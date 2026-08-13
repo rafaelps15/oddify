@@ -16,9 +16,9 @@ public sealed class CriarPartidaCommandHandlerTests
     private readonly IEquipeRepository _equipeRepository = Substitute.For<IEquipeRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
-    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
-    private static readonly Equipe EquipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
-    private static readonly Equipe EquipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
+    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
+    private static readonly Equipe EquipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id, logo: null);
+    private static readonly Equipe EquipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id, logo: null);
 
     private CriarPartidaCommandHandler CriarHandler() =>
         new(_partidaRepository, _ligaRepository, _equipeRepository, _unitOfWork);

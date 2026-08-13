@@ -21,7 +21,7 @@ internal sealed class CriarEquipeCommandHandler(
             return Result.Failure<Guid>(LigaConfiguradaErrors.NotFound(request.LigaId));
         }
 
-        var equipe = Equipe.Create(request.IdExterno, request.Nome, request.LigaId);
+        var equipe = Equipe.Create(request.IdExterno, request.Nome, request.LigaId, logo: null);
 
         equipeRepository.Insert(equipe);
 

@@ -10,6 +10,7 @@ internal sealed class LigaConfiguradaConfiguration : IEntityTypeConfiguration<Li
     {
         builder.Property(l => l.IdExterno).HasMaxLength(100);
         builder.Property(l => l.Nome).HasMaxLength(200);
+        builder.Property(l => l.Bandeira).HasMaxLength(500);
 
         builder.HasIndex(l => l.IdExterno).IsUnique();
     }

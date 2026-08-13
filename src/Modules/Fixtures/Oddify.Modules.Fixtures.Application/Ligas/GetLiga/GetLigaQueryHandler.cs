@@ -22,7 +22,8 @@ internal sealed class GetLigaQueryHandler(IDbConnectionFactory dbConnectionFacto
                  nome AS {nameof(LigaResponse.Nome)},
                  media_de_gols AS {nameof(LigaResponse.MediaDeGols)},
                  fator_casa AS {nameof(LigaResponse.FatorCasa)},
-                 calibrada AS {nameof(LigaResponse.Calibrada)}
+                 calibrada AS {nameof(LigaResponse.Calibrada)},
+                 bandeira AS {nameof(LigaResponse.Bandeira)}
              FROM fixtures.ligas
              WHERE id = @LigaId
              """;

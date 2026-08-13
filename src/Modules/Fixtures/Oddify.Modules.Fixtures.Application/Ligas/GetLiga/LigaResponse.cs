@@ -6,4 +6,5 @@ public sealed record LigaResponse(
     string Nome,
     decimal MediaDeGols,
     decimal FatorCasa,
-    bool Calibrada);
+    bool Calibrada,
+    string? Bandeira);

@@ -18,13 +18,26 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     private readonly IApiFootballClient _apiFootballClient = Substitute.For<IApiFootballClient>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
-    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
 
     private SincronizarFixturesDaLigaCommandHandler CriarHandler() =>
         new(_ligaRepository, _equipeRepository, _partidaRepository, _apiFootballClient, _unitOfWork);
 
     private static FixtureExternoDto CriarFixture(bool encerrada = false, int? golsCasa = null, int? golsVisitante = null, int rodada = 1) =>
-        new("fixture-1", "time-casa", "Flamengo", "time-visitante", "Palmeiras", DateTime.UtcNow.AddDays(1), encerrada, golsCasa, golsVisitante, rodada);
+        new(
+            "fixture-1",
+            "time-casa",
+            "Flamengo",
+            EquipeCasaLogo: null,
+            "time-visitante",
+            "Palmeiras",
+            EquipeVisitanteLogo: null,
+            DateTime.UtcNow.AddDays(1),
+            encerrada,
+            golsCasa,
+            golsVisitante,
+            rodada,
+            LigaFlag: null);
 
     [Fact]
     public async Task Handle_should_fail_when_liga_not_found()
@@ -62,8 +75,8 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     [Fact]
     public async Task Handle_should_not_duplicate_equipes_or_partida_when_they_already_exist()
     {
-        var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
-        var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
+        var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id, logo: null);
+        var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id, logo: null);
         var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(1), rodada: 1, temporada: 2026);
 
         _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
@@ -85,8 +98,8 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
     [Fact]
     public async Task Handle_should_registrar_resultado_when_fixture_is_encerrada_and_partida_still_agendada()
     {
-        var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
-        var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
+        var equipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id, logo: null);
+        var equipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id, logo: null);
         var partidaExistente = Partida.Create("fixture-1", Liga.Id, equipeCasa.Id, equipeVisitante.Id, DateTime.UtcNow.AddDays(-1), rodada: 1, temporada: 2026);
 
         _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);

@@ -20,7 +20,8 @@ internal sealed class GetEquipesQueryHandler(IDbConnectionFactory dbConnectionFa
                  id AS {nameof(EquipeResponse.Id)},
                  id_externo AS {nameof(EquipeResponse.IdExterno)},
                  nome AS {nameof(EquipeResponse.Nome)},
-                 liga_id AS {nameof(EquipeResponse.LigaId)}
+                 liga_id AS {nameof(EquipeResponse.LigaId)},
+                 logo AS {nameof(EquipeResponse.Logo)}
              FROM fixtures.equipes
              WHERE (@LigaId IS NULL OR liga_id = @LigaId)
                AND (@Ids IS NULL OR id = ANY(@Ids))

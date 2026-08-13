@@ -31,7 +31,7 @@ public sealed class CriarLigaCommandHandlerTests
     [Fact]
     public async Task Handle_should_fail_when_idExterno_is_already_registered()
     {
-        var ligaExistente = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
+        var ligaExistente = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
         _ligaRepository.GetByIdExternoAsync("liga-1", Arg.Any<CancellationToken>()).Returns(ligaExistente);
 
         var command = new CriarLigaCommand("liga-1", "Outra Liga", 2.0m, 1.0m);

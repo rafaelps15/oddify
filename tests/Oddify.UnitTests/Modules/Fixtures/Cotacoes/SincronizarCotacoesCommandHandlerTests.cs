@@ -21,9 +21,9 @@ public sealed class SincronizarCotacoesCommandHandlerTests
     private readonly ITheOddsApiClient _theOddsApiClient = Substitute.For<ITheOddsApiClient>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
-    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m);
-    private static readonly Equipe EquipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id);
-    private static readonly Equipe EquipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id);
+    private static readonly LigaConfigurada Liga = LigaConfigurada.Create("liga-1", "Premier League", 2.5m, 1.1m, bandeira: null);
+    private static readonly Equipe EquipeCasa = Equipe.Create("time-casa", "Flamengo", Liga.Id, logo: null);
+    private static readonly Equipe EquipeVisitante = Equipe.Create("time-visitante", "Palmeiras", Liga.Id, logo: null);
     private static readonly DateTime DataDaPartida = DateTime.UtcNow.AddHours(6);
 
     private SincronizarCotacoesCommandHandler CriarHandler(SincronizacaoExternaOptions opcoes) =>

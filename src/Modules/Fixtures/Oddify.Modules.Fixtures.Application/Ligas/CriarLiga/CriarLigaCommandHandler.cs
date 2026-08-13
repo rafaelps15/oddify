@@ -17,7 +17,7 @@ internal sealed class CriarLigaCommandHandler(ILigaConfiguradaRepository ligaRep
             return Result.Failure<Guid>(LigaConfiguradaErrors.IdExternoJaCadastrado);
         }
 
-        var liga = LigaConfigurada.Create(request.IdExterno, request.Nome, request.MediaDeGols, request.FatorCasa);
+        var liga = LigaConfigurada.Create(request.IdExterno, request.Nome, request.MediaDeGols, request.FatorCasa, bandeira: null);
 
         ligaRepository.Insert(liga);
 
