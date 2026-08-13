@@ -29,7 +29,7 @@ public sealed class LoginCommandHandlerTests
         user.MarkEmailAsVerified(DateTime.UtcNow);
         _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
         _passwordHasher.Verify("Password123!", "hashed-password").Returns(true);
-        _tokenProvider.Create(user).Returns("access-token");
+        _tokenProvider.Create(user.Id, user.Email).Returns("access-token");
         _tokenProvider.GenerateRefreshToken().Returns("refresh-token");
         _dateTimeProvider.UtcNow.Returns(DateTime.UtcNow);
 

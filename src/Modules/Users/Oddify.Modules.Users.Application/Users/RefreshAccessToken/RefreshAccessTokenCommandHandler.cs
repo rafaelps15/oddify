@@ -33,7 +33,7 @@ internal sealed class RefreshAccessTokenCommandHandler(
             return Result.Failure<AccessTokensResponse>(UserErrors.InvalidRefreshToken);
         }
 
-        string accessToken = tokenProvider.Create(user);
+        string accessToken = tokenProvider.Create(user.Id, user.Email);
         string newRefreshTokenValue = tokenProvider.GenerateRefreshToken();
 
         refreshToken.Rotate(newRefreshTokenValue, dateTimeProvider.UtcNow.AddDays(RefreshTokenExpirationDays));

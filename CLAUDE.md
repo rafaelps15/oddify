@@ -82,7 +82,7 @@ Common.Domain  <--  <Module>.Domain  <--  <Module>.Application  <--  <Module>.In
 | Project | References |
 |---|---|
 | `<Module>.Domain` | `Common.Domain` only |
-| `<Module>.Application` | `Common.Application` + own `Domain` (+ own `IntegrationEvents` if it publishes) |
+| `<Module>.Application` | `Common.Application` + own `Domain` (+ own `IntegrationEvents` if it publishes; + another module's `PublicApi` project **only** if this repo has deliberately wired `PublicApi` up for real synchronous cross-module calls — see §11, and verify before assuming either way) |
 | `<Module>.Infrastructure` | `Common.Infrastructure` + own `Application` **and** own `Presentation` (needs both: EF/repos from Application's abstractions, and `AddEndpoints(...)` from Presentation) |
 | `<Module>.Presentation` | `Common.Presentation` + own `Application` (+ another module's `IntegrationEvents` project **only**, if this module consumes that module's events — never that module's Domain/Application/Infrastructure/Presentation) |
 | `<Module>.PublicApi` | **nothing** — not even `Common.Domain` (see §11) |
@@ -92,10 +92,14 @@ Common.Domain  <--  <Module>.Domain  <--  <Module>.Application  <--  <Module>.In
 pulls in that module's `Application` + `Presentation`) — never a module's `Domain`/`Application`
 project directly.
 
-**Cross-module rule, no exceptions:** a module's `Domain`/`Application`/`Infrastructure` project
-never references another module's `Domain`/`Application`/`Infrastructure`/`Presentation` project.
-The only legitimate cross-module reference is one module's `Presentation` project depending on
-another module's `IntegrationEvents` project, to implement `IConsumer<TheirEvent>` (§10).
+**Cross-module rule:** a module's `Domain`/`Application`/`Infrastructure` project never
+references another module's `Domain`/`Application`/`Infrastructure`/`Presentation` project — never
+Domain, Application, Infrastructure, or Presentation directly. There are exactly two sanctioned
+exceptions, both to a *contract-only* project, never to another module's real implementation
+layers: one module's `Presentation` project depending on another module's `IntegrationEvents`
+project to implement `IConsumer<TheirEvent>` (§10), and one module's `Application` project
+depending on another module's `PublicApi` project for a synchronous read (§11) — the latter only
+in a repo that has actually wired `PublicApi` up for real; verify before assuming either way.
 
 ## 3. Common.Domain — the shared kernel
 

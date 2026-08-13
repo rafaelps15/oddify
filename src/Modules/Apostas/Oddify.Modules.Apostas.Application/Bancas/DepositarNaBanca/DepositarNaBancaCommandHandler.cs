@@ -26,10 +26,8 @@ internal sealed class DepositarNaBancaCommandHandler(
 
         DateTime agora = dateTimeProvider.UtcNow;
 
-        banca.AjustarSaldo(request.Valor, agora);
-
-        var movimentacao = MovimentacaoDaBanca.Create(
-            banca.Id, TipoDeMovimentacao.Deposito, request.Valor, banca.SaldoAtual, apostaMultiplaId: null, agora);
+        MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(
+            request.Valor, TipoDeMovimentacao.Deposito, apostaMultiplaId: null, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

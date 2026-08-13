@@ -4,13 +4,12 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Oddify.Common.Application.Authentication;
-using Oddify.Modules.Users.Domain.Users;
 
 namespace Oddify.Common.Infrastructure.Authentication;
 
 internal sealed class TokenProvider(IOptionsMonitor<JwtOptions> optionsMonitor) : ITokenProvider
 {
-    public string Create(User user)
+    public string Create(Guid userId, string email)
     {
         JwtOptions options = optionsMonitor.CurrentValue;
 
@@ -20,8 +19,8 @@ internal sealed class TokenProvider(IOptionsMonitor<JwtOptions> optionsMonitor) 
         {
             Subject = new ClaimsIdentity(
             [
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email)
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, email)
             ]),
             Expires = DateTime.UtcNow.AddMinutes(options.ExpirationInMinutes),
             SigningCredentials = credentials,

@@ -40,11 +40,22 @@ internal sealed class ExcluirApostaMultiplaCommandHandler(
 
         if (apostaMultipla.Resultado != ResultadoDaAposta.Pendente)
         {
-            Result reversaoResult = await ReverterSaldoAsync(apostaMultipla, agora, cancellationToken);
-            if (reversaoResult.IsFailure)
+            Result<decimal> estornarResult = apostaMultipla.Estornar(agora);
+            if (estornarResult.IsFailure)
             {
-                return reversaoResult;
+                return Result.Failure(estornarResult.Error);
             }
+
+            Banca? banca = await bancaRepository.GetAsync(apostaMultipla.BancaId, userContext.UserId, cancellationToken);
+            if (banca is null)
+            {
+                return Result.Failure(BancaErrors.NotFound(apostaMultipla.BancaId));
+            }
+
+            decimal reversao = -estornarResult.Value;
+
+            MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(reversao, TipoDeMovimentacao.Estorno, apostaMultipla.Id, agora);
+            movimentacaoDaBancaRepository.Insert(movimentacao);
         }
 
         IReadOnlyCollection<PernaDeAposta> pernas =
@@ -69,30 +80,6 @@ internal sealed class ExcluirApostaMultiplaCommandHandler(
         apostaMultiplaRepository.Delete(apostaMultipla);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
-    }
-
-    private async Task<Result> ReverterSaldoAsync(ApostaMultipla apostaMultipla, DateTime agora, CancellationToken cancellationToken)
-    {
-        Result<decimal> estornarResult = apostaMultipla.Estornar(agora);
-        if (estornarResult.IsFailure)
-        {
-            return Result.Failure(estornarResult.Error);
-        }
-
-        Banca? banca = await bancaRepository.GetAsync(apostaMultipla.BancaId, userContext.UserId, cancellationToken);
-        if (banca is null)
-        {
-            return Result.Failure(BancaErrors.NotFound(apostaMultipla.BancaId));
-        }
-
-        decimal reversao = -estornarResult.Value;
-        banca.AjustarSaldo(reversao, agora);
-
-        var movimentacao = MovimentacaoDaBanca.Create(
-            banca.Id, TipoDeMovimentacao.Estorno, reversao, banca.SaldoAtual, apostaMultipla.Id, agora);
-        movimentacaoDaBancaRepository.Insert(movimentacao);
 
         return Result.Success();
     }

@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\Users\Oddify.Modules.Users.Domain\Oddify.Modules.Users.Domain.csproj" />
     <ProjectReference Include="..\Oddify.Common.Application\Oddify.Common.Application.csproj" />
   </ItemGroup>
 

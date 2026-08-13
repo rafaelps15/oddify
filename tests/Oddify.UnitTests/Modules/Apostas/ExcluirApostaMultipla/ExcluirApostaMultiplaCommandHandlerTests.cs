@@ -77,7 +77,7 @@ public sealed class ExcluirApostaMultiplaCommandHandlerTests
         var apostaMultipla = ApostaMultipla.Create(
             _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
         apostaMultipla.Liquidar(ganhou: true, DateTime.UtcNow);
-        banca.AjustarSaldo(apostaMultipla.LucroOuPerda!.Value, DateTime.UtcNow);
+        banca.RegistrarMovimentacao(apostaMultipla.LucroOuPerda!.Value, TipoDeMovimentacao.Liquidacao, apostaMultipla.Id, DateTime.UtcNow);
 
         AnaliseDisponivelParaAposta disponivel = CriarDisponivelUtilizada();
         var perna = PernaDeAposta.Create(apostaMultipla.Id, disponivel.Id, Guid.NewGuid(), "vitoria_casa", 4.0m);

@@ -1,4 +1,5 @@
 using Oddify.Common.Domain;
+using Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca;
 
 namespace Oddify.Modules.Apostas.Domain.Bancas;
 
@@ -62,7 +63,18 @@ public sealed class Banca : Entity
         };
     }
 
-    public void AjustarSaldo(decimal delta, DateTime atualizadoEmUtc)
+    public MovimentacaoDaBanca RegistrarMovimentacao(
+        decimal delta,
+        TipoDeMovimentacao tipo,
+        Guid? apostaMultiplaId,
+        DateTime atualizadoEmUtc)
+    {
+        AjustarSaldo(delta, atualizadoEmUtc);
+
+        return MovimentacaoDaBanca.Create(Id, tipo, delta, SaldoAtual, apostaMultiplaId, atualizadoEmUtc);
+    }
+
+    private void AjustarSaldo(decimal delta, DateTime atualizadoEmUtc)
     {
         SaldoAtual += delta;
         AtualizadoEmUtc = atualizadoEmUtc;

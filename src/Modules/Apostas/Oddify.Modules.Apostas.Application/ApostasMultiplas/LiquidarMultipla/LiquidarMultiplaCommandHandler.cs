@@ -74,10 +74,8 @@ internal sealed class LiquidarMultiplaCommandHandler(
             return Result.Failure(BancaErrors.NotFound(apostaMultipla.BancaId));
         }
 
-        banca.AjustarSaldo(apostaMultipla.LucroOuPerda!.Value, agora);
-
-        var movimentacao = MovimentacaoDaBanca.Create(
-            banca.Id, TipoDeMovimentacao.Liquidacao, apostaMultipla.LucroOuPerda.Value, banca.SaldoAtual, apostaMultipla.Id, agora);
+        MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(
+            apostaMultipla.LucroOuPerda!.Value, TipoDeMovimentacao.Liquidacao, apostaMultipla.Id, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

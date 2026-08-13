@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca;
 
 namespace Oddify.UnitTests.Modules.Apostas;
 
@@ -17,23 +18,34 @@ public sealed class BancaTests
             DateTime.UtcNow);
 
     [Fact]
-    public void AjustarSaldo_should_add_positive_delta()
+    public void RegistrarMovimentacao_should_add_positive_delta()
     {
         Banca banca = CriarBanca();
 
-        banca.AjustarSaldo(150m, DateTime.UtcNow);
+        banca.RegistrarMovimentacao(150m, TipoDeMovimentacao.Deposito, apostaMultiplaId: null, DateTime.UtcNow);
 
         banca.SaldoAtual.Should().Be(1150m);
     }
 
     [Fact]
-    public void AjustarSaldo_should_subtract_when_delta_is_negative()
+    public void RegistrarMovimentacao_should_subtract_when_delta_is_negative()
     {
         Banca banca = CriarBanca();
 
-        banca.AjustarSaldo(-50m, DateTime.UtcNow);
+        banca.RegistrarMovimentacao(-50m, TipoDeMovimentacao.Estorno, apostaMultiplaId: null, DateTime.UtcNow);
 
         banca.SaldoAtual.Should().Be(950m);
+    }
+
+    [Fact]
+    public void RegistrarMovimentacao_should_return_movimentacao_with_saldo_apos_movimentacao()
+    {
+        Banca banca = CriarBanca();
+
+        MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(150m, TipoDeMovimentacao.Deposito, apostaMultiplaId: null, DateTime.UtcNow);
+
+        movimentacao.SaldoAposMovimentacao.Should().Be(1150m);
+        movimentacao.BancaId.Should().Be(banca.Id);
     }
 
     [Fact]
@@ -43,7 +55,7 @@ public sealed class BancaTests
 
         banca.ValorDaUnidade.Should().Be(50m);
 
-        banca.AjustarSaldo(1000m, DateTime.UtcNow);
+        banca.RegistrarMovimentacao(1000m, TipoDeMovimentacao.Deposito, apostaMultiplaId: null, DateTime.UtcNow);
 
         banca.ValorDaUnidade.Should().Be(100m);
     }

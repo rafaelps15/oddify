@@ -54,9 +54,8 @@ internal sealed class EstornarLiquidacaoMultiplaCommandHandler(
         }
 
         decimal reversao = -estornarResult.Value;
-        banca.AjustarSaldo(reversao, agora);
 
-        var movimentacao = MovimentacaoDaBanca.Create( banca.Id, TipoDeMovimentacao.Estorno, reversao, banca.SaldoAtual, apostaMultipla.Id, agora); 
+        MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(reversao, TipoDeMovimentacao.Estorno, apostaMultipla.Id, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
