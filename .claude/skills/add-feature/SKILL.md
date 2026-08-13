@@ -128,6 +128,106 @@ Inject `IDateTimeProvider` (from `Common.Application.Clock`) instead of calling 
 directly whenever "now" is a value the handler makes a decision with or passes into the entity —
 it's what makes that decision testable.
 
+## A3. Command orchestrating multiple aggregates - e.g. `Application/Wallets/ReverseWithdrawal/`
+
+Use this shape when a single command must load and mutate more than one aggregate root in one
+transaction (a reversal, a transfer, anything that both changes a balance and appends a ledger
+row). Below, a fictional `Wallet` + `LedgerEntry` pair in a fictional `Wallets` module - a
+stand-in for this shape, not a real entity.
+
+**`ReverseWithdrawalCommandHandler.cs`**
+```csharp
+using <ProjectName>.Common.Application.Clock;
+using <ProjectName>.Common.Application.Messaging;
+using <ProjectName>.Common.Domain;
+using <ProjectName>.Modules.Wallets.Application.Abstractions.Data;
+using <ProjectName>.Modules.Wallets.Domain.LedgerEntries;
+using <ProjectName>.Modules.Wallets.Domain.Wallets;
+using <ProjectName>.Modules.Wallets.Domain.Withdrawals;
+
+namespace <ProjectName>.Modules.Wallets.Application.Wallets.ReverseWithdrawal;
+
+internal sealed class ReverseWithdrawalCommandHandler(
+    IWithdrawalRepository withdrawalRepository,
+    IWalletRepository walletRepository,
+    ILedgerEntryRepository ledgerEntryRepository,
+    IUnitOfWork unitOfWork,
+    IDateTimeProvider dateTimeProvider)
+    : ICommandHandler<ReverseWithdrawalCommand>
+{
+    public async Task<Result> Handle(ReverseWithdrawalCommand request, CancellationToken cancellationToken)
+    {
+        Withdrawal? withdrawal = await withdrawalRepository.GetAsync(request.WithdrawalId, cancellationToken);
+
+        if (withdrawal is null)
+        {
+            return Result.Failure(WithdrawalErrors.NotFound(request.WithdrawalId));
+        }
+
+        Wallet? wallet = await walletRepository.GetAsync(withdrawal.WalletId, cancellationToken);
+
+        if (wallet is null)
+        {
+            return Result.Failure(WalletErrors.NotFound(withdrawal.WalletId));
+        }
+
+        DateTime utcNow = dateTimeProvider.UtcNow;
+
+        Result reverseResult = withdrawal.Reverse(utcNow);
+
+        if (reverseResult.IsFailure)
+        {
+            return reverseResult;
+        }
+
+        LedgerEntry ledgerEntry = wallet.RegisterReversal(withdrawal.Amount, withdrawal.Id, utcNow);
+
+        ledgerEntryRepository.Insert(ledgerEntry);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+}
+```
+Fetch every aggregate the handler needs, with its own `is null` guard, before mutating any of
+them - a `NotFound` on `wallet` shouldn't happen after `withdrawal` was already mutated in memory.
+
+`Wallet.RegisterReversal(...)` is the one place that both adjusts the wallet's own balance and
+builds the `LedgerEntry` via `LedgerEntry.Create(...)` - passing only `Id` (a `Guid`), never
+`this`, into that factory:
+```csharp
+public LedgerEntry RegisterReversal(decimal amount, Guid withdrawalId, DateTime occurredAtUtc)
+{
+    AdjustBalance(amount, occurredAtUtc);
+
+    return LedgerEntry.Create(Id, LedgerEntryType.Reversal, amount, Balance, withdrawalId, occurredAtUtc);
+}
+```
+This keeps the balance change and its ledger row atomic - nobody can call `AdjustBalance` without
+also recording the movement, or vice versa. Never let `LedgerEntry`'s own factory reach back and
+call `AdjustBalance` on a `Wallet` passed into it - the aggregate whose state changes is always
+the one that owns the method.
+
+If the command also needs to reopen/update a collection of child entities tied to the reversed
+record (e.g. every line item under the withdrawal), loop them inline in `Handle` right after the
+related result check - don't extract the loop into a private method unless it's reused elsewhere
+in the class:
+```csharp
+foreach (WithdrawalLine line in withdrawal.Lines)
+{
+    Result reopenResult = line.Reopen();
+
+    if (reopenResult.IsFailure)
+    {
+        return reopenResult;
+    }
+}
+```
+If this module's repositories are user-scoped (`GetAsync(id, userContext.UserId,
+cancellationToken)`), keep every repository call in the handler consistently scoped the same way
+- don't let one lookup silently skip the ownership check while its siblings keep it.
+
 ## B. Query feature — single item and unfiltered list
 
 Only create a `Response` record when this is the "canonical" query for the shape (typically the

@@ -132,6 +132,40 @@ unprecedented shape.
   the build under warnings-as-errors regardless of this review — flag obvious violations early to
   save a build cycle.
 
+### 8. Handler internals — locals, guard clauses, Result propagation, cross-aggregate orchestration
+- Local variable declarations: explicit type when the value comes from an `await`ed
+  repository/query call, a domain behavior method, or anything else where the RHS type isn't
+  already spelled out (`TodoItem? todoItem = await todoItemRepository.GetAsync(...)`,
+  `Result result = todoItem.Complete(...)`). `var` only when the RHS is a `new Type(...)`
+  expression that already states the type (`var parameters = new SearchTodoItemsParameters(...)`,
+  `var command = new CreateTodoItemCommand(...)`). Flag a local declared with `var` whose RHS is a
+  bare method/property call — that's a drift from every example in this repo's own skills.
+- Guard clauses inside `Handle` stay flat and sequential — fetch, check `is null`/`IsFailure`,
+  return, next fetch. Don't nest an `if` inside another `if` to check two things together, and
+  don't extract a single short loop/guard into a private method unless it's reused elsewhere in
+  the same class — this template's own handlers keep everything inline (see
+  `CompleteTodoItemCommandHandler` in `/add-feature`).
+- `Result` propagation: when a behavior method's return type already matches the handler's own
+  return type (`Result` -> `Result`), `return` the value directly — never re-wrap it
+  (`return Result.Failure(result.Error)` when `return result;` would do). Only re-wrap when
+  converting a `Result<T>` failure into the handler's `Result`/`Result<TOther>`.
+- A handler touching more than one aggregate root (e.g. reversing a transaction across a ledger
+  and its source record) must fetch and null-check every aggregate it needs **before** calling any
+  mutating behavior method — a "not found" on the second aggregate shouldn't happen after the
+  first was already mutated in memory.
+- Aggregates only mutate themselves. Flag a change where one aggregate's factory/behavior method
+  calls a mutating method on another aggregate object, or where a live aggregate reference (not a
+  `Guid` id) is passed into another aggregate/entity's `Create(...)` just so it can reach back and
+  mutate the caller — this is the same "no object reference across aggregates" rule from §4,
+  extended to method parameters, not just stored navigation properties. If a new entity must be
+  derived from another aggregate's post-mutation state (a ledger/movement row derived from a
+  balance change, for example), the self-mutation and the dependent entity's creation — via *that
+  entity's own* `Create(...)` factory, called with scalar/id values only — belong together inside
+  one named behavior method on the aggregate being mutated. The handler then calls that one method
+  and inserts the returned entity through its own repository.
+- If every other repository call in the handler is user-scoped (`GetAsync(id, userContext.UserId,
+  cancellationToken)`), flag a lookup in the same handler that silently drops the ownership check.
+
 ## Output
 
 List findings ranked most-severe first (missing layering boundary > cross-module leak >
