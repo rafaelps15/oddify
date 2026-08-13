@@ -26,6 +26,8 @@ public sealed class Banca : Entity
 
     public bool Ativa { get; private set; }
 
+    public FinalidadeDaBanca Finalidade { get; private set; }
+
     public DateTime CriadoEmUtc { get; private set; }
 
     public DateTime AtualizadoEmUtc { get; private set; }
@@ -40,6 +42,7 @@ public sealed class Banca : Entity
         decimal percentualPorEntrada,
         PerfilDeRisco perfilDeRisco,
         bool modoPaperTrading,
+        FinalidadeDaBanca finalidade,
         DateTime criadoEmUtc)
     {
         return new Banca
@@ -53,6 +56,7 @@ public sealed class Banca : Entity
             PerfilDeRisco = perfilDeRisco,
             ModoPaperTrading = modoPaperTrading,
             Ativa = true,
+            Finalidade = finalidade,
             CriadoEmUtc = criadoEmUtc,
             AtualizadoEmUtc = criadoEmUtc
         };

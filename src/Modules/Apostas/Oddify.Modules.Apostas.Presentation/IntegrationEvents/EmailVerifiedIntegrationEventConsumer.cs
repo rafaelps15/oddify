@@ -32,6 +32,7 @@ public sealed class EmailVerifiedIntegrationEventConsumer(IBancaRepository banca
             PercentualPorEntradaPadrao,
             PerfilDeRiscoPadrao,
             modoPaperTrading: true,
+            FinalidadeDaBanca.Principal,
             evento.OccurredOnUtc);
 
         bancaRepository.Insert(banca);

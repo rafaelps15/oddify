@@ -29,7 +29,7 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
                      AS {nameof(ResumoDaBancaResponse.TotalGanho)},
                  COALESCE(SUM(CASE WHEN m.tipo = {(int)TipoDeMovimentacao.Liquidacao} AND m.valor < 0 THEN m.valor ELSE 0 END), 0)
                      AS {nameof(ResumoDaBancaResponse.TotalPerdido)},
-                 COUNT(DISTINCT m.aposta_multipla_id) FILTER (WHERE m.tipo = {(int)TipoDeMovimentacao.Liquidacao})
+                 COUNT(DISTINCT m.aposta_multipla_id) FILTER (WHERE m.tipo = {(int)TipoDeMovimentacao.Liquidacao})::int
                      AS {nameof(ResumoDaBancaResponse.QuantidadeDeApostas)}
              FROM apostas.bancas b
              LEFT JOIN apostas.movimentacoes_da_banca m ON m.banca_id = b.id

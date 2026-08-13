@@ -22,7 +22,8 @@ internal sealed class GetEquipesQueryHandler(IDbConnectionFactory dbConnectionFa
                  nome AS {nameof(EquipeResponse.Nome)},
                  liga_id AS {nameof(EquipeResponse.LigaId)}
              FROM fixtures.equipes
-             WHERE liga_id = @LigaId
+             WHERE (@LigaId IS NULL OR liga_id = @LigaId)
+               AND (@Ids IS NULL OR id = ANY(@Ids))
              ORDER BY nome
              """;
 

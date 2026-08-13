@@ -27,7 +27,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     private readonly Guid _usuarioId = Guid.NewGuid();
 
     private Banca CriarBanca(decimal saldoInicial) =>
-        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, PerfilDeRisco.Moderado, modoPaperTrading: true, DateTime.UtcNow);
+        Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, PerfilDeRisco.Moderado, modoPaperTrading: true, FinalidadeDaBanca.Principal, DateTime.UtcNow);
 
     private LiquidarMultiplaCommandHandler CriarHandler()
     {
@@ -48,7 +48,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     {
         Banca banca = CriarBanca(1000m);
         var apostaMultipla = ApostaMultipla.Create(
-            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, DateTime.UtcNow);
+            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
 
         var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
         var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
@@ -80,7 +80,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     {
         Banca banca = CriarBanca(1000m);
         var apostaMultipla = ApostaMultipla.Create(
-            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, DateTime.UtcNow);
+            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
 
         var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
         var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
@@ -105,7 +105,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     {
         Banca banca = CriarBanca(1000m);
         var apostaMultipla = ApostaMultipla.Create(
-            _usuarioId, banca.Id, oddCombinada: 2.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, DateTime.UtcNow);
+            _usuarioId, banca.Id, oddCombinada: 2.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
 
         var perna = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 

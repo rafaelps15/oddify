@@ -28,6 +28,11 @@ public sealed class ApostaMultipla : Entity
 
     public decimal? LucroOuPerda { get; private set; }
 
+    // Só preenchido quando Origem=Alavancagem — liga esta aposta ao passo da jornada que a criou
+    // (ver JornadaDeAlavancagem/PassoDaJornada). Guid bruto, nunca navegação, mesmo padrão de
+    // MovimentacaoDaBanca.ApostaMultiplaId.
+    public Guid? PassoDaJornadaId { get; private set; }
+
     public DateTime CriadaEmUtc { get; private set; }
 
     public DateTime AtualizadoEmUtc { get; private set; }
@@ -39,6 +44,7 @@ public sealed class ApostaMultipla : Entity
         decimal stake,
         OrigemDaAposta origem,
         string? descricao,
+        Guid? passoDaJornadaId,
         DateTime criadaEmUtc)
     {
         var apostaMultipla = new ApostaMultipla
@@ -52,6 +58,7 @@ public sealed class ApostaMultipla : Entity
             RetornoPotencial = stake * oddCombinada,
             Origem = origem,
             Resultado = ResultadoDaAposta.Pendente,
+            PassoDaJornadaId = passoDaJornadaId,
             CriadaEmUtc = criadaEmUtc,
             AtualizadoEmUtc = criadaEmUtc
         };
@@ -75,5 +82,26 @@ public sealed class ApostaMultipla : Entity
         Raise(new ApostaMultiplaLiquidadaDomainEvent(Id, LucroOuPerda.Value));
 
         return Result.Success();
+    }
+
+    // Devolve a aposta pra Pendente e entrega o lucro/perda que ela tinha antes do estorno — quem
+    // chama precisa desse valor pra reverter o saldo da banca (mesma separação de responsabilidade
+    // de Liquidar: a entidade não conhece Banca, só relata o delta pro handler aplicar).
+    public Result<decimal> Estornar(DateTime atualizadoEmUtc)
+    {
+        if (Resultado == ResultadoDaAposta.Pendente)
+        {
+            return Result.Failure<decimal>(ApostaMultiplaErrors.AindaNaoLiquidada(Id));
+        }
+
+        decimal lucroOuPerdaAnterior = LucroOuPerda!.Value;
+
+        Resultado = ResultadoDaAposta.Pendente;
+        LucroOuPerda = null;
+        AtualizadoEmUtc = atualizadoEmUtc;
+
+        Raise(new ApostaMultiplaEstornadaDomainEvent(Id));
+
+        return lucroOuPerdaAnterior;
     }
 }

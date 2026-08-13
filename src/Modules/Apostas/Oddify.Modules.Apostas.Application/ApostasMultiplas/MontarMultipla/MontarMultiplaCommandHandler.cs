@@ -67,7 +67,7 @@ internal sealed class MontarMultiplaCommandHandler(
         }
 
         var apostaMultipla = ApostaMultipla.Create(
-            userContext.UserId, request.BancaId, oddCombinada, stake, OrigemDaAposta.ManualEntry, request.Descricao, DateTime.UtcNow);
+            userContext.UserId, request.BancaId, oddCombinada, stake, OrigemDaAposta.ManualEntry, request.Descricao, passoDaJornadaId: null, DateTime.UtcNow);
         apostaMultiplaRepository.Insert(apostaMultipla);
 
         foreach (AnaliseDisponivelParaAposta disponivel in disponiveis)

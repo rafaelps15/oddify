@@ -98,6 +98,10 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("origem");
 
+                    b.Property<Guid?>("PassoDaJornadaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("passo_da_jornada_id");
+
                     b.Property<int>("Resultado")
                         .HasColumnType("integer")
                         .HasColumnName("resultado");
@@ -119,6 +123,9 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
 
                     b.HasIndex("BancaId")
                         .HasDatabaseName("ix_apostas_multiplas_banca_id");
+
+                    b.HasIndex("PassoDaJornadaId")
+                        .HasDatabaseName("ix_apostas_multiplas_passo_da_jornada_id");
 
                     b.HasIndex("UsuarioId")
                         .HasDatabaseName("ix_apostas_multiplas_usuario_id");
@@ -144,6 +151,10 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                     b.Property<DateTime>("CriadoEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("criado_em_utc");
+
+                    b.Property<int>("Finalidade")
+                        .HasColumnType("integer")
+                        .HasColumnName("finalidade");
 
                     b.Property<bool>("ModoPaperTrading")
                         .HasColumnType("boolean")
@@ -184,6 +195,73 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                     b.ToTable("bancas", "apostas");
                 });
 
+            modelBuilder.Entity("Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem.JornadaDeAlavancagem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("AtualizadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em_utc");
+
+                    b.Property<Guid>("BancaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("banca_id");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em_utc");
+
+                    b.Property<int>("FaixaMeta")
+                        .HasColumnType("integer")
+                        .HasColumnName("faixa_meta");
+
+                    b.Property<int>("NumeroDeFracoes")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero_de_fracoes");
+
+                    b.Property<int>("PassoAtual")
+                        .HasColumnType("integer")
+                        .HasColumnName("passo_atual");
+
+                    b.Property<decimal>("ProbabilidadeDeConclusao")
+                        .HasColumnType("numeric")
+                        .HasColumnName("probabilidade_de_conclusao");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TotalDePassos")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_de_passos");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.Property<decimal>("ValorInicial")
+                        .HasColumnType("numeric")
+                        .HasColumnName("valor_inicial");
+
+                    b.Property<decimal>("ValorObjetivo")
+                        .HasColumnType("numeric")
+                        .HasColumnName("valor_objetivo");
+
+                    b.HasKey("Id")
+                        .HasName("pk_jornadas_de_alavancagem");
+
+                    b.HasIndex("BancaId")
+                        .HasDatabaseName("ix_jornadas_de_alavancagem_banca_id");
+
+                    b.HasIndex("UsuarioId")
+                        .HasDatabaseName("ix_jornadas_de_alavancagem_usuario_id");
+
+                    b.ToTable("jornadas_de_alavancagem", "apostas");
+                });
+
             modelBuilder.Entity("Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca.MovimentacaoDaBanca", b =>
                 {
                     b.Property<Guid>("Id")
@@ -222,6 +300,50 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_movimentacoes_da_banca_banca_id");
 
                     b.ToTable("movimentacoes_da_banca", "apostas");
+                });
+
+            modelBuilder.Entity("Oddify.Modules.Apostas.Domain.PassosDaJornada.PassoDaJornada", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em_utc");
+
+                    b.Property<Guid>("JornadaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("jornada_id");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero");
+
+                    b.Property<int>("NumeroDeApostas")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero_de_apostas");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("ValorDoPasso")
+                        .HasColumnType("numeric")
+                        .HasColumnName("valor_do_passo");
+
+                    b.Property<decimal?>("ValorResultante")
+                        .HasColumnType("numeric")
+                        .HasColumnName("valor_resultante");
+
+                    b.HasKey("Id")
+                        .HasName("pk_passos_da_jornada");
+
+                    b.HasIndex("JornadaId")
+                        .HasDatabaseName("ix_passos_da_jornada_jornada_id");
+
+                    b.ToTable("passos_da_jornada", "apostas");
                 });
 
             modelBuilder.Entity("Oddify.Modules.Apostas.Domain.PernasDeAposta.PernaDeAposta", b =>
@@ -274,6 +396,21 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_apostas_multiplas_bancas_banca_id");
+
+                    b.HasOne("Oddify.Modules.Apostas.Domain.PassosDaJornada.PassoDaJornada", null)
+                        .WithMany()
+                        .HasForeignKey("PassoDaJornadaId")
+                        .HasConstraintName("fk_apostas_multiplas_passos_da_jornada_passo_da_jornada_id");
+                });
+
+            modelBuilder.Entity("Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem.JornadaDeAlavancagem", b =>
+                {
+                    b.HasOne("Oddify.Modules.Apostas.Domain.Bancas.Banca", null)
+                        .WithMany()
+                        .HasForeignKey("BancaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_jornadas_de_alavancagem_bancas_banca_id");
                 });
 
             modelBuilder.Entity("Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca.MovimentacaoDaBanca", b =>
@@ -284,6 +421,16 @@ namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_movimentacoes_da_banca_bancas_banca_id");
+                });
+
+            modelBuilder.Entity("Oddify.Modules.Apostas.Domain.PassosDaJornada.PassoDaJornada", b =>
+                {
+                    b.HasOne("Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem.JornadaDeAlavancagem", null)
+                        .WithMany()
+                        .HasForeignKey("JornadaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_passos_da_jornada_jornadas_de_alavancagem_jornada_id");
                 });
 
             modelBuilder.Entity("Oddify.Modules.Apostas.Domain.PernasDeAposta.PernaDeAposta", b =>

@@ -15,9 +15,9 @@ internal sealed class GetEquipes : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("equipes", async ([FromQuery] Guid ligaId, ISender sender) =>
+        app.MapGet("equipes", async ([FromQuery] Guid? ligaId, [FromQuery] Guid[]? ids, ISender sender) =>
         {
-            Result<IReadOnlyCollection<EquipeResponse>> result = await sender.Send(new GetEquipesQuery(ligaId));
+            Result<IReadOnlyCollection<EquipeResponse>> result = await sender.Send(new GetEquipesQuery(ligaId, ids));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })

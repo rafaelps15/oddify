@@ -40,4 +40,27 @@ public sealed class PernaDeApostaTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(PernaDeApostaErrors.JaResolvida(perna.Id));
     }
+
+    [Fact]
+    public void Reabrir_should_set_resultado_pendente_when_resolvida()
+    {
+        var perna = PernaDeAposta.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.5m);
+        perna.Resolver(true);
+
+        Result resultado = perna.Reabrir();
+
+        resultado.IsSuccess.Should().BeTrue();
+        perna.Resultado.Should().Be(ResultadoDaAposta.Pendente);
+    }
+
+    [Fact]
+    public void Reabrir_should_fail_when_ainda_pendente()
+    {
+        var perna = PernaDeAposta.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.5m);
+
+        Result resultado = perna.Reabrir();
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(PernaDeApostaErrors.AindaNaoResolvida(perna.Id));
+    }
 }

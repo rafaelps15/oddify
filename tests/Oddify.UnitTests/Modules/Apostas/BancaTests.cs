@@ -13,6 +13,7 @@ public sealed class BancaTests
             percentualPorEntrada,
             PerfilDeRisco.Moderado,
             modoPaperTrading: true,
+            FinalidadeDaBanca.Principal,
             DateTime.UtcNow);
 
     [Fact]

@@ -23,6 +23,7 @@ internal sealed class CriarBancaCommandHandler(
             request.PercentualPorEntrada,
             request.PerfilDeRisco,
             request.ModoPaperTrading,
+            FinalidadeDaBanca.Principal,
             dateTimeProvider.UtcNow);
 
         bancaRepository.Insert(banca);

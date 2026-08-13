@@ -3,7 +3,9 @@ using Oddify.Modules.Apostas.Application.Abstractions.Data;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem;
 using Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca;
+using Oddify.Modules.Apostas.Domain.PassosDaJornada;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
 
 namespace Oddify.Modules.Apostas.Infrastructure.Database;
@@ -19,6 +21,10 @@ public sealed class ApostasDbContext(DbContextOptions<ApostasDbContext> options)
     internal DbSet<AnaliseDisponivelParaAposta> AnalisesDisponiveisParaAposta { get; set; }
 
     internal DbSet<MovimentacaoDaBanca> MovimentacoesDaBanca { get; set; }
+
+    internal DbSet<JornadaDeAlavancagem> JornadasDeAlavancagem { get; set; }
+
+    internal DbSet<PassoDaJornada> PassosDaJornada { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -10,6 +10,9 @@ public static class ApostaMultiplaErrors
     public static Error JaLiquidada(Guid apostaMultiplaId) =>
         Error.Problem("ApostasMultiplas.JaLiquidada", $"A aposta múltipla com o identificador {apostaMultiplaId} já foi liquidada");
 
+    public static Error AindaNaoLiquidada(Guid apostaMultiplaId) =>
+        Error.Problem("ApostasMultiplas.AindaNaoLiquidada", $"A aposta múltipla com o identificador {apostaMultiplaId} ainda não foi liquidada");
+
     public static readonly Error PartidasRepetidas = Error.Problem(
         "ApostasMultiplas.PartidasRepetidas",
         "A múltipla não pode conter mais de uma perna para a mesma partida");

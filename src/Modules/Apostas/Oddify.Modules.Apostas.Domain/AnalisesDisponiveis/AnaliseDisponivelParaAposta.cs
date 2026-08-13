@@ -48,4 +48,17 @@ public sealed class AnaliseDisponivelParaAposta : Entity
         JaUtilizada = true;
         return Result.Success();
     }
+
+    // Contraparte de MarcarComoUtilizada — chamada quando a ApostaMultipla que consumiu essa
+    // análise é excluída, pra liberar a análise de volta pra "Montar múltipla".
+    public Result LiberarUso()
+    {
+        if (!JaUtilizada)
+        {
+            return Result.Failure(AnaliseDisponivelParaApostaErrors.AindaNaoUtilizada(Id));
+        }
+
+        JaUtilizada = false;
+        return Result.Success();
+    }
 }

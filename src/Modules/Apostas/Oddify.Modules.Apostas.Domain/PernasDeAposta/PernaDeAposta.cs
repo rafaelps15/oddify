@@ -48,4 +48,18 @@ public sealed class PernaDeAposta : Entity
 
         return Result.Success();
     }
+
+    // Contraparte de Resolver — usada quando a ApostaMultipla é estornada, pra que uma futura
+    // liquidação consiga chamar Resolver de novo sem esbarrar em JaResolvida.
+    public Result Reabrir()
+    {
+        if (Resultado == ResultadoDaAposta.Pendente)
+        {
+            return Result.Failure(PernaDeApostaErrors.AindaNaoResolvida(Id));
+        }
+
+        Resultado = ResultadoDaAposta.Pendente;
+
+        return Result.Success();
+    }
 }

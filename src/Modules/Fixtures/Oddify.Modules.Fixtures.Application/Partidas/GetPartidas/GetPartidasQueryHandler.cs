@@ -36,6 +36,7 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
              WHERE (@LigaId IS NULL OR liga_id = @LigaId)
                AND (@Rodada IS NULL OR rodada = @Rodada)
                AND (@Temporada IS NULL OR temporada = @Temporada)
+               AND (@Ids IS NULL OR id = ANY(@Ids))
                AND (
                  @Status = 0
                  OR (@Status = 1 AND situacao = 0)

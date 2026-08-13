@@ -17,4 +17,8 @@ public sealed record GetPartidasQuery(
     Guid? LigaId,
     StatusFiltroDePartida Status = StatusFiltroDePartida.Todas,
     int? Rodada = null,
-    int? Temporada = null) : IQuery<IReadOnlyCollection<PartidaResponse>>;
+    int? Temporada = null,
+    // Busca em lote por id — combina com os demais filtros (todos null-safe, "AND"), mas o uso
+    // real (resolver as partidas referenciadas pelas pernas de uma lista de apostas múltiplas)
+    // sempre manda só Ids, com o resto null.
+    Guid[]? Ids = null) : IQuery<IReadOnlyCollection<PartidaResponse>>;

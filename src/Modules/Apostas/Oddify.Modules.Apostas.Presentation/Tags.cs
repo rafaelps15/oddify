@@ -4,4 +4,5 @@ internal static class Tags
 {
     internal const string Bancas = "Bancas";
     internal const string ApostasMultiplas = "ApostasMultiplas";
+    internal const string JornadasDeAlavancagem = "JornadasDeAlavancagem";
 }

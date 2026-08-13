@@ -7,7 +7,7 @@ namespace Oddify.UnitTests.Modules.Apostas;
 public sealed class ApostaMultiplaTests
 {
     private static ApostaMultipla CriarApostaMultipla(decimal oddCombinada, decimal stake) =>
-        ApostaMultipla.Create(Guid.NewGuid(), Guid.NewGuid(), oddCombinada, stake, OrigemDaAposta.ManualEntry, descricao: null, DateTime.UtcNow);
+        ApostaMultipla.Create(Guid.NewGuid(), Guid.NewGuid(), oddCombinada, stake, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
 
     [Fact]
     public void Create_should_raise_ApostaMultiplaCriadaDomainEvent()
@@ -53,5 +53,31 @@ public sealed class ApostaMultiplaTests
 
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(ApostaMultiplaErrors.JaLiquidada(apostaMultipla.Id));
+    }
+
+    [Fact]
+    public void Estornar_should_return_previous_lucro_and_set_resultado_pendente()
+    {
+        ApostaMultipla apostaMultipla = CriarApostaMultipla(oddCombinada: 4.0m, stake: 50m);
+        apostaMultipla.Liquidar(ganhou: true, DateTime.UtcNow);
+
+        Result<decimal> resultado = apostaMultipla.Estornar(DateTime.UtcNow);
+
+        resultado.IsSuccess.Should().BeTrue();
+        resultado.Value.Should().Be(50m * (4.0m - 1));
+        apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Pendente);
+        apostaMultipla.LucroOuPerda.Should().BeNull();
+        apostaMultipla.DomainEvents.Should().Contain(e => e is ApostaMultiplaEstornadaDomainEvent);
+    }
+
+    [Fact]
+    public void Estornar_should_fail_when_ainda_pendente()
+    {
+        ApostaMultipla apostaMultipla = CriarApostaMultipla(oddCombinada: 4.0m, stake: 50m);
+
+        Result<decimal> resultado = apostaMultipla.Estornar(DateTime.UtcNow);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(ApostaMultiplaErrors.AindaNaoLiquidada(apostaMultipla.Id));
     }
 }

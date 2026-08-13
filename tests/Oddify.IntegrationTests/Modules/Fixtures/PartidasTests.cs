@@ -60,6 +60,22 @@ public sealed class PartidasTests(OddifyWebAppFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetPartidas_should_filter_by_ids()
+    {
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
+
+        Guid partida1Id = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId, rodada: 1, temporada: 2026);
+        Guid partida2Id = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId, rodada: 2, temporada: 2026);
+        await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId, rodada: 3, temporada: 2026);
+
+        List<PartidaResponse> resultado = await GetPartidasAsync(ids: [partida1Id, partida2Id]);
+
+        resultado.Should().HaveCount(2);
+        resultado.Should().Contain(p => p.Id == partida1Id);
+        resultado.Should().Contain(p => p.Id == partida2Id);
+    }
+
+    [Fact]
     public async Task GetRodadasDisponiveis_should_return_distinct_ordered_rodadas()
     {
         (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
@@ -167,7 +183,8 @@ public sealed class PartidasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    private async Task<List<PartidaResponse>> GetPartidasAsync(Guid? ligaId = null, string? status = null, int? rodada = null, int? temporada = null)
+    private async Task<List<PartidaResponse>> GetPartidasAsync(
+        Guid? ligaId = null, string? status = null, int? rodada = null, int? temporada = null, IReadOnlyCollection<Guid>? ids = null)
     {
         var query = new List<string>();
         if (ligaId is not null)
@@ -188,6 +205,11 @@ public sealed class PartidasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         if (temporada is not null)
         {
             query.Add($"temporada={temporada}");
+        }
+
+        if (ids is not null)
+        {
+            query.AddRange(ids.Select(id => $"ids={id}"));
         }
 
         string url = "partidas" + (query.Count > 0 ? "?" + string.Join('&', query) : string.Empty);

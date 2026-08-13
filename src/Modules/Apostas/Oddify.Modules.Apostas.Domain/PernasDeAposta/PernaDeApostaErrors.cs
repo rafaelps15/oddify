@@ -9,4 +9,7 @@ public static class PernaDeApostaErrors
 
     public static Error JaResolvida(Guid pernaDeApostaId) =>
         Error.Problem("PernasDeAposta.JaResolvida", $"A perna de aposta com o identificador {pernaDeApostaId} já foi resolvida");
+
+    public static Error AindaNaoResolvida(Guid pernaDeApostaId) =>
+        Error.Problem("PernasDeAposta.AindaNaoResolvida", $"A perna de aposta com o identificador {pernaDeApostaId} ainda não foi resolvida");
 }

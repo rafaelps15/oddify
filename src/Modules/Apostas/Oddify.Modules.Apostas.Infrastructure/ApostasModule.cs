@@ -10,13 +10,17 @@ using Oddify.Modules.Apostas.Application.Abstractions.Data;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem;
 using Oddify.Modules.Apostas.Domain.MovimentacoesDaBanca;
+using Oddify.Modules.Apostas.Domain.PassosDaJornada;
 using Oddify.Modules.Apostas.Domain.PernasDeAposta;
 using Oddify.Modules.Apostas.Infrastructure.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Infrastructure.ApostasMultiplas;
 using Oddify.Modules.Apostas.Infrastructure.Bancas;
 using Oddify.Modules.Apostas.Infrastructure.Database;
+using Oddify.Modules.Apostas.Infrastructure.JornadasDeAlavancagem;
 using Oddify.Modules.Apostas.Infrastructure.MovimentacoesDaBanca;
+using Oddify.Modules.Apostas.Infrastructure.PassosDaJornada;
 using Oddify.Modules.Apostas.Infrastructure.PernasDeAposta;
 using Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 
@@ -56,5 +60,7 @@ public static class ApostasModule
         services.AddScoped<IPernaDeApostaRepository, PernaDeApostaRepository>();
         services.AddScoped<IAnaliseDisponivelParaApostaRepository, AnaliseDisponivelParaApostaRepository>();
         services.AddScoped<IMovimentacaoDaBancaRepository, MovimentacaoDaBancaRepository>();
+        services.AddScoped<IJornadaDeAlavancagemRepository, JornadaDeAlavancagemRepository>();
+        services.AddScoped<IPassoDaJornadaRepository, PassoDaJornadaRepository>();
     }
 }

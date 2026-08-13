@@ -17,24 +17,44 @@ internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConne
         const string sql =
             $"""
              SELECT
-                 id AS {nameof(ApostaMultiplaResponse.Id)},
-                 banca_id AS {nameof(ApostaMultiplaResponse.BancaId)},
-                 odd_combinada AS {nameof(ApostaMultiplaResponse.OddCombinada)},
-                 stake AS {nameof(ApostaMultiplaResponse.Stake)},
-                 resultado AS {nameof(ApostaMultiplaResponse.Resultado)},
-                 lucro_ou_perda AS {nameof(ApostaMultiplaResponse.LucroOuPerda)},
-                 criada_em_utc AS {nameof(ApostaMultiplaResponse.CriadaEmUtc)}
+                 id AS {nameof(ApostaMultiplaRow.Id)},
+                 banca_id AS {nameof(ApostaMultiplaRow.BancaId)},
+                 odd_combinada AS {nameof(ApostaMultiplaRow.OddCombinada)},
+                 stake AS {nameof(ApostaMultiplaRow.Stake)},
+                 resultado AS {nameof(ApostaMultiplaRow.Resultado)},
+                 lucro_ou_perda AS {nameof(ApostaMultiplaRow.LucroOuPerda)},
+                 criada_em_utc AS {nameof(ApostaMultiplaRow.CriadaEmUtc)}
              FROM apostas.apostas_multiplas
              WHERE id = @ApostaMultiplaId
              """;
 
-        ApostaMultiplaResponse? result = await connection.QuerySingleOrDefaultAsync<ApostaMultiplaResponse>(sql, request);
+        ApostaMultiplaRow? row = await connection.QuerySingleOrDefaultAsync<ApostaMultiplaRow>(sql, request);
 
-        if (result is null)
+        if (row is null)
         {
             return Result.Failure<ApostaMultiplaResponse>(ApostaMultiplaErrors.NotFound(request.ApostaMultiplaId));
         }
 
-        return result;
+        IReadOnlyCollection<PernaResponse> pernas = await GetPernasAsync(connection, row.Id);
+
+        return row.ToResponse(pernas);
+    }
+
+    private static async Task<IReadOnlyCollection<PernaResponse>> GetPernasAsync(DbConnection connection, Guid apostaMultiplaId)
+    {
+        const string sql =
+            $"""
+             SELECT
+                 id AS {nameof(PernaResponse.Id)},
+                 mercado AS {nameof(PernaResponse.Mercado)},
+                 odd AS {nameof(PernaResponse.Odd)},
+                 partida_id AS {nameof(PernaResponse.PartidaId)},
+                 resultado AS {nameof(PernaResponse.Resultado)}
+             FROM apostas.pernas_de_aposta
+             WHERE aposta_multipla_id = @ApostaMultiplaId
+             """;
+
+        List<PernaResponse> pernas = (await connection.QueryAsync<PernaResponse>(sql, new { ApostaMultiplaId = apostaMultiplaId })).AsList();
+        return pernas;
     }
 }
