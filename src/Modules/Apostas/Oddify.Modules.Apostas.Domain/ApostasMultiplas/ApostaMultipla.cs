@@ -104,4 +104,24 @@ public sealed class ApostaMultipla : Entity
 
         return lucroOuPerdaAnterior;
     }
+
+    // Evento/partida cancelado ou adiado antes da liquidação. Diferente de Estornar (que reverte
+    // uma liquidação já feita), Anular só se aplica a uma aposta ainda Pendente — o stake nunca
+    // saiu do saldo da banca na montagem (só é debitado/creditado em Liquidar), então não há
+    // nenhum ajuste de saldo a fazer aqui, ao contrário de Estornar.
+    public Result Anular(DateTime atualizadoEmUtc)
+    {
+        if (Resultado != ResultadoDaAposta.Pendente)
+        {
+            return Result.Failure(ApostaMultiplaErrors.JaDecidida(Id));
+        }
+
+        Resultado = ResultadoDaAposta.Anulada;
+        LucroOuPerda = 0m;
+        AtualizadoEmUtc = atualizadoEmUtc;
+
+        Raise(new ApostaMultiplaAnuladaDomainEvent(Id));
+
+        return Result.Success();
+    }
 }

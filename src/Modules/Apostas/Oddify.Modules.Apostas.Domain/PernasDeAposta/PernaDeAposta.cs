@@ -62,4 +62,18 @@ public sealed class PernaDeAposta : Entity
 
         return Result.Success();
     }
+
+    // Evento/partida cancelado ou adiado antes da liquidação — diferente de Resolver, que decide
+    // green/red, aqui a perna simplesmente não conta mais (nem pra vitória, nem pra derrota).
+    public Result Anular()
+    {
+        if (Resultado != ResultadoDaAposta.Pendente)
+        {
+            return Result.Failure(PernaDeApostaErrors.JaResolvida(Id));
+        }
+
+        Resultado = ResultadoDaAposta.Anulada;
+
+        return Result.Success();
+    }
 }

@@ -80,4 +80,29 @@ public sealed class ApostaMultiplaTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(ApostaMultiplaErrors.AindaNaoLiquidada(apostaMultipla.Id));
     }
+
+    [Fact]
+    public void Anular_should_set_resultado_anulada_and_lucro_zero_when_pendente()
+    {
+        ApostaMultipla apostaMultipla = CriarApostaMultipla(oddCombinada: 4.0m, stake: 50m);
+
+        Result resultado = apostaMultipla.Anular(DateTime.UtcNow);
+
+        resultado.IsSuccess.Should().BeTrue();
+        apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Anulada);
+        apostaMultipla.LucroOuPerda.Should().Be(0m);
+        apostaMultipla.DomainEvents.Should().Contain(e => e is ApostaMultiplaAnuladaDomainEvent);
+    }
+
+    [Fact]
+    public void Anular_should_fail_when_already_liquidada()
+    {
+        ApostaMultipla apostaMultipla = CriarApostaMultipla(oddCombinada: 4.0m, stake: 50m);
+        apostaMultipla.Liquidar(true, DateTime.UtcNow);
+
+        Result resultado = apostaMultipla.Anular(DateTime.UtcNow);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(ApostaMultiplaErrors.JaDecidida(apostaMultipla.Id));
+    }
 }
