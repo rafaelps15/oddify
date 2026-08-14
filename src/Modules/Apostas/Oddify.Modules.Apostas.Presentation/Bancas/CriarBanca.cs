@@ -21,7 +21,8 @@ internal sealed class CriarBanca : IEndpoint
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
-        .WithTags(Tags.Bancas);
+        .WithTags(Tags.Bancas)
+        .RequireAuthorization();
     }
 
     internal sealed class Request

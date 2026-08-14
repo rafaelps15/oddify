@@ -20,6 +20,7 @@ internal sealed class GetDesempenhoPorCampeonato : IEndpoint
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
-        .WithTags(Tags.Bancas);
+        .WithTags(Tags.Bancas)
+        .RequireAuthorization();
     }
 }

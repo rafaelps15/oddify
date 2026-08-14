@@ -20,6 +20,7 @@ internal sealed class GetOportunidadesParaAlavancagem : IEndpoint
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
-        .WithTags(Tags.JornadasDeAlavancagem);
+        .WithTags(Tags.JornadasDeAlavancagem)
+        .RequireAuthorization();
     }
 }

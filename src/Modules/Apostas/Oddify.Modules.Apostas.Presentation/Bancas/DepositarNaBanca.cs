@@ -19,7 +19,8 @@ internal sealed class DepositarNaBanca : IEndpoint
 
             return result.Match(Results.NoContent, ApiResults.Problem);
         })
-        .WithTags(Tags.Bancas);
+        .WithTags(Tags.Bancas)
+        .RequireAuthorization();
     }
 
     internal sealed class Request

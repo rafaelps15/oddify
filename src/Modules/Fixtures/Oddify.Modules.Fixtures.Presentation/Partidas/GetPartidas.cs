@@ -17,7 +17,7 @@ internal sealed class GetPartidas : IEndpoint
     {
         app.MapGet("partidas", async (
             [FromQuery] Guid? ligaId,
-            [FromQuery] StatusFiltroDePartida status,
+            [FromQuery] StatusFiltroDePartida status = StatusFiltroDePartida.Todas,
             [FromQuery] int? rodada,
             [FromQuery] int? temporada,
             [FromQuery] Guid[]? ids,

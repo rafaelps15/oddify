@@ -28,6 +28,7 @@ internal sealed class GetSugestaoDeStake : IEndpoint
 
                 return result.Match(Results.Ok, ApiResults.Problem);
             })
-        .WithTags(Tags.Bancas);
+        .WithTags(Tags.Bancas)
+        .RequireAuthorization();
     }
 }

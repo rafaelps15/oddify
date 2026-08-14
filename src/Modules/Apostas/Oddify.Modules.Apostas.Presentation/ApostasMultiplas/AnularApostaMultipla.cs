@@ -19,6 +19,7 @@ internal sealed class AnularApostaMultipla : IEndpoint
 
             return result.Match(() => Results.Ok(), ApiResults.Problem);
         })
-        .WithTags(Tags.ApostasMultiplas);
+        .WithTags(Tags.ApostasMultiplas)
+        .RequireAuthorization();
     }
 }

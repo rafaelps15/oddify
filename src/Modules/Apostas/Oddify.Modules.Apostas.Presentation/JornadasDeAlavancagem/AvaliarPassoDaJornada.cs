@@ -22,6 +22,7 @@ internal sealed class AvaliarPassoDaJornada : IEndpoint
 
             return result.Match(Results.NoContent, ApiResults.Problem);
         })
-        .WithTags(Tags.JornadasDeAlavancagem);
+        .WithTags(Tags.JornadasDeAlavancagem)
+        .RequireAuthorization();
     }
 }

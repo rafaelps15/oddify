@@ -19,6 +19,7 @@ internal sealed class ExcluirApostaMultipla : IEndpoint
 
             return result.Match(Results.NoContent, ApiResults.Problem);
         })
-        .WithTags(Tags.ApostasMultiplas);
+        .WithTags(Tags.ApostasMultiplas)
+        .RequireAuthorization();
     }
 }

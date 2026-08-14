@@ -20,7 +20,8 @@ internal sealed class IniciarJornada : IEndpoint
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
-        .WithTags(Tags.JornadasDeAlavancagem);
+        .WithTags(Tags.JornadasDeAlavancagem)
+        .RequireAuthorization();
     }
 
     internal sealed class Request
