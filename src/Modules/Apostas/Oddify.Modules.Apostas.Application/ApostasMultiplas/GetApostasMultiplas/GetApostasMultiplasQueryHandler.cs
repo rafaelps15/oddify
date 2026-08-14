@@ -5,10 +5,11 @@ using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetApostaMultipla;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.GetApostasMultiplas;
 
-internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbConnectionFactory)
+internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbConnectionFactory, IFixturesApi fixturesApi)
     : IQueryHandler<GetApostasMultiplasQuery, IReadOnlyCollection<ApostaMultiplaResponse>>
 {
     public async Task<Result<IReadOnlyCollection<ApostaMultiplaResponse>>> Handle(
@@ -39,7 +40,7 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
             return Result.Success<IReadOnlyCollection<ApostaMultiplaResponse>>([]);
         }
 
-        ILookup<Guid, PernaResponse> pernasPorAposta = await GetPernasAsync(connection, apostas.Select(a => a.Id));
+        ILookup<Guid, PernaResponse> pernasPorAposta = await GetPernasAsync(connection, apostas.Select(a => a.Id), cancellationToken);
 
         IReadOnlyCollection<ApostaMultiplaResponse> result = apostas
             .Select(aposta => aposta.ToResponse(pernasPorAposta[aposta.Id].ToList()))
@@ -51,7 +52,10 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
     // Uma única consulta pra todas as apostas da página em vez de uma por aposta (evita N+1) —
     // agrupada em memória depois, já que Dapper não faz o join direto pro shape aninhado de
     // ApostaMultiplaResponse.
-    private static async Task<ILookup<Guid, PernaResponse>> GetPernasAsync(DbConnection connection, IEnumerable<Guid> apostaMultiplaIds)
+    private async Task<ILookup<Guid, PernaResponse>> GetPernasAsync(
+        DbConnection connection,
+        IEnumerable<Guid> apostaMultiplaIds,
+        CancellationToken cancellationToken)
     {
         const string sql =
             $"""
@@ -66,12 +70,17 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
              WHERE aposta_multipla_id IN @ApostaMultiplaIds
              """;
 
-        IEnumerable<PernaComAposta> pernas =
-            await connection.QueryAsync<PernaComAposta>(sql, new { ApostaMultiplaIds = apostaMultiplaIds });
+        List<PernaComAposta> pernas =
+            (await connection.QueryAsync<PernaComAposta>(sql, new { ApostaMultiplaIds = apostaMultiplaIds })).AsList();
+
+        IReadOnlyCollection<PartidaResumoResponse> partidas =
+            await fixturesApi.ObterPartidasResumoAsync(pernas.Select(p => p.PartidaId).Distinct().ToList(), cancellationToken);
+
+        var partidasPorId = partidas.ToDictionary(p => p.Id);
 
         return pernas.ToLookup(
             p => p.ApostaMultiplaId,
-            p => new PernaResponse(p.Id, p.Mercado, p.Odd, p.PartidaId, p.Resultado));
+            p => new PernaRow(p.Id, p.Mercado, p.Odd, p.PartidaId, p.Resultado).ToResponse(partidasPorId.GetValueOrDefault(p.PartidaId)));
     }
 
     private sealed record PernaComAposta(Guid ApostaMultiplaId, Guid Id, string Mercado, decimal Odd, Guid PartidaId, ResultadoDaAposta Resultado);

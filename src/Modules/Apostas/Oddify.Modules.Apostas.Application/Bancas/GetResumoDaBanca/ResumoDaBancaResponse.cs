@@ -6,4 +6,9 @@ public sealed record ResumoDaBancaResponse(
     decimal TotalDepositado,
     decimal TotalGanho,
     decimal TotalPerdido,
-    int QuantidadeDeApostas);
+    int QuantidadeDeApostas,
+    decimal Lucro,
+    decimal? Roi,
+    decimal? Assertividade,
+    decimal PercentualPorEntrada,
+    decimal ValorDaUnidade);

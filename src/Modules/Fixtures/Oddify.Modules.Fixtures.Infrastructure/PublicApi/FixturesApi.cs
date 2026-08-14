@@ -5,11 +5,13 @@ using Oddify.Modules.Fixtures.Application.Cotacoes.GetCotacoesPorPartida;
 using Oddify.Modules.Fixtures.Application.Ligas.GetLiga;
 using Oddify.Modules.Fixtures.Application.Partidas.GetHistoricoRecentePorEquipe;
 using Oddify.Modules.Fixtures.Application.Partidas.GetPartida;
+using Oddify.Modules.Fixtures.Application.Partidas.GetPartidasResumo;
 using Oddify.Modules.Fixtures.PublicApi;
 using CotacaoResponse = Oddify.Modules.Fixtures.PublicApi.CotacaoResponse;
 using HistoricoDeEquipeResponse = Oddify.Modules.Fixtures.PublicApi.HistoricoDeEquipeResponse;
 using LigaResponse = Oddify.Modules.Fixtures.PublicApi.LigaResponse;
 using PartidaResponse = Oddify.Modules.Fixtures.PublicApi.PartidaResponse;
+using PartidaResumoResponse = Oddify.Modules.Fixtures.PublicApi.PartidaResumoResponse;
 
 namespace Oddify.Modules.Fixtures.Infrastructure.PublicApi;
 
@@ -100,5 +102,31 @@ internal sealed class FixturesApi(ISender sender) : IFixturesApi
             result.Value.Situacao.ToString(),
             result.Value.GolsCasa,
             result.Value.GolsVisitante);
+    }
+
+    public async Task<IReadOnlyCollection<PartidaResumoResponse>> ObterPartidasResumoAsync(
+        IReadOnlyCollection<Guid> partidaIds,
+        CancellationToken cancellationToken = default)
+    {
+        Result<IReadOnlyCollection<Application.Partidas.GetPartidasResumo.PartidaResumoResponse>> result =
+            await sender.Send(new GetPartidasResumoQuery([.. partidaIds]), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return [];
+        }
+
+        return result.Value
+            .Select(p => new PartidaResumoResponse(
+                p.Id,
+                p.LigaId,
+                p.DataUtc,
+                p.EquipeCasaId,
+                p.EquipeCasaNome,
+                p.EquipeCasaLogo,
+                p.EquipeVisitanteId,
+                p.EquipeVisitanteNome,
+                p.EquipeVisitanteLogo))
+            .ToList();
     }
 }

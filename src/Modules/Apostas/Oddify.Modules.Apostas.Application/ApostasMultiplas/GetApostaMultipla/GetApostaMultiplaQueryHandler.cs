@@ -4,10 +4,11 @@ using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
+using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.GetApostaMultipla;
 
-internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConnectionFactory)
+internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConnectionFactory, IFixturesApi fixturesApi)
     : IQueryHandler<GetApostaMultiplaQuery, ApostaMultiplaResponse>
 {
     public async Task<Result<ApostaMultiplaResponse>> Handle(GetApostaMultiplaQuery request, CancellationToken cancellationToken)
@@ -35,26 +36,35 @@ internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConne
             return Result.Failure<ApostaMultiplaResponse>(ApostaMultiplaErrors.NotFound(request.ApostaMultiplaId));
         }
 
-        IReadOnlyCollection<PernaResponse> pernas = await GetPernasAsync(connection, row.Id);
+        IReadOnlyCollection<PernaResponse> pernas = await GetPernasAsync(connection, row.Id, cancellationToken);
 
         return row.ToResponse(pernas);
     }
 
-    private static async Task<IReadOnlyCollection<PernaResponse>> GetPernasAsync(DbConnection connection, Guid apostaMultiplaId)
+    private async Task<IReadOnlyCollection<PernaResponse>> GetPernasAsync(
+        DbConnection connection,
+        Guid apostaMultiplaId,
+        CancellationToken cancellationToken)
     {
         const string sql =
             $"""
              SELECT
-                 id AS {nameof(PernaResponse.Id)},
-                 mercado AS {nameof(PernaResponse.Mercado)},
-                 odd AS {nameof(PernaResponse.Odd)},
-                 partida_id AS {nameof(PernaResponse.PartidaId)},
-                 resultado AS {nameof(PernaResponse.Resultado)}
+                 id AS {nameof(PernaRow.Id)},
+                 mercado AS {nameof(PernaRow.Mercado)},
+                 odd AS {nameof(PernaRow.Odd)},
+                 partida_id AS {nameof(PernaRow.PartidaId)},
+                 resultado AS {nameof(PernaRow.Resultado)}
              FROM apostas.pernas_de_aposta
              WHERE aposta_multipla_id = @ApostaMultiplaId
              """;
 
-        List<PernaResponse> pernas = (await connection.QueryAsync<PernaResponse>(sql, new { ApostaMultiplaId = apostaMultiplaId })).AsList();
-        return pernas;
+        List<PernaRow> rows = (await connection.QueryAsync<PernaRow>(sql, new { ApostaMultiplaId = apostaMultiplaId })).AsList();
+
+        IReadOnlyCollection<PartidaResumoResponse> partidas =
+            await fixturesApi.ObterPartidasResumoAsync(rows.Select(r => r.PartidaId).Distinct().ToList(), cancellationToken);
+
+        var partidasPorId = partidas.ToDictionary(p => p.Id);
+
+        return rows.Select(r => r.ToResponse(partidasPorId.GetValueOrDefault(r.PartidaId))).ToList();
     }
 }
