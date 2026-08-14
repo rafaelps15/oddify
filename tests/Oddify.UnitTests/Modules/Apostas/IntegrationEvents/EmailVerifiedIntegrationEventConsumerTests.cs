@@ -1,7 +1,10 @@
+using FluentAssertions;
 using MassTransit;
+using MediatR;
 using NSubstitute;
-using Oddify.Modules.Apostas.Application.Abstractions.Data;
-using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Common.Application.Exceptions;
+using Oddify.Common.Domain;
+using Oddify.Modules.Apostas.Application.Bancas.CriarBancaInicial;
 using Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 using Oddify.Modules.Users.IntegrationEvents;
 
@@ -9,10 +12,9 @@ namespace Oddify.UnitTests.Modules.Apostas.IntegrationEvents;
 
 public sealed class EmailVerifiedIntegrationEventConsumerTests
 {
-    private readonly IBancaRepository _bancaRepository = Substitute.For<IBancaRepository>();
-    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly ISender _sender = Substitute.For<ISender>();
 
-    private EmailVerifiedIntegrationEventConsumer CriarConsumer() => new(_bancaRepository, _unitOfWork);
+    private EmailVerifiedIntegrationEventConsumer CriarConsumer() => new(_sender);
 
     private static ConsumeContext<EmailVerifiedIntegrationEvent> CriarContexto(EmailVerifiedIntegrationEvent evento)
     {
@@ -23,26 +25,27 @@ public sealed class EmailVerifiedIntegrationEventConsumerTests
     }
 
     [Fact]
-    public async Task Consume_should_create_banca_inicial_when_user_has_none()
+    public async Task Consume_should_dispatch_criar_banca_inicial_command()
     {
         var evento = new EmailVerifiedIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid());
-        _bancaRepository.ExistsForUsuarioAsync(evento.UserId, Arg.Any<CancellationToken>()).Returns(false);
+        _sender.Send(Arg.Any<CriarBancaInicialCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
 
         await CriarConsumer().Consume(CriarContexto(evento));
 
-        _bancaRepository.Received(1).Insert(Arg.Is<Banca>(b => b.UsuarioId == evento.UserId));
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _sender.Received(1).Send(
+            Arg.Is<CriarBancaInicialCommand>(c => c.UsuarioId == evento.UserId && c.OcorridoEmUtc == evento.OccurredOnUtc),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Consume_should_be_idempotent_when_user_already_has_a_banca()
+    public async Task Consume_should_throw_when_command_fails()
     {
         var evento = new EmailVerifiedIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid());
-        _bancaRepository.ExistsForUsuarioAsync(evento.UserId, Arg.Any<CancellationToken>()).Returns(true);
+        _sender.Send(Arg.Any<CriarBancaInicialCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(Error.Failure("Bancas.Falha", "falha simulada")));
 
-        await CriarConsumer().Consume(CriarContexto(evento));
+        Func<Task> act = () => CriarConsumer().Consume(CriarContexto(evento));
 
-        _bancaRepository.DidNotReceive().Insert(Arg.Any<Banca>());
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await act.Should().ThrowAsync<OddifyException>();
     }
 }

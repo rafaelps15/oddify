@@ -17,11 +17,11 @@ internal sealed class GetPartidas : IEndpoint
     {
         app.MapGet("partidas", async (
             [FromQuery] Guid? ligaId,
-            [FromQuery] StatusFiltroDePartida status = StatusFiltroDePartida.Todas,
             [FromQuery] int? rodada,
             [FromQuery] int? temporada,
             [FromQuery] Guid[]? ids,
-            ISender sender) =>
+            ISender sender,
+            [FromQuery] StatusFiltroDePartida status = StatusFiltroDePartida.Todas) =>
             {
                 Result<IReadOnlyCollection<PartidaResponse>> result =
                     await sender.Send(new GetPartidasQuery(ligaId, status, rodada, temporada, ids));

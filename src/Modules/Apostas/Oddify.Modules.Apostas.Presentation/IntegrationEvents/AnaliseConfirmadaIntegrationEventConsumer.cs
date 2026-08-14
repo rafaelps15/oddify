@@ -1,25 +1,32 @@
 using MassTransit;
+using MediatR;
+using Oddify.Common.Application.Exceptions;
+using Oddify.Common.Domain;
 using Oddify.Modules.Analise.IntegrationEvents;
-using Oddify.Modules.Apostas.Application.Abstractions.Data;
-using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
+using Oddify.Modules.Apostas.Application.ApostasMultiplas.RegistrarAnaliseDisponivelParaAposta;
 
 namespace Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 
-public sealed class AnaliseConfirmadaIntegrationEventConsumer(
-    IAnaliseDisponivelParaApostaRepository repository,
-    IUnitOfWork unitOfWork)
+public sealed class AnaliseConfirmadaIntegrationEventConsumer(ISender sender)
     : IConsumer<AnaliseConfirmadaIntegrationEvent>
 {
     public async Task Consume(ConsumeContext<AnaliseConfirmadaIntegrationEvent> context)
     {
         AnaliseConfirmadaIntegrationEvent evento = context.Message;
 
-        var disponivel = AnaliseDisponivelParaAposta.Create(
-            evento.AnaliseId, evento.PartidaId, evento.Mercado, evento.OddDeMercado,
-            evento.ProbabilidadeConfirmada, evento.Reduzida);
+        Result result = await sender.Send(
+            new RegistrarAnaliseDisponivelParaApostaCommand(
+                evento.AnaliseId,
+                evento.PartidaId,
+                evento.Mercado,
+                evento.OddDeMercado,
+                evento.ProbabilidadeConfirmada,
+                evento.Reduzida),
+            context.CancellationToken);
 
-        repository.Insert(disponivel);
-
-        await unitOfWork.SaveChangesAsync(context.CancellationToken);
+        if (result.IsFailure)
+        {
+            throw new OddifyException(nameof(RegistrarAnaliseDisponivelParaApostaCommand), result.Error);
+        }
     }
 }
