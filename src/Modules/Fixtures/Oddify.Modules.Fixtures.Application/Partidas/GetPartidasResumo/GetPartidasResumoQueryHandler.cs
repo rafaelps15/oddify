@@ -20,6 +20,7 @@ internal sealed class GetPartidasResumoQueryHandler(IDbConnectionFactory dbConne
              SELECT
                  p.id AS {nameof(PartidaResumoResponse.Id)},
                  p.liga_id AS {nameof(PartidaResumoResponse.LigaId)},
+                 l.nome AS {nameof(PartidaResumoResponse.LigaNome)},
                  p.data_utc AS {nameof(PartidaResumoResponse.DataUtc)},
                  ec.id AS {nameof(PartidaResumoResponse.EquipeCasaId)},
                  ec.nome AS {nameof(PartidaResumoResponse.EquipeCasaNome)},
@@ -28,6 +29,7 @@ internal sealed class GetPartidasResumoQueryHandler(IDbConnectionFactory dbConne
                  ev.nome AS {nameof(PartidaResumoResponse.EquipeVisitanteNome)},
                  ev.logo AS {nameof(PartidaResumoResponse.EquipeVisitanteLogo)}
              FROM fixtures.partidas p
+             JOIN fixtures.ligas l ON l.id = p.liga_id
              JOIN fixtures.equipes ec ON ec.id = p.equipe_casa_id
              JOIN fixtures.equipes ev ON ev.id = p.equipe_visitante_id
              WHERE p.id = ANY(@Ids)

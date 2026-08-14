@@ -120,6 +120,7 @@ internal sealed class FixturesApi(ISender sender) : IFixturesApi
             .Select(p => new PartidaResumoResponse(
                 p.Id,
                 p.LigaId,
+                p.LigaNome,
                 p.DataUtc,
                 p.EquipeCasaId,
                 p.EquipeCasaNome,
