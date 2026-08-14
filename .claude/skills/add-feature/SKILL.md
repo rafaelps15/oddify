@@ -1,548 +1,101 @@
 ---
 name: add-feature
-description: Scaffold a new CQRS command or query (record + handler + validator + minimal-API endpoint), including single-item, list, and paginated/filtered search queries, for an existing entity in a module of this modular monolith, matching this template's vertical-slice conventions exactly.
+description: Scaffold a new CQRS use case (vertical slice) in a .NET Clean Architecture / Modular Monolith solution — Command or Query, its Handler, a FluentValidation Validator, and the minimal-API Endpoint that maps to it. Use when the user asks to add a new command, query, use case, application feature, or API endpoint in a project using MediatR, the Result pattern, Dapper for reads and EF Core for writes.
+argument-hint: <feature description, e.g. "complete a todo item" or "get overdue todo items">
 ---
 
-# add-feature
-
-Scaffold one CQRS use case (a "feature") for an entity that already exists (via `/add-entity` or
-pre-existing). Read this repo's root `CLAUDE.md` first if one exists — it takes precedence over
-this skill wherever the two differ. Ask the user which **module**, which **entity/aggregate**,
-the **use case name** (verb + noun, e.g. `PublishEvent`, `GetOrder`, `GetOrders`,
-`SearchOrders`), whether it's a **command** (mutates state) or **query** (reads state), and its
-input/output shape.
-
-Before scaffolding, find and read 2-3 existing use cases in this repo to match style exactly: a
-command with a return value, ideally a command with no return value, and a single-item plus a
-list (or paginated search) query — along with their endpoints. Below, the worked example
-scaffolds five use cases for a fictional `TodoItem` entity in a fictional `Tasks` module (a
-stand-in that won't collide with any real entity in this repo): `CreateTodoItem` (command,
-returns `Guid`), `CompleteTodoItem` (command, no return value, route-param only), `GetTodoItem`
-(single query), `GetTodoItems` (unfiltered list query), `SearchTodoItems` (paginated/filtered
-query). Swap these for whatever the user actually asked for; `<ProjectName>` stands for this
-repo's actual root namespace/solution name.
-
-## A. Command feature — `Application/TodoItems/CreateTodoItem/`
-
-**`CreateTodoItemCommand.cs`**
-```csharp
-using <ProjectName>.Common.Application.Messaging;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.CreateTodoItem;
-
-public sealed record CreateTodoItemCommand(string Title, string Description) : ICommand<Guid>;
-```
-
-**`CreateTodoItemCommandHandler.cs`**
-```csharp
-using <ProjectName>.Common.Application.Messaging;
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Application.Abstractions.Data;
-using <ProjectName>.Modules.Tasks.Domain.TodoItems;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.CreateTodoItem;
-
-internal sealed class CreateTodoItemCommandHandler(ITodoItemRepository todoItemRepository, IUnitOfWork unitOfWork)
-    : ICommandHandler<CreateTodoItemCommand, Guid>
-{
-    public async Task<Result<Guid>> Handle(CreateTodoItemCommand request, CancellationToken cancellationToken)
-    {
-        TodoItem todoItem = TodoItem.Create(request.Title, request.Description);
-
-        todoItemRepository.Insert(todoItem);
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return todoItem.Id;
-    }
-}
-```
-For a brand-new aggregate (as above), call `TodoItem.Create(...)` then
-`todoItemRepository.Insert(todoItem)` before `SaveChangesAsync`. For a mutation on an existing
-aggregate (see `CompleteTodoItem` below), `GetAsync` it first, call its behavior method, then
-`SaveChangesAsync` — EF change tracking persists the mutation, no explicit `Update` call needed.
-
-**`CreateTodoItemCommandValidator.cs`** (commands only — never write one for a query)
-```csharp
-using FluentValidation;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.CreateTodoItem;
-
-internal sealed class CreateTodoItemCommandValidator : AbstractValidator<CreateTodoItemCommand>
-{
-    public CreateTodoItemCommandValidator()
-    {
-        RuleFor(c => c.Title).NotEmpty().MaximumLength(200);
-        RuleFor(c => c.Description).NotEmpty().MaximumLength(2000);
-    }
-}
-```
-
-## A2. Command with no return value, route-param only — `Application/TodoItems/CompleteTodoItem/`
-
-```csharp
-using <ProjectName>.Common.Application.Messaging;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.CompleteTodoItem;
-
-public sealed record CompleteTodoItemCommand(Guid TodoItemId) : ICommand;
-```
-```csharp
-using <ProjectName>.Common.Application.Clock;
-using <ProjectName>.Common.Application.Messaging;
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Application.Abstractions.Data;
-using <ProjectName>.Modules.Tasks.Domain.TodoItems;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.CompleteTodoItem;
-
-internal sealed class CompleteTodoItemCommandHandler(
-    ITodoItemRepository todoItemRepository,
-    IDateTimeProvider dateTimeProvider,
-    IUnitOfWork unitOfWork)
-    : ICommandHandler<CompleteTodoItemCommand>
-{
-    public async Task<Result> Handle(CompleteTodoItemCommand request, CancellationToken cancellationToken)
-    {
-        TodoItem? todoItem = await todoItemRepository.GetAsync(request.TodoItemId, cancellationToken);
-
-        if (todoItem is null)
-        {
-            return Result.Failure(TodoItemErrors.NotFound(request.TodoItemId));
-        }
-
-        Result result = todoItem.Complete(dateTimeProvider.UtcNow);
-
-        if (result.IsFailure)
-        {
-            return result;
-        }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
-    }
-}
-```
-Inject `IDateTimeProvider` (from `Common.Application.Clock`) instead of calling `DateTime.UtcNow`
-directly whenever "now" is a value the handler makes a decision with or passes into the entity —
-it's what makes that decision testable.
-
-## A3. Command orchestrating multiple aggregates - e.g. `Application/Wallets/ReverseWithdrawal/`
-
-Use this shape when a single command must load and mutate more than one aggregate root in one
-transaction (a reversal, a transfer, anything that both changes a balance and appends a ledger
-row). Below, a fictional `Wallet` + `LedgerEntry` pair in a fictional `Wallets` module - a
-stand-in for this shape, not a real entity.
-
-**`ReverseWithdrawalCommandHandler.cs`**
-```csharp
-using <ProjectName>.Common.Application.Clock;
-using <ProjectName>.Common.Application.Messaging;
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Wallets.Application.Abstractions.Data;
-using <ProjectName>.Modules.Wallets.Domain.LedgerEntries;
-using <ProjectName>.Modules.Wallets.Domain.Wallets;
-using <ProjectName>.Modules.Wallets.Domain.Withdrawals;
-
-namespace <ProjectName>.Modules.Wallets.Application.Wallets.ReverseWithdrawal;
-
-internal sealed class ReverseWithdrawalCommandHandler(
-    IWithdrawalRepository withdrawalRepository,
-    IWalletRepository walletRepository,
-    ILedgerEntryRepository ledgerEntryRepository,
-    IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider)
-    : ICommandHandler<ReverseWithdrawalCommand>
-{
-    public async Task<Result> Handle(ReverseWithdrawalCommand request, CancellationToken cancellationToken)
-    {
-        Withdrawal? withdrawal = await withdrawalRepository.GetAsync(request.WithdrawalId, cancellationToken);
-
-        if (withdrawal is null)
-        {
-            return Result.Failure(WithdrawalErrors.NotFound(request.WithdrawalId));
-        }
-
-        Wallet? wallet = await walletRepository.GetAsync(withdrawal.WalletId, cancellationToken);
-
-        if (wallet is null)
-        {
-            return Result.Failure(WalletErrors.NotFound(withdrawal.WalletId));
-        }
-
-        DateTime utcNow = dateTimeProvider.UtcNow;
-
-        Result reverseResult = withdrawal.Reverse(utcNow);
-
-        if (reverseResult.IsFailure)
-        {
-            return reverseResult;
-        }
-
-        LedgerEntry ledgerEntry = wallet.RegisterReversal(withdrawal.Amount, withdrawal.Id, utcNow);
-
-        ledgerEntryRepository.Insert(ledgerEntry);
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
-    }
-}
-```
-Fetch every aggregate the handler needs, with its own `is null` guard, before mutating any of
-them - a `NotFound` on `wallet` shouldn't happen after `withdrawal` was already mutated in memory.
-
-`Wallet.RegisterReversal(...)` is the one place that both adjusts the wallet's own balance and
-builds the `LedgerEntry` via `LedgerEntry.Create(...)` - passing only `Id` (a `Guid`), never
-`this`, into that factory:
-```csharp
-public LedgerEntry RegisterReversal(decimal amount, Guid withdrawalId, DateTime occurredAtUtc)
-{
-    AdjustBalance(amount, occurredAtUtc);
-
-    return LedgerEntry.Create(Id, LedgerEntryType.Reversal, amount, Balance, withdrawalId, occurredAtUtc);
-}
-```
-This keeps the balance change and its ledger row atomic - nobody can call `AdjustBalance` without
-also recording the movement, or vice versa. Never let `LedgerEntry`'s own factory reach back and
-call `AdjustBalance` on a `Wallet` passed into it - the aggregate whose state changes is always
-the one that owns the method.
-
-If the command also needs to reopen/update a collection of child entities tied to the reversed
-record (e.g. every line item under the withdrawal), loop them inline in `Handle` right after the
-related result check - don't extract the loop into a private method unless it's reused elsewhere
-in the class:
-```csharp
-foreach (WithdrawalLine line in withdrawal.Lines)
-{
-    Result reopenResult = line.Reopen();
-
-    if (reopenResult.IsFailure)
-    {
-        return reopenResult;
-    }
-}
-```
-If this module's repositories are user-scoped (`GetAsync(id, userContext.UserId,
-cancellationToken)`), keep every repository call in the handler consistently scoped the same way
-- don't let one lookup silently skip the ownership check while its siblings keep it.
-
-## B. Query feature — single item and unfiltered list
-
-Only create a `Response` record when this is the "canonical" query for the shape (typically the
-singular `Get<Entity>` query) — a list/search query for the same aggregate reuses it by
-namespace-qualified reference rather than redefining a DTO.
-
-**`TodoItemResponse.cs`** (in the singular query's folder, `Application/TodoItems/GetTodoItem/`)
-```csharp
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.GetTodoItem;
-
-public sealed record TodoItemResponse(Guid Id, string Title, string Description, bool IsCompleted);
-```
-
-**`GetTodoItemQuery.cs`**
-```csharp
-using <ProjectName>.Common.Application.Messaging;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.GetTodoItem;
-
-public sealed record GetTodoItemQuery(Guid TodoItemId) : IQuery<TodoItemResponse>;
-```
-
-**`GetTodoItemQueryHandler.cs`** — reads via **Dapper**, not EF, against `IDbConnectionFactory`
-(this is the read side of CQRS):
-```csharp
-using System.Data.Common;
-using Dapper;
-using <ProjectName>.Common.Application.Data;
-using <ProjectName>.Common.Application.Messaging;
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Application.Abstractions.Data;
-using <ProjectName>.Modules.Tasks.Domain.TodoItems;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.GetTodoItem;
-
-internal sealed class GetTodoItemQueryHandler(IDbConnectionFactory dbConnectionFactory)
-    : IQueryHandler<GetTodoItemQuery, TodoItemResponse>
-{
-    public async Task<Result<TodoItemResponse>> Handle(GetTodoItemQuery request, CancellationToken cancellationToken)
-    {
-        await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
-
-        const string sql =
-            $"""
-             SELECT
-                 id AS {nameof(TodoItemResponse.Id)},
-                 title AS {nameof(TodoItemResponse.Title)},
-                 description AS {nameof(TodoItemResponse.Description)},
-                 is_completed AS {nameof(TodoItemResponse.IsCompleted)}
-             FROM tasks.todo_items
-             WHERE id = @TodoItemId
-             """;
-
-        TodoItemResponse? result = await connection.QuerySingleOrDefaultAsync<TodoItemResponse>(sql, request);
-
-        if (result is null)
-        {
-            return Result.Failure<TodoItemResponse>(TodoItemErrors.NotFound(request.TodoItemId));
-        }
-
-        return result;
-    }
-}
-```
-Use `nameof(TodoItemResponse.X)` for every column alias so the SQL stays compiler-checked against
-the record. Pass `request` directly as the Dapper parameters object when its property names match
-the `@Param` placeholders.
-
-List variant, parameterless record syntax (note: no parentheses), same folder-reuse rule:
-```csharp
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.GetTodoItems;
-
-public sealed record GetTodoItemsQuery : IQuery<IReadOnlyCollection<GetTodoItem.TodoItemResponse>>;
-```
-```csharp
-internal sealed class GetTodoItemsQueryHandler(IDbConnectionFactory dbConnectionFactory)
-    : IQueryHandler<GetTodoItemsQuery, IReadOnlyCollection<TodoItemResponse>>
-{
-    public async Task<Result<IReadOnlyCollection<TodoItemResponse>>> Handle(GetTodoItemsQuery request, CancellationToken cancellationToken)
-    {
-        await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
-
-        const string sql =
-            $"""
-             SELECT
-                 id AS {nameof(TodoItemResponse.Id)},
-                 title AS {nameof(TodoItemResponse.Title)},
-                 description AS {nameof(TodoItemResponse.Description)},
-                 is_completed AS {nameof(TodoItemResponse.IsCompleted)}
-             FROM tasks.todo_items
-             """;
-
-        List<TodoItemResponse> todoItems = (await connection.QueryAsync<TodoItemResponse>(sql, request)).AsList();
-
-        return todoItems;
-    }
-}
-```
-No validator file for either query — queries have none in this template (the validation pipeline
-behavior only runs for `IBaseCommand`).
-
-## C. Paginated/filtered search query — `Application/TodoItems/SearchTodoItems/`
-
-Use this shape whenever the use case takes filters and/or paging, instead of the plain list query
-above. It runs **two** SQL statements against the same filter predicate — one page of rows, one
-total count — through a shared private parameters record so both stay in sync.
-
-**`SearchTodoItemsQuery.cs`**
-```csharp
-using <ProjectName>.Common.Application.Messaging;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.SearchTodoItems;
-
-public sealed record SearchTodoItemsQuery(
-    bool? IsCompleted,
-    DateTime? CreatedAfterUtc,
-    int Page,
-    int PageSize) : IQuery<SearchTodoItemsResponse>;
-```
-
-**`SearchTodoItemsResponse.cs`**
-```csharp
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.SearchTodoItems;
-
-public sealed record SearchTodoItemsResponse(
-    int Page,
-    int PageSize,
-    int TotalCount,
-    IReadOnlyCollection<TodoItemResponse> Items);
-```
-
-**`SearchTodoItemsQueryHandler.cs`**
-```csharp
-using System.Data.Common;
-using Dapper;
-using <ProjectName>.Common.Application.Data;
-using <ProjectName>.Common.Application.Messaging;
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Application.Abstractions.Data;
-using <ProjectName>.Modules.Tasks.Application.TodoItems.GetTodoItem;
-
-namespace <ProjectName>.Modules.Tasks.Application.TodoItems.SearchTodoItems;
-
-internal sealed class SearchTodoItemsQueryHandler(IDbConnectionFactory dbConnectionFactory)
-    : IQueryHandler<SearchTodoItemsQuery, SearchTodoItemsResponse>
-{
-    public async Task<Result<SearchTodoItemsResponse>> Handle(SearchTodoItemsQuery request, CancellationToken cancellationToken)
-    {
-        await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
-
-        var parameters = new SearchTodoItemsParameters(
-            request.IsCompleted,
-            request.CreatedAfterUtc,
-            request.PageSize,
-            (request.Page - 1) * request.PageSize);
-
-        IReadOnlyCollection<TodoItemResponse> items = await GetItemsAsync(connection, parameters);
-        int totalCount = await CountItemsAsync(connection, parameters);
-
-        return new SearchTodoItemsResponse(request.Page, request.PageSize, totalCount, items);
-    }
-
-    private static async Task<IReadOnlyCollection<TodoItemResponse>> GetItemsAsync(
-        DbConnection connection, SearchTodoItemsParameters parameters)
-    {
-        const string sql =
-            $"""
-             SELECT
-                 id AS {nameof(TodoItemResponse.Id)},
-                 title AS {nameof(TodoItemResponse.Title)},
-                 description AS {nameof(TodoItemResponse.Description)},
-                 is_completed AS {nameof(TodoItemResponse.IsCompleted)}
-             FROM tasks.todo_items
-             WHERE
-                (@IsCompleted IS NULL OR is_completed = @IsCompleted) AND
-                (@CreatedAfterUtc::timestamp IS NULL OR created_at_utc >= @CreatedAfterUtc::timestamp)
-             ORDER BY created_at_utc
-             OFFSET @Skip
-             LIMIT @Take
-             """;
-
-        List<TodoItemResponse> items = (await connection.QueryAsync<TodoItemResponse>(sql, parameters)).AsList();
-        return items;
-    }
-
-    private static async Task<int> CountItemsAsync(DbConnection connection, SearchTodoItemsParameters parameters)
-    {
-        const string sql =
-            """
-            SELECT COUNT(*)
-            FROM tasks.todo_items
-            WHERE
-               (@IsCompleted IS NULL OR is_completed = @IsCompleted) AND
-               (@CreatedAfterUtc::timestamp IS NULL OR created_at_utc >= @CreatedAfterUtc::timestamp)
-            """;
-
-        return await connection.ExecuteScalarAsync<int>(sql, parameters);
-    }
-
-    private sealed record SearchTodoItemsParameters(bool? IsCompleted, DateTime? CreatedAfterUtc, int Take, int Skip);
-}
-```
-The `private sealed record ...Parameters` computes `Skip` once and is reused as the Dapper
-parameter object for both statements — don't recompute `(Page - 1) * PageSize` twice or let the
-two `WHERE` clauses drift apart. Nullable-filter columns use the `@Param IS NULL OR column = @Param`
-pattern so an absent filter is a true no-op, not an accidental exclusion.
-
-## D. Endpoint — `Presentation/TodoItems/<UseCase>.cs`
-
-Class/file name = use case name minus `Command`/`Query` suffix.
-
-Command with a return value (`Presentation/TodoItems/CreateTodoItem.cs`):
-```csharp
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Common.Presentation.Endpoints;
-using <ProjectName>.Common.Presentation.Results;
-using <ProjectName>.Modules.Tasks.Application.TodoItems.CreateTodoItem;
-using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-
-namespace <ProjectName>.Modules.Tasks.Presentation.TodoItems;
-
-internal sealed class CreateTodoItem : IEndpoint
-{
-    public void MapEndpoint(IEndpointRouteBuilder app)
-    {
-        app.MapPost("todo-items", async (Request request, ISender sender) =>
-        {
-            Result<Guid> result = await sender.Send(new CreateTodoItemCommand(request.Title, request.Description));
-
-            return result.Match(Results.Ok, ApiResults.Problem);
-        })
-        .WithTags(Tags.TodoItems);
-    }
-
-    internal sealed class Request
-    {
-        public string Title { get; init; }
-        public string Description { get; init; }
-    }
-}
-```
-Command with **no** return value (`Result`, not `Result<T>`) — use either
-`.Match(() => Results.Ok(), ApiResults.Problem)` or `.Match(Results.NoContent, ApiResults.Problem)`.
-**Repos following this template can end up genuinely inconsistent** between these two for
-the same shape of endpoint — there's no single house rule to enforce. Match whichever sibling
-endpoints already exist in the module/aggregate you're extending; if there's no sibling to match,
-default to `Results.NoContent()`.
-
-Route-param-only command (`Presentation/TodoItems/CompleteTodoItem.cs`) — bind `Guid id` as a
-plain lambda parameter matched to `{id}`, no `[FromRoute]` needed:
-```csharp
-app.MapPut("todo-items/{id}/complete", async (Guid id, ISender sender) =>
-{
-    Result result = await sender.Send(new CompleteTodoItemCommand(id));
-
-    return result.Match(Results.NoContent, ApiResults.Problem);
-})
-.WithTags(Tags.TodoItems);
-```
-Use `MapPut` for updates/state-transitions, `MapPost` for creation, `MapDelete` only if truly
-deleting.
-
-Query (`Presentation/TodoItems/GetTodoItem.cs`):
-```csharp
-app.MapGet("todo-items/{id}", async (Guid id, ISender sender) =>
-{
-    Result<TodoItemResponse> result = await sender.Send(new GetTodoItemQuery(id));
-    return result.Match(Results.Ok, ApiResults.Problem);
-})
-.WithTags(Tags.TodoItems);
-```
-List query (`Presentation/TodoItems/GetTodoItems.cs`, no params):
-```csharp
-app.MapGet("todo-items", async (ISender sender) =>
-{
-    Result<IReadOnlyCollection<TodoItemResponse>> result = await sender.Send(new GetTodoItemsQuery());
-    return result.Match(Results.Ok, ApiResults.Problem);
-})
-.WithTags(Tags.TodoItems);
-```
-Paginated/filtered search query (`Presentation/TodoItems/SearchTodoItems.cs`) — filters and
-paging bind as plain query-string lambda parameters, with C# default values doubling as the
-endpoint's own defaults:
-```csharp
-app.MapGet("todo-items/search", async (
-    ISender sender,
-    bool? isCompleted,
-    DateTime? createdAfterUtc,
-    int page = 1,
-    int pageSize = 20) =>
-{
-    Result<SearchTodoItemsResponse> result =
-        await sender.Send(new SearchTodoItemsQuery(isCompleted, createdAfterUtc, page, pageSize));
-
-    return result.Match(Results.Ok, ApiResults.Problem);
-})
-.WithTags(Tags.TodoItems);
-```
-
-If `Tags.TodoItems` doesn't exist yet in this module's `Presentation/Tags.cs`, add a
-`const string TodoItems = "TodoItems";` entry.
-
-## E. No manual registration needed
-
-Do **not** register the handler, validator, or endpoint anywhere by hand — MediatR assembly
-scanning picks up the handler/validator, and `AddEndpoints(Presentation.AssemblyReference.Assembly)`
-(called once from the module's `TasksModule.cs`) picks up the `IEndpoint` implementation via
-reflection. If the build doesn't pick up the new feature, the bug is elsewhere (wrong
-namespace/assembly), not a missing registration line.
-
-## F. After scaffolding
-
-Build the solution (`dotnet build`) to catch warnings-as-errors issues. Tell the user
-`/add-tests` can now generate a handler unit test and (if endpoints exist) an integration test
-for this feature, and `/ca-review` can check it against the architectural rules.
+# Add Feature
+
+Scaffolds one **vertical slice**: a single use case cutting through Application (Command/Query +
+Handler + Validator) and Presentation (minimal-API endpoint), for a Domain entity that already exists.
+If the entity doesn't exist yet, use the `add-entity` skill first — this skill assumes the entity,
+its `Errors` class, and its repository interface are already in place.
+
+This assumes the same architecture as `add-entity`: Modular Monolith, per-module `Application`/
+`Presentation` projects, MediatR-based CQRS, Result pattern, FluentValidation, Dapper for reads, EF
+Core for writes, minimal-API endpoints behind an `IEndpoint` marker interface.
+
+## Step 0 — Detect the project's real conventions
+
+Same as `add-entity` Step 0: resolve `<RootNamespace>` and `<Module>` from the existing codebase before
+writing anything. Additionally, locate and read:
+
+- The messaging abstractions (commonly `<RootNamespace>.Common.Application.Messaging`): `ICommand`,
+  `ICommand<TResponse>`, `ICommandHandler<TCommand>`, `ICommandHandler<TCommand, TResponse>`,
+  `IQuery<TResponse>`, `IQueryHandler<TQuery, TResponse>`. Confirm the exact generic shapes before
+  implementing against them.
+- The module's `IUnitOfWork` (commonly `.../Application/Abstractions/Data/IUnitOfWork.cs`) — used by
+  every command handler that writes.
+- The module's `IDbConnectionFactory` usage (commonly `<RootNamespace>.Common.Application.Data`) — used
+  by every query handler that reads.
+- `Result`/`Result<T>`/`Error` (same as `add-entity`).
+- The Presentation layer's `IEndpoint` interface, the `ApiResults.Problem` / `ResultExtensions.Match`
+  helpers, and the module's `Tags` static class.
+- One existing feature end-to-end (pick any `Create<X>`/`Get<X>` pair) to confirm these templates still
+  match the current state of the repo — architectures drift, don't blindly trust this file over the
+  code that's actually there.
+
+## Folder & naming convention
+
+Every use case gets its own folder under `Application/<Entities>/<Verb><Entity>/`, named like the use
+case itself (`CreateTodoItem`, `GetTodoItem`, `GetTodoItems`, `CompleteTodoItem`, `RenameTodoItem`).
+One class per file, file name matches the class name exactly. The namespace is the folder path:
+`<RootNamespace>.Modules.<Module>.Application.<Entities>.<Verb><Entity>`.
+
+## Workflow
+
+1. **Classify the use case.** A state change is a **command**; a read is a **query**. A feature that
+   both reads and writes doesn't happen here: commands don't return read-model shapes beyond the bare
+   id/void, and queries never touch the repository/`IUnitOfWork`.
+2. **Check the Domain layer.** If the entity, its `<Entity>Errors` class, or a needed domain event
+   doesn't exist, add it first with the `add-entity` skill.
+3. **Command?** Create the four command-slice files (Command, Handler, Validator, plus the endpoint
+   from step 4) using [references/command-slice.md](references/command-slice.md).
+4. **Query?** Create the query-slice files (Response, Query, Handler) using
+   [references/query-slice.md](references/query-slice.md).
+5. **Create the endpoint** in `Presentation/<Entities>/<Verb><Entity>.cs` using
+   [references/endpoint.md](references/endpoint.md) — shared shape for commands and queries.
+6. **Write tests** — handler unit tests and an integration test, using
+   [references/tests.md](references/tests.md). For the full test taxonomy (Domain entity tests,
+   architecture tests), use the `add-tests` skill instead.
+7. **Verify:** `dotnet build`, then `dotnet test`.
+
+## Non-negotiable conventions
+
+- **Folder = use case.** One folder per use case, containing all files for that slice.
+- **Handlers are `internal sealed`** with primary constructors, implementing `ICommandHandler<TCommand>`,
+  `ICommandHandler<TCommand, TResponse>`, or `IQueryHandler<TQuery, TResponse>`.
+- **No manual DI registration.** Handlers, validators, and endpoints are discovered by assembly
+  scanning — never register any of the three by hand.
+- **Return `Result` / `Result<T>`, never throw** for expected failures. Errors come from static factory
+  methods on `<Entity>Errors` in the Domain layer with codes like `"TodoItems.NotFound"`.
+- **Validation lives in a `<Command>Validator`** (FluentValidation), structural rules only. Queries have
+  no validators — the validation pipeline behavior only runs for commands.
+- **Commands write via the repository + `IUnitOfWork`; queries read via `IDbConnectionFactory` +
+  Dapper.** Never blur this split.
+- **Endpoints** implement `IEndpoint`, end with `result.Match(...)`, and tag with the module's `Tags`
+  class.
+
+## Naming reference
+
+| Artifact | Pattern | Example |
+|---|---|---|
+| Command | `<Verb><Entity>Command` | `CompleteTodoItemCommand` |
+| Query | `Get<Entity>Query` | `GetOverdueTodoItemsQuery` |
+| Handler | `<Command/Query>Handler` | `CompleteTodoItemCommandHandler` |
+| Validator | `<Command>Validator` | `CreateTodoItemCommandValidator` |
+| Response | `<Entity>Response` | `TodoItemResponse` |
+| Endpoint | `<Verb><Entity>.cs` in `Presentation/<Entities>/` | `Presentation/TodoItems/CompleteTodoItem.cs` |
+
+## Checklist before finishing
+
+- [ ] Correctly classified as command (write, via repository + `IUnitOfWork`) or query (read, via
+      `IDbConnectionFactory` + Dapper) — never mixed
+- [ ] Command/Query is a `sealed record` implementing the right `ICommand[<T>]`/`IQuery<T>`
+- [ ] Handler is `internal sealed`, primary-constructor DI, delegates all business rules to the entity
+- [ ] Handler never calls `SaveChangesAsync` before every failure branch has already returned
+- [ ] Command has a matching `internal sealed ...Validator : AbstractValidator<...>` for structural rules
+- [ ] Query SQL aliases every column with `AS {nameof(Response.Property)}`, no interpolated values
+- [ ] Endpoint is `internal sealed : IEndpoint`, ends with `result.Match(...)` and `.WithTags(...)`
+- [ ] Request DTO (if any) is a nested `internal sealed class` with `init`-only properties
+- [ ] No manual DI registration added for the handler, validator, or endpoint

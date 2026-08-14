@@ -1,313 +1,315 @@
 ---
 name: add-tests
-description: Scaffold unit tests, architecture-fitness tests, and integration tests for this modular monolith, bootstrapping test projects with xUnit (+ FluentAssertions/NSubstitute/NetArchTest.Rules/Testcontainers as needed) and wiring them into the solution.
+description: Write xUnit + FluentAssertions tests for a .NET Clean Architecture / Modular Monolith solution — Domain entity unit tests, Application command/query handler unit tests using hand-written fakes (no mocking framework), and reflection-based architecture tests that enforce the layering/naming conventions. Use when the user asks to add or write tests for an entity, handler, command, query, or to add architecture tests.
+argument-hint: <use case or entity to cover, e.g. "CompleteTodoItemCommand" or "the TodoItem entity">
 ---
 
-# add-tests
+# Add Tests
 
-**Check the repo's actual state before assuming anything — do not trust this skill's own
-description of "the" stack over what's really there.** This template's test projects
-(`tests/<ProjectName>.UnitTests`, `tests/<ProjectName>.ArchitectureTests`,
-`tests/<ProjectName>.IntegrationTests`) may already contain real tests, be non-existent, or be a
-half-finished scaffold: a folder with only `bin`/`obj` and **no `.csproj`, no `.cs` files at all**
-— i.e. a project that was `dotnet new xunit`'d at some point (its `obj/*.nuget.g.props` shows a
-restore that pulled in nothing but `xunit.analyzers`) and then never actually committed or
-finished. Verify with `git status`/`ls`/`find <dir> -type f` and by checking whether each project
-is referenced in the `.sln` before deciding whether this is "bootstrap from scratch," "finish an
-abandoned scaffold," or "extend what's there." If real tests already exist, mirror their exact
-style instead of the templates below — they're the actual ground truth for this repo, this skill
-is only the fallback for when there's nothing to mirror yet.
+Writes tests that match a specific stack: **xUnit** + **FluentAssertions**, with **no mocking
+framework** (no NSubstitute/Moq) — handler tests use small hand-written fake implementations of the
+repository/unit-of-work interfaces instead of a mocking library. Confirm this against the target repo's
+test project references before writing anything: if it actually does reference NSubstitute or Moq,
+follow that instead of this skill's fakes — this skill documents the no-mocking-library convention
+because that's what a from-scratch Clean-Architecture/Modular-Monolith .NET solution defaults to absent
+evidence otherwise, not because mocking libraries are wrong in general.
 
-If you're bootstrapping from nothing (or from an abandoned `xunit`-only scaffold), the
-**recommended** stack — matching this template's overall style (primary-constructor DI, fluent
-assertions elsewhere in the codebase's own conventions) and Milan Jovanović-style Modular
-Monolith courses this template descends from — is **xUnit + FluentAssertions + NSubstitute** for
-mocking, **NetArchTest.Rules** for architecture tests, **Testcontainers** + **Respawn** for
-integration tests. Treat this as a recommendation to confirm with the user, not a pre-existing
-fact about this repo — say explicitly that these are new dependencies being introduced, the same
-way step 5 below already asks you to. Don't substitute a different framework (Moq, Shouldly,
-NUnit, MSTest, etc.) unless the repo already uses it or the user asks. Below, the examples cover
-a fictional `TodoItem` entity in a fictional `Tasks` module (a stand-in that won't collide with
-any real entity in this repo) with a `CreateTodoItem` command — swap for whatever the user is
-actually covering. `<ProjectName>` stands for this repo's actual root namespace/solution name.
+> **Heads up for this repo specifically:** `Oddify.UnitTests` already references **NSubstitute** and
+> every existing handler test (e.g. `DepositarNaBancaCommandHandlerTests`,
+> `GetResultadosDasPernasQueryHandlerTests`) substitutes dependencies with it rather than using
+> hand-written fakes. Match that — use `Substitute.For<T>()`, not the fake classes below — for handler
+> tests written for this repo. See [../add-feature/references/tests.md](../add-feature/references/tests.md)
+> for the NSubstitute-based template and a real integration-test example
+> (`OddifyWebAppFactory`/`BancasTests`). Sections A (Domain entity tests) and C (architecture tests)
+> below are unaffected — they don't use test doubles either way.
 
-## 0. One-time bootstrap (skip any project that already exists, is wired in, and has real code)
+## Step 0 — Detect the project's real conventions
 
-For each missing or empty-scaffold test project:
-```
-dotnet new xunit -o tests/<ProjectName>.<X>Tests -n <ProjectName>.<X>Tests
-```
-then set `TargetFramework` in the new `.csproj` to match this repo's `Directory.Build.props`
-(don't leave whatever the template default is), then wire it into the solution:
-```
-dotnet sln <ProjectName>.sln add tests/<ProjectName>.UnitTests/<ProjectName>.UnitTests.csproj
-dotnet sln <ProjectName>.sln add tests/<ProjectName>.ArchitectureTests/<ProjectName>.ArchitectureTests.csproj
-dotnet sln <ProjectName>.sln add tests/<ProjectName>.IntegrationTests/<ProjectName>.IntegrationTests.csproj
-```
+1. Find the test projects (commonly `tests/<Solution>.UnitTests`, `tests/<Solution>.ArchitectureTests`,
+   maybe `tests/<Solution>.IntegrationTests`). Read their `.csproj` `PackageReference`s to confirm the
+   test framework and assertion library, and whether a mocking library, `NetArchTest`/`ArchUnitNET`, or
+   `Testcontainers`/`Microsoft.AspNetCore.Mvc.Testing` is present. Let what you find override the
+   defaults in this skill.
+2. Resolve `<RootNamespace>` and `<Module>` the same way as in `add-entity`/`add-feature`.
+3. Read the entity and handler you're testing (or the ones nearest in shape to what you're testing) —
+   test doubles must implement the exact repository interface signatures, not an assumed shape.
 
-Add `FluentAssertions` to every test project. Then, only for the project(s) you're actually
-populating right now:
+Mirror the production folder structure inside the test project: a Domain entity test lives at
+`tests/<Solution>.UnitTests/<Module>/<Entities>/<Entity>Tests.cs`; a handler test lives at
+`tests/<Solution>.UnitTests/<Module>/<Entities>/<Verb><Entity>/<Verb><Entity>CommandHandlerTests.cs`.
 
-- **`<ProjectName>.UnitTests`** — add a `ProjectReference` to the module project(s) under test
-  (e.g. `<ProjectName>.Modules.Tasks.Application`, `<ProjectName>.Modules.Tasks.Domain`) plus
-  `<ProjectName>.Common.Domain`. Add `NSubstitute` for mocking repositories/`IUnitOfWork`/
-  `IDateTimeProvider` if no mocking library exists yet — it pairs naturally with
-  FluentAssertions and this template's primary-constructor DI style; don't introduce Moq unless
-  the user asks for it.
-- **`<ProjectName>.ArchitectureTests`** — add `NetArchTest.Rules` (if not present) and a
-  `ProjectReference` to every assembly whose layering you want to assert
-  (`<ProjectName>.Modules.Tasks.Domain/Application/Infrastructure/Presentation` for each module
-  you're covering).
-- **`<ProjectName>.IntegrationTests`** — add `Microsoft.AspNetCore.Mvc.Testing`,
-  `Testcontainers.PostgreSql` (or whatever datastore this repo actually uses — check for Redis
-  too, since a `Cart`/cache-backed feature needs a Testcontainers Redis image as well), and a
-  `ProjectReference` to the API host project (needs `WebApplicationFactory<Program>` — check
-  whether `Program.cs` needs a `public partial class Program {}` marker for the factory to see
-  it, and add one if missing — top-level statement `Program.cs` files don't expose the class by
-  default).
+---
 
-Code must build warning-free under this repo's `Directory.Build.props`/`.editorconfig` settings
-(`TreatWarningsAsErrors`, `AnalysisMode=All`, mandatory file-scoped namespaces and braces on every
-`if`) — write scaffolded test code in that style, not throwaway style.
+## A. Domain entity unit tests
 
-## 1. Unit test — command/query handler
+Pure, no test doubles needed — the entity has no dependencies. One test class per entity, `sealed`,
+named `<Entity>Tests`. One `[Fact]` per behavior/branch; use `[Theory]` + `[InlineData]` only when the
+same assertion genuinely repeats across multiple inputs.
 
-Mirror the folder structure of the feature under test:
-`tests/<ProjectName>.UnitTests/Modules/Tasks/TodoItems/CreateTodoItem/CreateTodoItemCommandHandlerTests.cs`.
+Naming: `<Method>_Should_<ExpectedOutcome>_When_<Condition>` (drop the `_When_...` clause when there's
+no meaningful condition, e.g. the happy path of a factory method). Arrange/Act/Assert, blank line
+between each section, no comments labeling them (the blank lines already do that job).
 
 ```csharp
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Application.TodoItems.CreateTodoItem;
-using <ProjectName>.Modules.Tasks.Application.Abstractions.Data;
-using <ProjectName>.Modules.Tasks.Domain.TodoItems;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
-
-namespace <ProjectName>.UnitTests.Modules.Tasks.TodoItems.CreateTodoItem;
-
-public sealed class CreateTodoItemCommandHandlerTests
-{
-    private readonly ITodoItemRepository _todoItemRepository = Substitute.For<ITodoItemRepository>();
-    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-
-    [Fact]
-    public async Task Handle_should_create_todo_item_and_persist()
-    {
-        var command = new CreateTodoItemCommand("Buy milk", "2 liters, whole");
-
-        var handler = new CreateTodoItemCommandHandler(_todoItemRepository, _unitOfWork);
-
-        Result<Guid> result = await handler.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        _todoItemRepository.Received(1).Insert(Arg.Is<TodoItem>(t => t.Title == command.Title));
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-}
-```
-For a handler that loads an existing aggregate first (e.g. `CompleteTodoItemCommandHandler`), add
-one failure test per guard clause (not-found, business-rule violation) plus the happy path, and
-mock any injected `IDateTimeProvider` explicitly rather than leaving it to wall-clock time:
-```csharp
-[Fact]
-public async Task Handle_should_return_failure_when_todo_item_not_found()
-{
-    var command = new CompleteTodoItemCommand(Guid.NewGuid());
-    _todoItemRepository.GetAsync(command.TodoItemId, Arg.Any<CancellationToken>()).Returns((TodoItem?)null);
-
-    var handler = new CompleteTodoItemCommandHandler(_todoItemRepository, _dateTimeProvider, _unitOfWork);
-
-    Result result = await handler.Handle(command, CancellationToken.None);
-
-    result.IsFailure.Should().BeTrue();
-    result.Error.Should().Be(TodoItemErrors.NotFound(command.TodoItemId));
-}
-```
-Use xUnit's `[Fact]`/`[Theory]`, method names as
-`MethodOrScenario_should_expectedBehavior_when_condition` (check `.editorconfig` for a `CA1707`
-underscore-naming suppression scoped to test projects — add one if it's missing and the build
-otherwise rejects underscored test names under `TreatWarningsAsErrors`). Build the arrange step
-through the entity's real `Create`/behavior methods, never by reflection or bypassing invariants
-— that's the whole point of testing against the domain model instead of a data bag.
-
-## 2. Unit test — domain entity behavior
-
-`tests/<ProjectName>.UnitTests/Modules/Tasks/TodoItems/TodoItemTests.cs`:
-```csharp
-using <ProjectName>.Common.Domain;
-using <ProjectName>.Modules.Tasks.Domain.TodoItems;
+using <RootNamespace>.Common.Domain;
+using <RootNamespace>.Modules.Todos.Domain.TodoItems;
 using FluentAssertions;
 using Xunit;
 
-namespace <ProjectName>.UnitTests.Modules.Tasks.TodoItems;
+namespace <RootNamespace>.UnitTests.Todos.TodoItems;
 
 public sealed class TodoItemTests
 {
-    [Fact]
-    public void Create_should_raise_TodoItemCreatedDomainEvent()
-    {
-        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
+    private static readonly string Title = "Buy milk";
 
-        todoItem.DomainEvents.Should().ContainSingle(e => e is TodoItemCreatedDomainEvent);
+    [Fact]
+    public void Create_Should_ReturnSuccess_WhenDueDateIsInTheFuture()
+    {
+        DateTime dueDateUtc = DateTime.UtcNow.AddDays(1);
+
+        Result<TodoItem> result = TodoItem.Create(Title, description: null, dueDateUtc);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Title.Should().Be(Title);
+        result.Value.IsCompleted.Should().BeFalse();
     }
 
     [Fact]
-    public void Complete_should_return_failure_when_already_completed()
+    public void Create_Should_ReturnFailure_WhenDueDateIsInThePast()
     {
-        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
-        todoItem.Complete(DateTime.UtcNow);
+        DateTime dueDateUtc = DateTime.UtcNow.AddDays(-1);
 
-        Result result = todoItem.Complete(DateTime.UtcNow);
+        Result<TodoItem> result = TodoItem.Create(Title, description: null, dueDateUtc);
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Be(TodoItemErrors.DueDateInPast);
+    }
+
+    [Fact]
+    public void Create_Should_RaiseTodoItemCreatedDomainEvent()
+    {
+        Result<TodoItem> result = TodoItem.Create(Title, description: null, dueDateUtc: null);
+
+        result.Value.DomainEvents.Should().ContainSingle(e => e is TodoItemCreatedDomainEvent);
+    }
+
+    [Fact]
+    public void Complete_Should_ReturnFailure_WhenAlreadyCompleted()
+    {
+        TodoItem todoItem = TodoItem.Create(Title, description: null, dueDateUtc: null).Value;
+        todoItem.Complete();
+
+        Result result = todoItem.Complete();
+
+        result.IsSuccess.Should().BeFalse();
         result.Error.Should().Be(TodoItemErrors.AlreadyCompleted);
     }
 
     [Fact]
-    public void ChangeTitle_should_not_raise_event_when_title_unchanged()
+    public void Rename_Should_NotRaiseDomainEvent_WhenTitleIsUnchanged()
     {
-        TodoItem todoItem = TodoItem.Create("Buy milk", "2 liters, whole");
+        TodoItem todoItem = TodoItem.Create(Title, description: null, dueDateUtc: null).Value;
         todoItem.ClearDomainEvents();
 
-        todoItem.ChangeTitle("Buy milk");
+        todoItem.Rename(Title);
 
         todoItem.DomainEvents.Should().BeEmpty();
     }
 }
 ```
-The no-op-behavior-method test (`ChangeTitle` above) is not optional filler — it's the concrete
-proof for the "raise only when state actually changed" rule this template's `CLAUDE.md`
-documents; write it for every behavior method that has an early-return guard.
 
-## 3. Architecture-fitness test (NetArchTest.Rules)
+Rules:
+- Assert on `Result.IsSuccess`/`IsFailure` and `Result.Error` (compare against the exact
+  `<Entity>Errors` member, not a string), never on exception types — the entity never throws for
+  expected business-rule violations.
+- Cover the domain-event contract explicitly: a state transition that should raise an event asserts
+  `DomainEvents.Should().ContainSingle(e => e is <Event>)`; a no-op transition asserts
+  `DomainEvents.Should().BeEmpty()` after clearing whatever the setup raised.
+- Don't reach into private state — assert only through public properties and `Result`.
+- No test double, no `IUnitOfWork`, no repository — if a test needs one of those, it belongs in the
+  handler tests below, not here.
 
-`tests/<ProjectName>.ArchitectureTests/LayerDependencyTests.cs` — one rule set per module, or
-parameterize across all module assemblies if you're covering more than one:
-```csharp
-using FluentAssertions;
-using NetArchTest.Rules;
-using Xunit;
+---
 
-namespace <ProjectName>.ArchitectureTests;
+## B. Application handler unit tests
 
-public sealed class LayerDependencyTests
-{
-    private const string DomainNamespace = "<ProjectName>.Modules.Tasks.Domain";
-    private const string ApplicationNamespace = "<ProjectName>.Modules.Tasks.Application";
-    private const string InfrastructureNamespace = "<ProjectName>.Modules.Tasks.Infrastructure";
-    private const string PresentationNamespace = "<ProjectName>.Modules.Tasks.Presentation";
-
-    [Fact]
-    public void Domain_should_not_have_dependency_on_other_layers()
-    {
-        TestResult result = Types.InAssembly(typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.TodoItem).Assembly)
-            .Should()
-            .NotHaveDependencyOnAny(ApplicationNamespace, InfrastructureNamespace, PresentationNamespace)
-            .GetResult();
-
-        result.IsSuccessful.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Application_should_not_have_dependency_on_infrastructure_or_presentation()
-    {
-        TestResult result = Types.InAssembly(typeof(<ProjectName>.Modules.Tasks.Application.AssemblyReference).Assembly)
-            .Should()
-            .NotHaveDependencyOnAny(InfrastructureNamespace, PresentationNamespace)
-            .GetResult();
-
-        result.IsSuccessful.Should().BeTrue();
-    }
-
-    [Fact]
-    public void CommandHandlers_should_be_sealed_and_internal()
-    {
-        TestResult result = Types.InAssembly(typeof(<ProjectName>.Modules.Tasks.Application.AssemblyReference).Assembly)
-            .That()
-            .ImplementInterface(typeof(<ProjectName>.Common.Application.Messaging.ICommandHandler<>))
-            .Should()
-            .BeSealed().And().NotBePublic()
-            .GetResult();
-
-        result.IsSuccessful.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Repositories_should_only_be_implemented_in_infrastructure()
-    {
-        TestResult result = Types.InAssembly(typeof(<ProjectName>.Modules.Tasks.Infrastructure.TasksModule).Assembly)
-            .That()
-            .ImplementInterface(typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.ITodoItemRepository))
-            .Should()
-            .ResideInNamespace(InfrastructureNamespace)
-            .GetResult();
-
-        result.IsSuccessful.Should().BeTrue();
-    }
-}
-```
-(If the module's Domain project has no `AssemblyReference` class, use
-`typeof(<ProjectName>.Modules.Tasks.Domain.TodoItems.TodoItem).Assembly` instead, as above.) Add
-one cross-module rule too, but only assert what this repo's `CLAUDE.md` actually documents as the
-allowed exception (an `IntegrationEvents` project reference) — don't invent a `PublicApi`
-assertion that would currently fail simply because those projects sit unused:
-```csharp
-[Fact]
-public void Modules_should_not_reference_each_others_domain_or_application()
-{
-    // For each pair of modules, assert neither's Domain/Application namespace is referenced by
-    // the other's Domain/Application/Infrastructure/Presentation — the only allowed cross-module
-    // reference is <ModuleA>.Presentation depending on <ModuleB>.IntegrationEvents, per this
-    // repo's CLAUDE.md §10.
-}
-```
-
-## 4. Integration test — hitting an endpoint
-
-`tests/<ProjectName>.IntegrationTests/Modules/Tasks/TodoItems/CreateTodoItemTests.cs`, backed by
-a shared `WebApplicationFactory` fixture with real dependencies (DB, cache, etc.) via
-Testcontainers (create `tests/<ProjectName>.IntegrationTests/<ProjectName>WebAppFactory.cs` once,
-reuse via an xUnit `IClassFixture<<ProjectName>WebAppFactory>` / collection fixture across all
-integration tests — don't spin up a container per test class):
+No mocking framework: write a minimal in-memory fake that implements the exact repository interface,
+and a no-op fake for `IUnitOfWork`. Keep the fakes next to the tests that use them (a private nested
+class, or a small shared `Fakes` folder if more than one handler test needs the same one) — don't pull
+in a mocking library just to avoid a ten-line class.
 
 ```csharp
-using System.Net;
-using System.Net.Http.Json;
+using <RootNamespace>.Common.Domain;
+using <RootNamespace>.Modules.Todos.Application.Abstractions.Data;
+using <RootNamespace>.Modules.Todos.Application.TodoItems.CompleteTodoItem;
+using <RootNamespace>.Modules.Todos.Domain.TodoItems;
 using FluentAssertions;
 using Xunit;
 
-namespace <ProjectName>.IntegrationTests.Modules.Tasks.TodoItems;
+namespace <RootNamespace>.UnitTests.Todos.TodoItems.CompleteTodoItem;
 
-public sealed class CreateTodoItemTests(<ProjectName>WebAppFactory factory) : IClassFixture<<ProjectName>WebAppFactory>
+public sealed class CompleteTodoItemCommandHandlerTests
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly FakeTodoItemRepository _todoItemRepository = new();
+    private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly CompleteTodoItemCommandHandler _handler;
+
+    public CompleteTodoItemCommandHandlerTests()
+    {
+        _handler = new CompleteTodoItemCommandHandler(_todoItemRepository, _unitOfWork);
+    }
 
     [Fact]
-    public async Task CreateTodoItem_should_return_ok_for_valid_request()
+    public async Task Handle_Should_ReturnFailure_WhenTodoItemDoesNotExist()
     {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("todo-items", new
+        var command = new CompleteTodoItemCommand(Guid.NewGuid());
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Be(TodoItemErrors.NotFound(command.TodoItemId));
+    }
+
+    [Fact]
+    public async Task Handle_Should_CompleteTodoItem_AndPersist_WhenTodoItemExists()
+    {
+        TodoItem todoItem = TodoItem.Create("Buy milk", description: null, dueDateUtc: null).Value;
+        _todoItemRepository.Add(todoItem);
+
+        Result result = await _handler.Handle(new CompleteTodoItemCommand(todoItem.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        todoItem.IsCompleted.Should().BeTrue();
+        _unitOfWork.SaveChangesCallCount.Should().Be(1);
+    }
+
+    private sealed class FakeTodoItemRepository : ITodoItemRepository
+    {
+        private readonly Dictionary<Guid, TodoItem> _todoItems = [];
+
+        public Task<TodoItem?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_todoItems.GetValueOrDefault(id));
+
+        public void Insert(TodoItem todoItem) => _todoItems[todoItem.Id] = todoItem;
+
+        public void Add(TodoItem todoItem) => _todoItems[todoItem.Id] = todoItem;
+    }
+
+    private sealed class FakeUnitOfWork : IUnitOfWork
+    {
+        public int SaveChangesCallCount { get; private set; }
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            title = "Buy milk",
-            description = "2 liters, whole"
-        });
+            SaveChangesCallCount++;
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+            return Task.FromResult(0);
+        }
     }
 }
 ```
-Reset database state between tests with Respawn (add the `Respawn` package) rather than
-recreating containers. Check whether this repo actually has authentication configured anywhere
-(`AddAuthentication`/`[Authorize]`) before adding any auth/token setup to the test factory — per
-this repo's `CLAUDE.md`, an `.AllowAnonymous()` call existing on one endpoint does **not** by
-itself mean authentication is wired up; verify the real state rather than inferring it from a
-single attribute.
 
-## 5. After scaffolding
+Rules:
+- Handler under test is constructed by hand in the test class constructor (or a `[Fact]`-local
+  arrange), wired to the fakes — never resolved from a DI container in a unit test.
+- The fake repository is a `Dictionary<Guid, T>`-backed in-memory store implementing the interface
+  exactly as declared in Domain — don't add members the interface doesn't have.
+- Assert three things per handler test as relevant: the returned `Result` (success/failure + which
+  `Error`), the resulting state on the entity/fake store, and — only when it matters to the test — that
+  `SaveChangesAsync` was (or wasn't) called, via a call counter on the fake `IUnitOfWork`. A
+  not-found/validation-failure test should assert `SaveChangesCallCount` stayed `0`.
+- Query handlers that read via Dapper/`IDbConnectionFactory` are **not** unit tested this way — a fake
+  `IDbConnectionFactory` would just be re-implementing a database. Cover query handlers with an
+  integration test against a real database instead (see the note at the end), or skip unit-testing the
+  handler itself and rely on architecture tests + the endpoint's contract.
+- Test class per handler, named `<Verb><Entity>CommandHandlerTests` / `...QueryHandlerTests`, `sealed`.
 
-Run `dotnet test` on the affected project(s). If `FluentAssertions`/`NSubstitute`/
-`NetArchTest.Rules`/`Testcontainers`/`Respawn` were just added, explicitly tell the user these are
-new dependencies being introduced — this repo's own test projects, where they exist at all,
-previously had nothing beyond a bare `dotnet new xunit` scaffold, so don't present this stack as
-something already established here. Give the user the chance to veto a choice (e.g. prefer Moq
-over NSubstitute) before it spreads across many files.
+---
+
+## C. Architecture tests
+
+Enforce the conventions themselves — that the codebase keeps shipping code in this shape, not just that
+one feature happens to. Plain reflection + FluentAssertions (no `NetArchTest`/`ArchUnitNET` unless the
+target repo's test project already references one — check Step 0 first). Load each module's assemblies
+once per test class via `typeof(<SomeMarkerType>).Assembly`.
+
+```csharp
+using System.Reflection;
+using <RootNamespace>.Common.Application.Messaging;
+using FluentAssertions;
+using Xunit;
+
+namespace <RootNamespace>.ArchitectureTests.Todos;
+
+public sealed class LayeringTests
+{
+    private static readonly Assembly DomainAssembly = typeof(Modules.Todos.Domain.TodoItems.TodoItem).Assembly;
+    private static readonly Assembly ApplicationAssembly =
+        typeof(Modules.Todos.Application.AssemblyReference).Assembly;
+
+    [Fact]
+    public void Domain_Should_NotReference_Application()
+    {
+        DomainAssembly.GetReferencedAssemblies()
+            .Should().NotContain(a => a.Name == ApplicationAssembly.GetName().Name);
+    }
+
+    [Fact]
+    public void CommandHandlers_Should_BeSealedAndInternal()
+    {
+        IEnumerable<Type> handlerTypes = ApplicationAssembly.GetTypes()
+            .Where(t => t.IsClass && t.GetInterfaces()
+                .Any(i => i.IsGenericType &&
+                          (i.GetGenericTypeDefinition() == typeof(ICommandHandler<>) ||
+                           i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>))));
+
+        handlerTypes.Should().OnlyContain(t => t is { IsSealed: true, IsPublic: false });
+    }
+
+    [Fact]
+    public void Commands_Should_HaveNamesEndingWithCommand()
+    {
+        IEnumerable<Type> commandTypes = ApplicationAssembly.GetTypes()
+            .Where(t => t.IsAssignableTo(typeof(IBaseCommand)) && t != typeof(IBaseCommand));
+
+        commandTypes.Should().OnlyContain(t => t.Name.EndsWith("Command", StringComparison.Ordinal));
+    }
+}
+```
+
+Cover, one `[Fact]` each, adapted to what the target repo's own conventions actually are (verify each
+rule against the real code before asserting it — don't assume every rule below applies verbatim):
+
+- Domain assemblies reference nothing above them (no Application/Infrastructure/Presentation).
+- Application assemblies don't reference Infrastructure or Presentation.
+- One module's assemblies never reference another module's Domain/Application/Infrastructure directly
+  (only its `PublicApi` project, if the solution has that cross-module-contract pattern).
+- Every `ICommandHandler`/`IQueryHandler` implementation is `sealed` and non-public (`internal`).
+- Every type implementing `ICommand`/`ICommand<T>`/`IQuery<T>` is a `sealed record` and its name ends
+  with `Command`/`Query`.
+- Every `AbstractValidator<T>` implementation is `sealed` and non-public, and its name ends with
+  `Validator`.
+- Every `IEndpoint` implementation is `sealed` and non-public.
+
+---
+
+## Integration tests (brief — verify before extending)
+
+If the target repo has an `IntegrationTests` project, check what it actually references (a real
+database via Docker/`docker-compose`, `Testcontainers`, `WebApplicationFactory`) before writing anything
+here — don't invent infrastructure. In general, integration tests are the right place to cover what
+unit tests deliberately skip: query handlers that hit Dapper/a real database, and full command
+round-trips through EF Core. Same naming (`<Feature>Tests`, `sealed`), same FluentAssertions style;
+follow whatever base class/fixture the existing integration tests already use for wiring the database
+and app.
+
+## Checklist before finishing
+
+- [ ] Domain tests assert on `Result`/`Error`/`DomainEvents` only — no test double, no exception asserts
+- [ ] Handler tests use hand-written fakes implementing the exact repository/`IUnitOfWork` interfaces
+      (unless the repo actually has a mocking library — checked in Step 0)
+- [ ] Every not-found/validation-failure handler test asserts `SaveChangesAsync` was **not** called
+- [ ] Query handlers are not unit-tested with a fake `IDbConnectionFactory`
+- [ ] Test class names: `<Entity>Tests`, `<Verb><Entity>CommandHandlerTests`/`...QueryHandlerTests`
+- [ ] Test method names: `<Method>_Should_<Outcome>_When_<Condition>`
+- [ ] Architecture-test rules were checked against the real codebase, not assumed wholesale
