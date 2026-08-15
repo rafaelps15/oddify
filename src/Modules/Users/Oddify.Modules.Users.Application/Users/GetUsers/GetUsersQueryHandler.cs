@@ -25,8 +25,8 @@ internal sealed class GetUsersQueryHandler(IDbConnectionFactory dbConnectionFact
              ORDER BY first_name
              """;
 
-        IReadOnlyCollection<UserResponse> result = (await connection.QueryAsync<UserResponse>(sql)).AsList();
+        List<UserResponse> result = (await connection.QueryAsync<UserResponse>(sql)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

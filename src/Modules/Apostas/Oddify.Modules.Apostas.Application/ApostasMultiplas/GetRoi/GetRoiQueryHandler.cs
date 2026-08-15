@@ -16,19 +16,17 @@ internal sealed class GetRoiQueryHandler(IDbConnectionFactory dbConnectionFactor
         const string sql =
             $"""
              SELECT
-                 COALESCE(SUM(COALESCE(lucro_ou_perda, 0)), 0) AS {nameof(TotaisRow.LucroTotal)},
-                 COALESCE(SUM(stake), 0) AS {nameof(TotaisRow.TotalApostado)}
+                 COALESCE(SUM(COALESCE(lucro_ou_perda, 0)), 0) AS {nameof(RoiResponse.LucroTotal)},
+                 COALESCE(SUM(stake), 0) AS {nameof(RoiResponse.TotalApostado)},
+                 CASE WHEN SUM(stake) > 0 THEN SUM(COALESCE(lucro_ou_perda, 0)) / SUM(stake) ELSE NULL END
+                     AS {nameof(RoiResponse.Roi)}
              FROM apostas.apostas_multiplas
              WHERE resultado != 0
                AND (@BancaId IS NULL OR banca_id = @BancaId)
              """;
 
-        TotaisRow totais = await connection.QuerySingleAsync<TotaisRow>(sql, request);
+        RoiResponse resultado = await connection.QuerySingleAsync<RoiResponse>(sql, request);
 
-        decimal? roi = totais.TotalApostado > 0 ? totais.LucroTotal / totais.TotalApostado : null;
-
-        return new RoiResponse(totais.LucroTotal, totais.TotalApostado, roi);
+        return resultado;
     }
-
-    private sealed record TotaisRow(decimal LucroTotal, decimal TotalApostado);
 }

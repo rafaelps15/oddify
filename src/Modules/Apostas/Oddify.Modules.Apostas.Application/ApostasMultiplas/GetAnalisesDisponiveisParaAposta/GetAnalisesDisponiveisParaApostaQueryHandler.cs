@@ -36,9 +36,8 @@ internal sealed class GetAnalisesDisponiveisParaApostaQueryHandler(IDbConnection
              WHERE ja_utilizada = false
              """;
 
-        IEnumerable<AnaliseDisponivelParaApostaResponse> result =
-            await connection.QueryAsync<AnaliseDisponivelParaApostaResponse>(sql);
+        List<AnaliseDisponivelParaApostaResponse> result = (await connection.QueryAsync<AnaliseDisponivelParaApostaResponse>(sql)).AsList();
 
-        return Result.Success<IReadOnlyCollection<AnaliseDisponivelParaApostaResponse>>([.. result]);
+        return result;
     }
 }

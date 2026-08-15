@@ -30,6 +30,6 @@ internal sealed class GetRodadaMaisRecenteEncerradaQueryHandler(IDbConnectionFac
 
         int? result = await connection.QuerySingleOrDefaultAsync<int?>(sql, request);
 
-        return Result.Success(result);
+        return result;
     }
 }

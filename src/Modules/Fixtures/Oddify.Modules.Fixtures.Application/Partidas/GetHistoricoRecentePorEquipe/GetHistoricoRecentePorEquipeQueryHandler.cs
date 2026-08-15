@@ -36,6 +36,6 @@ internal sealed class GetHistoricoRecentePorEquipeQueryHandler(IDbConnectionFact
 
         HistoricoDeEquipeResponse result = await connection.QuerySingleAsync<HistoricoDeEquipeResponse>(sql, request);
 
-        return Result.Success(result);
+        return result;
     }
 }

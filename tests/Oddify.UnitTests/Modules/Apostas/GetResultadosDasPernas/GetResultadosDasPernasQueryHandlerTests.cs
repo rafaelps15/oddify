@@ -17,6 +17,10 @@ public sealed class GetResultadosDasPernasQueryHandlerTests
     private static PartidaResponse PartidaEncerrada(Guid id, int golsCasa, int golsVisitante) =>
         new(id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "Encerrada", golsCasa, golsVisitante);
 
+    private void ConfigurarPartidas(params PartidaResponse[] partidas) =>
+        _fixturesApi.ObterPartidasAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyCollection<PartidaResponse>)partidas);
+
     [Fact]
     public async Task Handle_should_resolve_each_perna_by_id()
     {
@@ -25,8 +29,7 @@ public sealed class GetResultadosDasPernasQueryHandlerTests
         var partida1 = Guid.NewGuid();
         var partida2 = Guid.NewGuid();
 
-        _fixturesApi.ObterPartidaAsync(partida1, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida1, 2, 0));
-        _fixturesApi.ObterPartidaAsync(partida2, Arg.Any<CancellationToken>()).Returns(PartidaEncerrada(partida2, 0, 1));
+        ConfigurarPartidas(PartidaEncerrada(partida1, 2, 0), PartidaEncerrada(partida2, 0, 1));
 
         _analiseApi.ResolverMercado("vitoria_casa", 2, 0).Returns(true);
         _analiseApi.ResolverMercado("vitoria_casa", 0, 1).Returns(false);
@@ -47,8 +50,7 @@ public sealed class GetResultadosDasPernasQueryHandlerTests
         var pernaId = Guid.NewGuid();
         var partidaId = Guid.NewGuid();
 
-        _fixturesApi.ObterPartidaAsync(partidaId, Arg.Any<CancellationToken>())
-            .Returns(new PartidaResponse(partidaId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "Agendada", null, null));
+        ConfigurarPartidas(new PartidaResponse(partidaId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "Agendada", null, null));
 
         var query = new GetResultadosDasPernasQuery([new PernaParaResolver(pernaId, partidaId, "vitoria_casa")]);
 
@@ -64,7 +66,7 @@ public sealed class GetResultadosDasPernasQueryHandlerTests
         var pernaId = Guid.NewGuid();
         var partidaId = Guid.NewGuid();
 
-        _fixturesApi.ObterPartidaAsync(partidaId, Arg.Any<CancellationToken>()).Returns((PartidaResponse?)null);
+        ConfigurarPartidas();
 
         var query = new GetResultadosDasPernasQuery([new PernaParaResolver(pernaId, partidaId, "vitoria_casa")]);
 

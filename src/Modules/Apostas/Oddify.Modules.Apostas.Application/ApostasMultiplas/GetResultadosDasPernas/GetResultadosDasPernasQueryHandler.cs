@@ -11,28 +11,43 @@ internal sealed class GetResultadosDasPernasQueryHandler(IFixturesApi fixturesAp
     public async Task<Result<IReadOnlyDictionary<Guid, bool>>> Handle(
         GetResultadosDasPernasQuery request, CancellationToken cancellationToken)
     {
-        var resultados = new Dictionary<Guid, bool>();
+        IReadOnlyCollection<Guid> partidaIds = request.Pernas.Select(p => p.PartidaId).Distinct().ToList();
+        IReadOnlyCollection<PartidaResponse> partidas = await fixturesApi.ObterPartidasAsync(partidaIds, cancellationToken);
+        var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        foreach (PernaParaResolver perna in request.Pernas)
+        Error? erro = request.Pernas.Select(p => ValidarPerna(p, partidasPorId)).FirstOrDefault(e => e is not null);
+        if (erro is not null)
         {
-            PartidaResponse? partida = await fixturesApi.ObterPartidaAsync(perna.PartidaId, cancellationToken);
-            if (partida is null)
-            {
-                return Result.Failure<IReadOnlyDictionary<Guid, bool>>(Error.NotFound(
-                    "ApostasMultiplas.PartidaNaoEncontrada",
-                    $"A partida {perna.PartidaId} não foi encontrada"));
-            }
-
-            if (partida.GolsCasa is null || partida.GolsVisitante is null)
-            {
-                return Result.Failure<IReadOnlyDictionary<Guid, bool>>(Error.Problem(
-                    "ApostasMultiplas.PartidaNaoEncerrada",
-                    $"A partida {perna.PartidaId} ainda não foi encerrada"));
-            }
-
-            resultados[perna.PernaId] = analiseApi.ResolverMercado(perna.Mercado, partida.GolsCasa.Value, partida.GolsVisitante.Value);
+            return Result.Failure<IReadOnlyDictionary<Guid, bool>>(erro);
         }
 
+        var resultados = request.Pernas.ToDictionary(
+            p => p.PernaId,
+            p =>
+            {
+                PartidaResponse partida = partidasPorId[p.PartidaId];
+                return analiseApi.ResolverMercado(p.Mercado, partida.GolsCasa!.Value, partida.GolsVisitante!.Value);
+            });
+
         return resultados;
+    }
+
+    private static Error? ValidarPerna(PernaParaResolver perna, Dictionary<Guid, PartidaResponse> partidasPorId)
+    {
+        if (!partidasPorId.TryGetValue(perna.PartidaId, out PartidaResponse? partida))
+        {
+            return Error.NotFound(
+                "ApostasMultiplas.PartidaNaoEncontrada",
+                $"A partida {perna.PartidaId} não foi encontrada");
+        }
+
+        if (partida.GolsCasa is null || partida.GolsVisitante is null)
+        {
+            return Error.Problem(
+                "ApostasMultiplas.PartidaNaoEncerrada",
+                $"A partida {perna.PartidaId} ainda não foi encerrada");
+        }
+
+        return null;
     }
 }

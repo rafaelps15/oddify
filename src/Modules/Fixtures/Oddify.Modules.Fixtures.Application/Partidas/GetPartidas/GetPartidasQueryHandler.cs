@@ -45,8 +45,8 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
              ORDER BY data_utc DESC
              """;
 
-        IReadOnlyCollection<PartidaResponse> result = (await connection.QueryAsync<PartidaResponse>(sql, request)).AsList();
+        List<PartidaResponse> result = (await connection.QueryAsync<PartidaResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

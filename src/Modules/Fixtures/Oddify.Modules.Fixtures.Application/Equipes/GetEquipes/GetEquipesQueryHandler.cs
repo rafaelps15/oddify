@@ -28,8 +28,8 @@ internal sealed class GetEquipesQueryHandler(IDbConnectionFactory dbConnectionFa
              ORDER BY nome
              """;
 
-        IReadOnlyCollection<EquipeResponse> result = (await connection.QueryAsync<EquipeResponse>(sql, request)).AsList();
+        List<EquipeResponse> result = (await connection.QueryAsync<EquipeResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

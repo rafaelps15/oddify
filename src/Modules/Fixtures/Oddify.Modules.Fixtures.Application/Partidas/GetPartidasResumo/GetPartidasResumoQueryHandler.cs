@@ -35,8 +35,8 @@ internal sealed class GetPartidasResumoQueryHandler(IDbConnectionFactory dbConne
              WHERE p.id = ANY(@Ids)
              """;
 
-        IReadOnlyCollection<PartidaResumoResponse> result = (await connection.QueryAsync<PartidaResumoResponse>(sql, request)).AsList();
+        List<PartidaResumoResponse> result = (await connection.QueryAsync<PartidaResumoResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

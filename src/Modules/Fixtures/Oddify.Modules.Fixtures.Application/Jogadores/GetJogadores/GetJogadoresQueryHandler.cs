@@ -27,8 +27,8 @@ internal sealed class GetJogadoresQueryHandler(IDbConnectionFactory dbConnection
              ORDER BY nome
              """;
 
-        IReadOnlyCollection<JogadorResponse> result = (await connection.QueryAsync<JogadorResponse>(sql, request)).AsList();
+        List<JogadorResponse> result = (await connection.QueryAsync<JogadorResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

@@ -4,7 +4,7 @@ using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
-using Oddify.Modules.Apostas.Domain.Bancas;
+using Oddify.Modules.Apostas.Application.Calculo;
 
 namespace Oddify.Modules.Apostas.Application.Bancas.GetDesempenhoPorMercado;
 
@@ -17,21 +17,13 @@ internal sealed class GetDesempenhoPorMercadoQueryHandler(IDbConnectionFactory d
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
-        var parametros = new DesempenhoParametros(request.BancaId, userContext.UserId);
-
-        bool bancaExiste = await connection.ExecuteScalarAsync<bool>(
-            "SELECT EXISTS (SELECT 1 FROM apostas.bancas WHERE id = @BancaId AND usuario_id = @UsuarioId)", parametros);
-
-        if (!bancaExiste)
-        {
-            return Result.Failure<IReadOnlyCollection<DesempenhoResponse>>(BancaErrors.NotFound(request.BancaId));
-        }
+        var parametros = new DesempenhoParametros(request.BancaId, userContext.UserId, ChaveDeDesempenho.Multipla);
 
         // "Múltipla" agrupa apostas com mais de uma perna - o lucro da aposta é único (não é
         // atribuível a um mercado especifico quando ela combina mercados diferentes), então
         // atribuir o mesmo lucro a cada mercado tocado infla todos os mercados envolvidos. Só
         // apostas de perna única entram nos mercados reais.
-        string sql =
+        const string sql =
             $"""
              WITH pernas_por_aposta AS (
                  SELECT aposta_multipla_id, COUNT(*) AS qtd_pernas, MIN(mercado) AS unico_mercado
@@ -43,7 +35,7 @@ internal sealed class GetDesempenhoPorMercadoQueryHandler(IDbConnectionFactory d
                      am.resultado,
                      am.lucro_ou_perda,
                      am.stake,
-                     CASE WHEN ppa.qtd_pernas > 1 THEN 'Múltipla' ELSE ppa.unico_mercado END AS chave
+                     CASE WHEN ppa.qtd_pernas > 1 THEN @ChaveMultipla ELSE ppa.unico_mercado END AS chave
                  FROM apostas.apostas_multiplas am
                  JOIN pernas_por_aposta ppa ON ppa.aposta_multipla_id = am.id
                  WHERE am.banca_id = @BancaId AND am.usuario_id = @UsuarioId AND am.resultado IN (1, 2)
@@ -60,11 +52,10 @@ internal sealed class GetDesempenhoPorMercadoQueryHandler(IDbConnectionFactory d
              ORDER BY {nameof(DesempenhoResponse.Lucro)} DESC
              """;
 
-        IReadOnlyCollection<DesempenhoResponse> resultado =
-            (await connection.QueryAsync<DesempenhoResponse>(sql, parametros)).AsList();
+        List<DesempenhoResponse> resultado = (await connection.QueryAsync<DesempenhoResponse>(sql, parametros)).AsList();
 
-        return Result.Success(resultado);
+        return resultado;
     }
 
-    private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId);
+    private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId, string ChaveMultipla);
 }

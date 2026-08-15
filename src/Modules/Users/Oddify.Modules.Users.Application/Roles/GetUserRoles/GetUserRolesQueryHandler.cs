@@ -25,8 +25,8 @@ internal sealed class GetUserRolesQueryHandler(IDbConnectionFactory dbConnection
              WHERE ur.user_id = @UserId
              """;
 
-        IReadOnlyCollection<RoleResponse> result = (await connection.QueryAsync<RoleResponse>(sql, request)).AsList();
+        List<RoleResponse> result = (await connection.QueryAsync<RoleResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

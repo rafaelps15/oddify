@@ -3,6 +3,7 @@ using Dapper;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
+using Oddify.Modules.Analise.Application.Calculo;
 using Oddify.Modules.Analise.Domain.Analises;
 using Oddify.Modules.Fixtures.PublicApi;
 
@@ -27,68 +28,33 @@ internal sealed class GetMedicaoQueryHandler(IDbConnectionFactory dbConnectionFa
              WHERE aprovada_no_filtro = true
              """;
 
-        IEnumerable<AnaliseParaMedicao> analises = await connection.QueryAsync<AnaliseParaMedicao>(sql);
-        var analisesList = analises.ToList();
+        List<AnaliseParaMedicao> analises = (await connection.QueryAsync<AnaliseParaMedicao>(sql)).AsList();
 
-        var partidasPorId = new Dictionary<Guid, PartidaResponse>();
+        IReadOnlyCollection<PartidaResponse> partidas = await fixturesApi.ObterPartidasAsync(
+            analises.Select(a => a.PartidaId).Distinct().ToList(), cancellationToken);
 
-        foreach (Guid partidaId in analisesList.Select(a => a.PartidaId).Distinct())
-        {
-            Result<PartidaResponse> partidaResult = await fixturesApi.ObterPartidaAsync(partidaId, cancellationToken);
+        var partidasPorId = partidas
+            .Where(p => p.GolsCasa is not null && p.GolsVisitante is not null)
+            .ToDictionary(p => p.Id);
 
-            if (partidaResult.IsFailure)
+        var amostras = analises
+            .Where(a => partidasPorId.ContainsKey(a.PartidaId))
+            .Select(a =>
             {
-                continue;
-            }
+                PartidaResponse partida = partidasPorId[a.PartidaId];
+                decimal resultadoReal = MercadoResolver.Resolver(a.Mercado, partida.GolsCasa!.Value, partida.GolsVisitante!.Value) ? 1m : 0m;
 
-            PartidaResponse partida = partidaResult.Value;
+                return new AmostraDeMedicao(a.ProbPoissonPura, a.ProbDixonColes, resultadoReal, a.DecisaoDoClaude);
+            })
+            .ToList();
 
-            if (partida.GolsCasa is null || partida.GolsVisitante is null)
-            {
-                continue;
-            }
+        ResultadoDaMedicao resultado = BrierScoreCalculator.Calcular(amostras);
 
-            partidasPorId[partidaId] = partida;
-        }
-
-        decimal somaErroPoissonPuro = 0m;
-        decimal somaErroDixonColes = 0m;
-        int amostraTotal = 0;
-
-        decimal somaErroPosClaude = 0m;
-        int amostraPosClaude = 0;
-
-        foreach (AnaliseParaMedicao analise in analisesList)
-        {
-            if (!partidasPorId.TryGetValue(analise.PartidaId, out PartidaResponse? partida))
-            {
-                continue;
-            }
-
-            decimal resultadoReal = MercadoResolver.Resolver(analise.Mercado, partida.GolsCasa!.Value, partida.GolsVisitante!.Value)
-                ? 1m
-                : 0m;
-
-            decimal erroPoissonPuro = analise.ProbPoissonPura - resultadoReal;
-            decimal erroDixonColes = analise.ProbDixonColes - resultadoReal;
-
-            somaErroPoissonPuro += erroPoissonPuro * erroPoissonPuro;
-            somaErroDixonColes += erroDixonColes * erroDixonColes;
-            amostraTotal++;
-
-            if (analise.DecisaoDoClaude == DecisaoDoClaude.Confirma || analise.DecisaoDoClaude == DecisaoDoClaude.Reduz)
-            {
-                somaErroPosClaude += erroDixonColes * erroDixonColes;
-                amostraPosClaude++;
-            }
-        }
-
-        decimal brierPoissonPuro = amostraTotal == 0 ? 0m : somaErroPoissonPuro / amostraTotal;
-        decimal brierDixonColes = amostraTotal == 0 ? 0m : somaErroDixonColes / amostraTotal;
-        decimal? brierPosClaude = amostraPosClaude == 0 ? null : somaErroPosClaude / amostraPosClaude;
-
-        return new MedicaoResponse(amostraTotal, brierPoissonPuro, brierDixonColes, amostraPosClaude, brierPosClaude);
+        return new MedicaoResponse(
+            resultado.AmostraTotal,
+            resultado.BrierPoissonPuro,
+            resultado.BrierDixonColes,
+            resultado.AmostraPosClaude,
+            resultado.BrierPosClaude);
     }
-
-    private sealed record AnaliseParaMedicao(Guid PartidaId, string Mercado, decimal ProbPoissonPura, decimal ProbDixonColes, DecisaoDoClaude DecisaoDoClaude);
 }

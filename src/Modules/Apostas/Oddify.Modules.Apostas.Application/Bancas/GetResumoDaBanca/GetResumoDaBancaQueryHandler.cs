@@ -17,13 +17,18 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
-        var parametros = new ResumoParametros(request.BancaId, userContext.UserId);
+        var parametros = new ResumoParametros(
+            request.BancaId,
+            userContext.UserId,
+            (int)TipoDeMovimentacao.Deposito,
+            (int)ResultadoDaAposta.Pendente,
+            (int)ResultadoDaAposta.Ganha);
 
         // Depósitos e apostas resolvidas são agregados em subconsultas independentes (nunca um
         // JOIN direto entre movimentacoes_da_banca e apostas_multiplas na mesma linha) — cada
         // banca tem N movimentações e M apostas de forma independente, então um join simples entre
         // as duas multiplicaria as linhas (fan-out) e inflaria todas as somas.
-        string sql =
+        const string sql =
             $"""
              SELECT
                  b.id AS {nameof(ResumoDaBancaResponse.BancaId)},
@@ -43,7 +48,7 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
              LEFT JOIN (
                  SELECT banca_id, SUM(valor) AS total
                  FROM apostas.movimentacoes_da_banca
-                 WHERE tipo = {(int)TipoDeMovimentacao.Deposito}
+                 WHERE tipo = @Deposito
                  GROUP BY banca_id
              ) dep ON dep.banca_id = b.id
              LEFT JOIN (
@@ -52,10 +57,10 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
                      SUM(CASE WHEN lucro_ou_perda > 0 THEN lucro_ou_perda ELSE 0 END) AS total_ganho,
                      SUM(CASE WHEN lucro_ou_perda < 0 THEN lucro_ou_perda ELSE 0 END) AS total_perdido,
                      SUM(COALESCE(lucro_ou_perda, 0)) AS lucro,
-                     SUM(stake) FILTER (WHERE resultado != {(int)ResultadoDaAposta.Pendente}) AS total_apostado,
-                     COUNT(*) FILTER (WHERE resultado != {(int)ResultadoDaAposta.Pendente}) AS decididas,
-                     COUNT(*) FILTER (WHERE resultado = {(int)ResultadoDaAposta.Ganha}) AS ganhas,
-                     COUNT(*) FILTER (WHERE resultado != {(int)ResultadoDaAposta.Pendente}) AS quantidade
+                     SUM(stake) FILTER (WHERE resultado != @Pendente) AS total_apostado,
+                     COUNT(*) FILTER (WHERE resultado != @Pendente) AS decididas,
+                     COUNT(*) FILTER (WHERE resultado = @Ganha) AS ganhas,
+                     COUNT(*) FILTER (WHERE resultado != @Pendente) AS quantidade
                  FROM apostas.apostas_multiplas
                  GROUP BY banca_id
              ) am ON am.banca_id = b.id
@@ -72,5 +77,5 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
         return resultado;
     }
 
-    private sealed record ResumoParametros(Guid BancaId, Guid UsuarioId);
+    private sealed record ResumoParametros(Guid BancaId, Guid UsuarioId, int Deposito, int Pendente, int Ganha);
 }

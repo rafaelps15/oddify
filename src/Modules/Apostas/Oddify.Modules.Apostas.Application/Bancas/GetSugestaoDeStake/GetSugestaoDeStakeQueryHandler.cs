@@ -32,6 +32,6 @@ internal sealed class GetSugestaoDeStakeQueryHandler : IQueryHandler<GetSugestao
             fracaoDeKelly,
             KellyCalculator.TetoDeStakeSobreABanca);
 
-        return Task.FromResult(Result.Success(response));
+        return Task.FromResult<Result<SugestaoDeStakeResponse>>(response);
     }
 }

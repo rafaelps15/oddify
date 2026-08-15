@@ -86,18 +86,4 @@ internal sealed class GetJornadaQueryHandler(IDbConnectionFactory dbConnectionFa
             header.ProbabilidadeDeConclusao,
             apostasDoPassoAtual);
     }
-
-    // Ordem dos parâmetros precisa bater com a ordem das colunas de sqlJornada — Dapper materializa
-    // record por posição do construtor, não por nome (ao contrário de classes com setter).
-    private sealed record JornadaHeaderRow(
-        Guid Id,
-        FaixaDeMeta FaixaMeta,
-        int PassoAtual,
-        int TotalDePassos,
-        int NumeroDeFracoes,
-        decimal ValorInicial,
-        decimal ValorObjetivo,
-        StatusDaJornada Status,
-        decimal ProbabilidadeDeConclusao,
-        decimal ValorAtual);
 }

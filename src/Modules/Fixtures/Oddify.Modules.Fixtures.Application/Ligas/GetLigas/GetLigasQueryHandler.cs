@@ -28,8 +28,8 @@ internal sealed class GetLigasQueryHandler(IDbConnectionFactory dbConnectionFact
              ORDER BY nome
              """;
 
-        IReadOnlyCollection<LigaResponse> result = (await connection.QueryAsync<LigaResponse>(sql)).AsList();
+        List<LigaResponse> result = (await connection.QueryAsync<LigaResponse>(sql)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

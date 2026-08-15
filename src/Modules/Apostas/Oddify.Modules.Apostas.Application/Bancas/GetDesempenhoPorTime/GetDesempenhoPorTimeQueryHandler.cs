@@ -5,8 +5,8 @@ using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Bancas.GetDesempenhoPorMercado;
+using Oddify.Modules.Apostas.Application.Calculo;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
-using Oddify.Modules.Apostas.Domain.Bancas;
 using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.Bancas.GetDesempenhoPorTime;
@@ -20,9 +20,6 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
     IFixturesApi fixturesApi)
     : IQueryHandler<GetDesempenhoPorTimeQuery, IReadOnlyCollection<DesempenhoResponse>>
 {
-    private const string ChaveMultipla = "Múltipla";
-    private const string ChaveDesconhecida = "Outros";
-
     public async Task<Result<IReadOnlyCollection<DesempenhoResponse>>> Handle(
         GetDesempenhoPorTimeQuery request,
         CancellationToken cancellationToken)
@@ -30,14 +27,6 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
         var parametros = new DesempenhoParametros(request.BancaId, userContext.UserId);
-
-        bool bancaExiste = await connection.ExecuteScalarAsync<bool>(
-            "SELECT EXISTS (SELECT 1 FROM apostas.bancas WHERE id = @BancaId AND usuario_id = @UsuarioId)", parametros);
-
-        if (!bancaExiste)
-        {
-            return Result.Failure<IReadOnlyCollection<DesempenhoResponse>>(BancaErrors.NotFound(request.BancaId));
-        }
 
         const string sql =
             $"""
@@ -47,24 +36,24 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
                  GROUP BY aposta_multipla_id
              )
              SELECT
-                 am.resultado AS {nameof(ApostaRow.Resultado)},
-                 am.lucro_ou_perda AS {nameof(ApostaRow.LucroOuPerda)},
-                 am.stake AS {nameof(ApostaRow.Stake)},
-                 ppa.qtd_pernas AS {nameof(ApostaRow.QtdPernas)},
-                 ppa.unica_partida_id AS {nameof(ApostaRow.PartidaId)}
+                 am.resultado AS {nameof(ApostaComPartidaRow.Resultado)},
+                 am.lucro_ou_perda AS {nameof(ApostaComPartidaRow.LucroOuPerda)},
+                 am.stake AS {nameof(ApostaComPartidaRow.Stake)},
+                 ppa.qtd_pernas AS {nameof(ApostaComPartidaRow.QtdPernas)},
+                 ppa.unica_partida_id AS {nameof(ApostaComPartidaRow.PartidaId)}
              FROM apostas.apostas_multiplas am
              JOIN pernas_por_aposta ppa ON ppa.aposta_multipla_id = am.id
              WHERE am.banca_id = @BancaId AND am.usuario_id = @UsuarioId AND am.resultado IN (1, 2)
              """;
 
-        List<ApostaRow> rows = (await connection.QueryAsync<ApostaRow>(sql, parametros)).AsList();
+        List<ApostaComPartidaRow> rows = (await connection.QueryAsync<ApostaComPartidaRow>(sql, parametros)).AsList();
 
         IReadOnlyCollection<Guid> partidaIds = rows.Where(r => r.QtdPernas == 1).Select(r => r.PartidaId).Distinct().ToList();
         IReadOnlyCollection<PartidaResumoResponse> partidas = await fixturesApi.ObterPartidasResumoAsync(partidaIds, cancellationToken);
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        IReadOnlyCollection<DesempenhoResponse> resultado = rows
-            .SelectMany(r => ResolverChaves(r, partidasPorId).Select(chave => (Chave: chave, Row: r)))
+        var resultado = rows
+            .SelectMany(r => ChaveDeDesempenho.ResolverPorTime(r.QtdPernas, r.PartidaId, partidasPorId).Select(chave => (Chave: chave, Row: r)))
             .GroupBy(e => e.Chave)
             .Select(g => new DesempenhoResponse(
                 g.Key,
@@ -76,25 +65,8 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
             .OrderByDescending(d => d.Lucro)
             .ToList();
 
-        return Result.Success(resultado);
-    }
-
-    private static IReadOnlyCollection<string> ResolverChaves(ApostaRow row, Dictionary<Guid, PartidaResumoResponse> partidasPorId)
-    {
-        if (row.QtdPernas > 1)
-        {
-            return [ChaveMultipla];
-        }
-
-        if (!partidasPorId.TryGetValue(row.PartidaId, out PartidaResumoResponse? partida))
-        {
-            return [ChaveDesconhecida];
-        }
-
-        return [partida.EquipeCasaNome, partida.EquipeVisitanteNome];
+        return resultado;
     }
 
     private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId);
-
-    private sealed record ApostaRow(ResultadoDaAposta Resultado, decimal LucroOuPerda, decimal Stake, int QtdPernas, Guid PartidaId);
 }

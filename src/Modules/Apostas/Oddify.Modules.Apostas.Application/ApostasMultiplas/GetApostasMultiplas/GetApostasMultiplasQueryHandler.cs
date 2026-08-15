@@ -37,16 +37,16 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
 
         if (apostas.Count == 0)
         {
-            return Result.Success<IReadOnlyCollection<ApostaMultiplaResponse>>([]);
+            return Array.Empty<ApostaMultiplaResponse>();
         }
 
         ILookup<Guid, PernaResponse> pernasPorAposta = await GetPernasAsync(connection, apostas.Select(a => a.Id), cancellationToken);
 
-        IReadOnlyCollection<ApostaMultiplaResponse> result = apostas
+        var result = apostas
             .Select(aposta => aposta.ToResponse(pernasPorAposta[aposta.Id].ToList()))
             .ToList();
 
-        return Result.Success(result);
+        return result;
     }
 
     // Uma única consulta pra todas as apostas da página em vez de uma por aposta (evita N+1) —
@@ -82,6 +82,4 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
             p => p.ApostaMultiplaId,
             p => new PernaRow(p.Id, p.Mercado, p.Odd, p.PartidaId, p.Resultado).ToResponse(partidasPorId.GetValueOrDefault(p.PartidaId)));
     }
-
-    private sealed record PernaComAposta(Guid ApostaMultiplaId, Guid Id, string Mercado, decimal Odd, Guid PartidaId, ResultadoDaAposta Resultado);
 }

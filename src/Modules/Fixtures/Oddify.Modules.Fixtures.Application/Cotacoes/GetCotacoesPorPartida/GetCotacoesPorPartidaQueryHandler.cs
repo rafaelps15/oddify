@@ -29,8 +29,8 @@ internal sealed class GetCotacoesPorPartidaQueryHandler(IDbConnectionFactory dbC
              ORDER BY coletada_em_utc DESC
              """;
 
-        IReadOnlyCollection<CotacaoResponse> result = (await connection.QueryAsync<CotacaoResponse>(sql, request)).AsList();
+        List<CotacaoResponse> result = (await connection.QueryAsync<CotacaoResponse>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

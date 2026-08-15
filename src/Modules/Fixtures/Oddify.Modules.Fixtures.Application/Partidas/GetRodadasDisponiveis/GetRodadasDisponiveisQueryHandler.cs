@@ -22,8 +22,8 @@ internal sealed class GetRodadasDisponiveisQueryHandler(IDbConnectionFactory dbC
             ORDER BY rodada
             """;
 
-        IReadOnlyCollection<int> result = (await connection.QueryAsync<int>(sql, request)).AsList();
+        List<int> result = (await connection.QueryAsync<int>(sql, request)).AsList();
 
-        return Result.Success(result);
+        return result;
     }
 }

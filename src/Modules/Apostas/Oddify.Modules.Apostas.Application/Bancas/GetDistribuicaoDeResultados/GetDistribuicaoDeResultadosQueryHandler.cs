@@ -18,17 +18,22 @@ internal sealed class GetDistribuicaoDeResultadosQueryHandler(IDbConnectionFacto
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
-        var parametros = new DistribuicaoParametros(request.BancaId, userContext.UserId);
+        var parametros = new DistribuicaoParametros(
+            request.BancaId,
+            userContext.UserId,
+            (int)ResultadoDaAposta.Ganha,
+            (int)ResultadoDaAposta.Perdida,
+            (int)ResultadoDaAposta.Anulada);
 
-        string sql =
+        const string sql =
             $"""
              SELECT
                  b.id AS {nameof(DistribuicaoDeResultadosResponse.BancaId)},
-                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = {(int)ResultadoDaAposta.Ganha}), 0)::int
+                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = @Ganha), 0)::int
                      AS {nameof(DistribuicaoDeResultadosResponse.Green)},
-                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = {(int)ResultadoDaAposta.Perdida}), 0)::int
+                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = @Perdida), 0)::int
                      AS {nameof(DistribuicaoDeResultadosResponse.Red)},
-                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = {(int)ResultadoDaAposta.Anulada}), 0)::int
+                 COALESCE(COUNT(am.id) FILTER (WHERE am.resultado = @Anulada), 0)::int
                      AS {nameof(DistribuicaoDeResultadosResponse.Anuladas)}
              FROM apostas.bancas b
              LEFT JOIN apostas.apostas_multiplas am ON am.banca_id = b.id
@@ -47,5 +52,5 @@ internal sealed class GetDistribuicaoDeResultadosQueryHandler(IDbConnectionFacto
         return resultado;
     }
 
-    private sealed record DistribuicaoParametros(Guid BancaId, Guid UsuarioId);
+    private sealed record DistribuicaoParametros(Guid BancaId, Guid UsuarioId, int Ganha, int Perdida, int Anulada);
 }

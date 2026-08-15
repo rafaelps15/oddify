@@ -38,8 +38,8 @@ internal sealed class GetAnalisesAprovadasQueryHandler(IDbConnectionFactory dbCo
              ORDER BY criada_em_utc DESC
              """;
 
-        IEnumerable<AnaliseResponse> result = await connection.QueryAsync<AnaliseResponse>(sql);
+        List<AnaliseResponse> result = (await connection.QueryAsync<AnaliseResponse>(sql)).AsList();
 
-        return Result.Success<IReadOnlyCollection<AnaliseResponse>>([.. result]);
+        return result;
     }
 }
