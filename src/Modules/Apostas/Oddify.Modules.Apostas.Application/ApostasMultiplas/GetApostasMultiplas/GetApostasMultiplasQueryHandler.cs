@@ -4,7 +4,6 @@ using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetApostaMultipla;
-using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.GetApostasMultiplas;
@@ -21,65 +20,56 @@ internal sealed class GetApostasMultiplasQueryHandler(IDbConnectionFactory dbCon
         const string sql =
             $"""
              SELECT
-                 id AS {nameof(ApostaMultiplaRow.Id)},
-                 banca_id AS {nameof(ApostaMultiplaRow.BancaId)},
-                 odd_combinada AS {nameof(ApostaMultiplaRow.OddCombinada)},
-                 stake AS {nameof(ApostaMultiplaRow.Stake)},
-                 resultado AS {nameof(ApostaMultiplaRow.Resultado)},
-                 lucro_ou_perda AS {nameof(ApostaMultiplaRow.LucroOuPerda)},
-                 criada_em_utc AS {nameof(ApostaMultiplaRow.CriadaEmUtc)}
-             FROM apostas.apostas_multiplas
-             WHERE @BancaId IS NULL OR banca_id = @BancaId
-             ORDER BY criada_em_utc DESC
+                 am.id AS {nameof(ApostaMultiplaResponse.Id)},
+                 am.banca_id AS {nameof(ApostaMultiplaResponse.BancaId)},
+                 am.odd_combinada AS {nameof(ApostaMultiplaResponse.OddCombinada)},
+                 am.stake AS {nameof(ApostaMultiplaResponse.Stake)},
+                 am.resultado AS {nameof(ApostaMultiplaResponse.Resultado)},
+                 am.lucro_ou_perda AS {nameof(ApostaMultiplaResponse.LucroOuPerda)},
+                 am.criada_em_utc AS {nameof(ApostaMultiplaResponse.CriadaEmUtc)},
+                 p.id AS {nameof(PernaResponse.PernaId)},
+                 p.mercado AS {nameof(PernaResponse.Mercado)},
+                 p.odd AS {nameof(PernaResponse.Odd)},
+                 p.partida_id AS {nameof(PernaResponse.PartidaId)},
+                 p.resultado AS {nameof(PernaResponse.Resultado)}
+             FROM apostas.apostas_multiplas am
+             LEFT JOIN apostas.pernas_de_aposta p ON p.aposta_multipla_id = am.id
+             WHERE @BancaId IS NULL OR am.banca_id = @BancaId
+             ORDER BY am.criada_em_utc DESC
              """;
 
-        List<ApostaMultiplaRow> apostas = (await connection.QueryAsync<ApostaMultiplaRow>(sql, request)).AsList();
+        List<ApostaMultiplaResponse> apostas = [];
+        var apostasPorId = new Dictionary<Guid, ApostaMultiplaResponse>();
 
-        if (apostas.Count == 0)
-        {
-            return Array.Empty<ApostaMultiplaResponse>();
-        }
+        await connection.QueryAsync<ApostaMultiplaResponse, PernaResponse?, ApostaMultiplaResponse>(
+            sql,
+            (aposta, perna) =>
+            {
+                if (!apostasPorId.TryGetValue(aposta.Id, out ApostaMultiplaResponse? existente))
+                {
+                    existente = aposta;
+                    apostasPorId.Add(existente.Id, existente);
+                    apostas.Add(existente);
+                }
 
-        ILookup<Guid, PernaResponse> pernasPorAposta = await GetPernasAsync(connection, apostas.Select(a => a.Id), cancellationToken);
+                if (perna is not null)
+                {
+                    existente.Pernas.Add(perna);
+                }
 
-        var result = apostas
-            .Select(aposta => aposta.ToResponse(pernasPorAposta[aposta.Id].ToList()))
-            .ToList();
+                return existente;
+            },
+            request,
+            splitOn: nameof(PernaResponse.PernaId));
 
-        return result;
-    }
-
-    // Uma única consulta pra todas as apostas da página em vez de uma por aposta (evita N+1) —
-    // agrupada em memória depois, já que Dapper não faz o join direto pro shape aninhado de
-    // ApostaMultiplaResponse.
-    private async Task<ILookup<Guid, PernaResponse>> GetPernasAsync(
-        DbConnection connection,
-        IEnumerable<Guid> apostaMultiplaIds,
-        CancellationToken cancellationToken)
-    {
-        const string sql =
-            $"""
-             SELECT
-                 aposta_multipla_id AS {nameof(PernaComAposta.ApostaMultiplaId)},
-                 id AS {nameof(PernaComAposta.Id)},
-                 mercado AS {nameof(PernaComAposta.Mercado)},
-                 odd AS {nameof(PernaComAposta.Odd)},
-                 partida_id AS {nameof(PernaComAposta.PartidaId)},
-                 resultado AS {nameof(PernaComAposta.Resultado)}
-             FROM apostas.pernas_de_aposta
-             WHERE aposta_multipla_id IN @ApostaMultiplaIds
-             """;
-
-        List<PernaComAposta> pernas =
-            (await connection.QueryAsync<PernaComAposta>(sql, new { ApostaMultiplaIds = apostaMultiplaIds })).AsList();
-
-        IReadOnlyCollection<PartidaResumoResponse> partidas =
-            await fixturesApi.ObterPartidasResumoAsync(pernas.Select(p => p.PartidaId).Distinct().ToList(), cancellationToken);
-
+        IReadOnlyCollection<Guid> partidaIds = apostas.SelectMany(a => a.Pernas).Select(p => p.PartidaId).Distinct().ToList();
+        IReadOnlyCollection<PartidaResumoResponse> partidas = await fixturesApi.ObterPartidasResumoAsync(partidaIds, cancellationToken);
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        return pernas.ToLookup(
-            p => p.ApostaMultiplaId,
-            p => new PernaRow(p.Id, p.Mercado, p.Odd, p.PartidaId, p.Resultado).ToResponse(partidasPorId.GetValueOrDefault(p.PartidaId)));
+        apostas.SelectMany(a => a.Pernas)
+            .ToList()
+            .ForEach(perna => perna.Enriquecer(partidasPorId.GetValueOrDefault(perna.PartidaId)));
+
+        return apostas;
     }
 }

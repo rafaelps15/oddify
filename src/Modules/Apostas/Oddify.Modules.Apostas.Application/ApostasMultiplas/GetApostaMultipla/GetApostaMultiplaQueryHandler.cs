@@ -18,53 +18,51 @@ internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConne
         const string sql =
             $"""
              SELECT
-                 id AS {nameof(ApostaMultiplaRow.Id)},
-                 banca_id AS {nameof(ApostaMultiplaRow.BancaId)},
-                 odd_combinada AS {nameof(ApostaMultiplaRow.OddCombinada)},
-                 stake AS {nameof(ApostaMultiplaRow.Stake)},
-                 resultado AS {nameof(ApostaMultiplaRow.Resultado)},
-                 lucro_ou_perda AS {nameof(ApostaMultiplaRow.LucroOuPerda)},
-                 criada_em_utc AS {nameof(ApostaMultiplaRow.CriadaEmUtc)}
-             FROM apostas.apostas_multiplas
-             WHERE id = @ApostaMultiplaId
+                 am.id AS {nameof(ApostaMultiplaResponse.Id)},
+                 am.banca_id AS {nameof(ApostaMultiplaResponse.BancaId)},
+                 am.odd_combinada AS {nameof(ApostaMultiplaResponse.OddCombinada)},
+                 am.stake AS {nameof(ApostaMultiplaResponse.Stake)},
+                 am.resultado AS {nameof(ApostaMultiplaResponse.Resultado)},
+                 am.lucro_ou_perda AS {nameof(ApostaMultiplaResponse.LucroOuPerda)},
+                 am.criada_em_utc AS {nameof(ApostaMultiplaResponse.CriadaEmUtc)},
+                 p.id AS {nameof(PernaResponse.PernaId)},
+                 p.mercado AS {nameof(PernaResponse.Mercado)},
+                 p.odd AS {nameof(PernaResponse.Odd)},
+                 p.partida_id AS {nameof(PernaResponse.PartidaId)},
+                 p.resultado AS {nameof(PernaResponse.Resultado)}
+             FROM apostas.apostas_multiplas am
+             LEFT JOIN apostas.pernas_de_aposta p ON p.aposta_multipla_id = am.id
+             WHERE am.id = @ApostaMultiplaId
              """;
 
-        ApostaMultiplaRow? row = await connection.QuerySingleOrDefaultAsync<ApostaMultiplaRow>(sql, request);
+        IEnumerable<ApostaMultiplaResponse> rows = await connection.QueryAsync<ApostaMultiplaResponse, PernaResponse?, ApostaMultiplaResponse>(
+            sql,
+            (aposta, perna) =>
+            {
+                if (perna is not null)
+                {
+                    aposta.Pernas.Add(perna);
+                }
 
-        if (row is null)
+                return aposta;
+            },
+            request,
+            splitOn: nameof(PernaResponse.PernaId));
+
+        ApostaMultiplaResponse? apostaMultipla = rows.FirstOrDefault();
+
+        if (apostaMultipla is null)
         {
             return Result.Failure<ApostaMultiplaResponse>(ApostaMultiplaErrors.NotFound(request.ApostaMultiplaId));
         }
 
-        IReadOnlyCollection<PernaResponse> pernas = await GetPernasAsync(connection, row.Id, cancellationToken);
-
-        return row.ToResponse(pernas);
-    }
-
-    private async Task<IReadOnlyCollection<PernaResponse>> GetPernasAsync(
-        DbConnection connection,
-        Guid apostaMultiplaId,
-        CancellationToken cancellationToken)
-    {
-        const string sql =
-            $"""
-             SELECT
-                 id AS {nameof(PernaRow.Id)},
-                 mercado AS {nameof(PernaRow.Mercado)},
-                 odd AS {nameof(PernaRow.Odd)},
-                 partida_id AS {nameof(PernaRow.PartidaId)},
-                 resultado AS {nameof(PernaRow.Resultado)}
-             FROM apostas.pernas_de_aposta
-             WHERE aposta_multipla_id = @ApostaMultiplaId
-             """;
-
-        List<PernaRow> rows = (await connection.QueryAsync<PernaRow>(sql, new { ApostaMultiplaId = apostaMultiplaId })).AsList();
-
-        IReadOnlyCollection<PartidaResumoResponse> partidas =
-            await fixturesApi.ObterPartidasResumoAsync(rows.Select(r => r.PartidaId).Distinct().ToList(), cancellationToken);
+        IReadOnlyCollection<PartidaResumoResponse> partidas = await fixturesApi.ObterPartidasResumoAsync(
+            apostaMultipla.Pernas.Select(p => p.PartidaId).Distinct().ToList(), cancellationToken);
 
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        return rows.Select(r => r.ToResponse(partidasPorId.GetValueOrDefault(r.PartidaId))).ToList();
+        apostaMultipla.Pernas.ForEach(perna => perna.Enriquecer(partidasPorId.GetValueOrDefault(perna.PartidaId)));
+
+        return apostaMultipla;
     }
 }
