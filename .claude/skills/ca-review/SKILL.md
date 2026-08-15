@@ -74,6 +74,11 @@ unusual — stay inside the architecture's scope.
 
 ## 3. Application layer — queries (reads)
 
+Every query handler in scope must match `add-feature/references/query-slice.md` (§B1–B5) **exactly** —
+that file is the executable spec for this section, not just background reading. Read it before
+reviewing any query handler, and cite the specific `§B_` section in each finding instead of a bare
+"convention" reference.
+
 - [ ] **Queries never go through the repository or `IUnitOfWork`.** A query handler that resolves
       `I<Entity>Repository` (loading a full EF-tracked aggregate just to read a few fields) is a finding
       — it should query via `IDbConnectionFactory` + Dapper directly.
@@ -86,6 +91,33 @@ unusual — stay inside the architecture's scope.
 - [ ] **Response records are separate from Commands/Domain entities** — a query returning the entity
       type itself (leaking Domain outside Application) or reusing a Command record as a response shape is
       a finding.
+- [ ] **No `Result.Success(...)`.** A query handler returns the bare value (`return todoItem;`) and lets
+      the implicit conversion do the wrapping (query-slice.md §B1–B3) — explicit `Result.Success(...)` in
+      a query handler is a finding, however harmless it looks.
+- [ ] **No private `Row` type + `.ToResponse(...)` extension.** A parent-with-children query
+      materializes directly into the final Response types via Dapper multi-mapping (`splitOn`), with the
+      child collection as a mutable property outside the parent's positional constructor — never a
+      separate intermediate type converted afterward (query-slice.md §B4). If you find a `<Entity>Row`
+      record and a `.ToResponse(...)` extension sitting next to a query handler, that's the finding —
+      point at §B4 for the fix, not just "simplify this."
+- [ ] **No `foreach` in a query handler.** LINQ reshaping, the multi-mapping callback, or — when the
+      operation is really a per-group dedup/first-row selection — `DISTINCT ON` in the SQL itself
+      (query-slice.md §B4 rules) replaces it. `List<T>.ForEach(...)` doesn't count as `foreach` for this
+      rule (it's the BCL method, used for composition/enrichment per §B5) — the `foreach` *statement* is
+      what's banned.
+- [ ] **No business logic decided inline.** If turning rows into a response needs an actual formula,
+      threshold, or derived classification — not just renaming columns — that belongs in a shared static
+      calculator (`Application/Calculo/<Name>Calculator.cs`), never inline in `Handle(...)`
+      (query-slice.md Rules). A query handler orchestrates fetch → calculate → return; it never *is* the
+      calculation.
+- [ ] **Cross-module enrichment is always a single batch call**, never a `foreach`/loop calling another
+      module's `PublicApi` once per row (an N+1 in disguise, query-slice.md §B5). If the target
+      `PublicApi` doesn't have a batch method yet, adding one there is the fix — not a loop around the
+      singular method.
+- [ ] **Ownership/tenant scoping lives in the main query's `WHERE`**, never a separate `SELECT EXISTS
+      (...)` pre-check query run just to produce a different `NotFound` before the real query
+      (query-slice.md Rules, last bullet). One round-trip, one `WHERE` clause covering both "doesn't
+      exist" and "isn't yours."
 
 ## 4. Presentation layer
 
