@@ -52,6 +52,16 @@ public sealed class User : Entity
         Raise(new UserProfileUpdatedDomainEvent(Id, firstName, lastName));
     }
 
+    // Sem checagem de no-op (comparar hashes não diz se a senha "mudou" de verdade — o mesmo
+    // texto em claro gera hashes diferentes a cada chamada por causa do salt do hasher) — sempre
+    // aplica e sempre levanta o evento.
+    public void SetPassword(string newPasswordHash)
+    {
+        PasswordHash = newPasswordHash;
+
+        Raise(new PasswordResetDomainEvent(Id));
+    }
+
     public Result MarkEmailAsVerified(DateTime verifiedAtUtc)
     {
         if (IsEmailVerified)

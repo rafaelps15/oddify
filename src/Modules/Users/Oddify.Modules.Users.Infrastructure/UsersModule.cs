@@ -12,14 +12,18 @@ using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Users.Application.Abstractions.Data;
 using Oddify.Modules.Users.Application.Abstractions.EmailVerification;
 using Oddify.Modules.Users.Application.Abstractions.Outbox;
+using Oddify.Modules.Users.Application.Abstractions.PasswordReset;
 using Oddify.Modules.Users.Application.Users.EmailVerification;
+using Oddify.Modules.Users.Application.Users.PasswordReset;
 using Oddify.Modules.Users.Domain.EmailVerification;
+using Oddify.Modules.Users.Domain.PasswordReset;
 using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
 using Oddify.Modules.Users.Infrastructure.Authorization;
 using Oddify.Modules.Users.Infrastructure.Database;
 using Oddify.Modules.Users.Infrastructure.EmailVerification;
 using Oddify.Modules.Users.Infrastructure.Outbox;
+using Oddify.Modules.Users.Infrastructure.PasswordReset;
 using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
 using Oddify.Modules.Users.Presentation.IntegrationEvents;
@@ -40,6 +44,7 @@ public static class UsersModule
     {
         registrationConfigurator.AddConsumer<SendVerificationEmailIntegrationEventConsumer>();
         registrationConfigurator.AddConsumer<SendWelcomeEmailIntegrationEventConsumer>();
+        registrationConfigurator.AddConsumer<SendPasswordResetEmailIntegrationEventConsumer>();
     }
 
     private static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -70,9 +75,13 @@ public static class UsersModule
         services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
         services.AddScoped<EmailVerificationTokenIssuer>();
 
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+        services.AddScoped<PasswordResetTokenIssuer>();
+
         services.AddScoped<IOutboxWriter, OutboxWriter>();
 
         services.Configure<EmailVerificationOptions>(configuration.GetSection("Users:EmailVerification"));
+        services.Configure<PasswordResetOptions>(configuration.GetSection("Users:PasswordReset"));
 
         services.AddOutboxProcessor(configuration);
 

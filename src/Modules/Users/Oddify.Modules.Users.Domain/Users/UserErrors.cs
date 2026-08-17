@@ -26,4 +26,8 @@ public static class UserErrors
     public static readonly Error EmailNotVerified = Error.Problem(
         "Users.EmailNotVerified",
         "O e-mail desta conta ainda não foi verificado");
+
+    public static readonly Error SessionNotFound = Error.NotFound(
+        "Users.SessionNotFound",
+        "A sessão informada não foi encontrada");
 }

@@ -26,7 +26,7 @@ public sealed class RefreshAccessTokenCommandHandlerTests
     {
         DateTime agora = DateTime.UtcNow;
         var user = User.Create("user@example.com", "hashed-password", "Ada", "Lovelace");
-        var refreshToken = RefreshToken.Create(user.Id, "old-refresh-token", agora.AddDays(1));
+        var refreshToken = RefreshToken.Create(user.Id, "old-refresh-token", agora.AddDays(1), agora, "Mozilla/5.0");
 
         _dateTimeProvider.UtcNow.Returns(agora);
         _refreshTokenRepository.GetByTokenAsync("old-refresh-token", Arg.Any<CancellationToken>()).Returns(refreshToken);
@@ -62,7 +62,7 @@ public sealed class RefreshAccessTokenCommandHandlerTests
     public async Task Handle_should_fail_with_invalid_refresh_token_when_token_is_expired()
     {
         DateTime agora = DateTime.UtcNow;
-        var refreshToken = RefreshToken.Create(Guid.NewGuid(), "expired-token", agora.AddDays(-1));
+        var refreshToken = RefreshToken.Create(Guid.NewGuid(), "expired-token", agora.AddDays(-1), agora, "Mozilla/5.0");
 
         _dateTimeProvider.UtcNow.Returns(agora);
         _refreshTokenRepository.GetByTokenAsync("expired-token", Arg.Any<CancellationToken>()).Returns(refreshToken);

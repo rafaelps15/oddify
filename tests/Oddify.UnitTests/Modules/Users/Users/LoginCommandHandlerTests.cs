@@ -33,7 +33,7 @@ public sealed class LoginCommandHandlerTests
         _tokenProvider.GenerateRefreshToken().Returns("refresh-token");
         _dateTimeProvider.UtcNow.Returns(DateTime.UtcNow);
 
-        var command = new LoginCommand("user@example.com", "Password123!");
+        var command = new LoginCommand("user@example.com", "Password123!", "Mozilla/5.0");
 
         Result<AccessTokensResponse> resultado = await CriarHandler().Handle(command, CancellationToken.None);
 
@@ -50,7 +50,7 @@ public sealed class LoginCommandHandlerTests
         _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
         _passwordHasher.Verify("Password123!", "hashed-password").Returns(true);
 
-        var command = new LoginCommand("user@example.com", "Password123!");
+        var command = new LoginCommand("user@example.com", "Password123!", "Mozilla/5.0");
 
         Result<AccessTokensResponse> resultado = await CriarHandler().Handle(command, CancellationToken.None);
 
@@ -64,7 +64,7 @@ public sealed class LoginCommandHandlerTests
     {
         _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns((User?)null);
 
-        var command = new LoginCommand("user@example.com", "Password123!");
+        var command = new LoginCommand("user@example.com", "Password123!", "Mozilla/5.0");
 
         Result<AccessTokensResponse> resultado = await CriarHandler().Handle(command, CancellationToken.None);
 
@@ -80,7 +80,7 @@ public sealed class LoginCommandHandlerTests
         _userRepository.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
         _passwordHasher.Verify("wrong-password", "hashed-password").Returns(false);
 
-        var command = new LoginCommand("user@example.com", "wrong-password");
+        var command = new LoginCommand("user@example.com", "wrong-password", "Mozilla/5.0");
 
         Result<AccessTokensResponse> resultado = await CriarHandler().Handle(command, CancellationToken.None);
 

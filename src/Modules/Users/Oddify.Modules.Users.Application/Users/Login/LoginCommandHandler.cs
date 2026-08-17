@@ -16,8 +16,6 @@ internal sealed class LoginCommandHandler(
     IDateTimeProvider dateTimeProvider)
     : ICommandHandler<LoginCommand, AccessTokensResponse>
 {
-    private const int RefreshTokenExpirationDays = 7;
-
     public async Task<Result<AccessTokensResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         User? user = await userRepository.GetByEmailAsync(request.Email, cancellationToken);
@@ -35,10 +33,14 @@ internal sealed class LoginCommandHandler(
         string accessToken = tokenProvider.Create(user.Id, user.Email);
         string refreshTokenValue = tokenProvider.GenerateRefreshToken();
 
+        DateTime agora = dateTimeProvider.UtcNow;
+
         var refreshToken = RefreshToken.Create(
             user.Id,
             refreshTokenValue,
-            dateTimeProvider.UtcNow.AddDays(RefreshTokenExpirationDays));
+            agora.AddDays(RefreshToken.DefaultExpirationDays),
+            agora,
+            request.UserAgent);
 
         refreshTokenRepository.Insert(refreshToken);
 

@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Oddify.Modules.Users.Application.Abstractions.Data;
 using Oddify.Modules.Users.Domain.EmailVerification;
+using Oddify.Modules.Users.Domain.PasswordReset;
 using Oddify.Modules.Users.Domain.Permissions;
 using Oddify.Modules.Users.Domain.Roles;
 using Oddify.Modules.Users.Domain.Users;
 using Oddify.Modules.Users.Infrastructure.EmailVerification;
 using Oddify.Modules.Users.Infrastructure.Outbox;
+using Oddify.Modules.Users.Infrastructure.PasswordReset;
 using Oddify.Modules.Users.Infrastructure.Permissions;
 using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
@@ -28,6 +30,8 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
 
     internal DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
 
+    internal DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
     internal DbSet<OutboxMessage> OutboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -41,6 +45,7 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
         modelBuilder.ApplyConfiguration(new EmailVerificationTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new PasswordResetTokenConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }
 }

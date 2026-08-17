@@ -15,8 +15,6 @@ internal sealed class RefreshAccessTokenCommandHandler(
     IDateTimeProvider dateTimeProvider)
     : ICommandHandler<RefreshAccessTokenCommand, AccessTokensResponse>
 {
-    private const int RefreshTokenExpirationDays = 7;
-
     public async Task<Result<AccessTokensResponse>> Handle(RefreshAccessTokenCommand request, CancellationToken cancellationToken)
     {
         RefreshToken? refreshToken = await refreshTokenRepository.GetByTokenAsync(request.RefreshToken, cancellationToken);
@@ -36,7 +34,9 @@ internal sealed class RefreshAccessTokenCommandHandler(
         string accessToken = tokenProvider.Create(user.Id, user.Email);
         string newRefreshTokenValue = tokenProvider.GenerateRefreshToken();
 
-        refreshToken.Rotate(newRefreshTokenValue, dateTimeProvider.UtcNow.AddDays(RefreshTokenExpirationDays));
+        DateTime agora = dateTimeProvider.UtcNow;
+
+        refreshToken.Rotate(newRefreshTokenValue, agora.AddDays(RefreshToken.DefaultExpirationDays), agora);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

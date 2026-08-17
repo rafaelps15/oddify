@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Oddify.Common.Domain;
 using Oddify.Common.Presentation.Endpoints;
@@ -14,9 +15,9 @@ internal sealed class Login : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("users/login", async (Request request, ISender sender) =>
+        app.MapPost("users/login", async (Request request, [FromHeader(Name = "User-Agent")] string? userAgent, ISender sender) =>
         {
-            Result<AccessTokensResponse> result = await sender.Send(new LoginCommand(request.Email, request.Password));
+            Result<AccessTokensResponse> result = await sender.Send(new LoginCommand(request.Email, request.Password, userAgent));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })

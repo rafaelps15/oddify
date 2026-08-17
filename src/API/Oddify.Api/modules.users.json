@@ -9,7 +9,10 @@
       "CleanupInterval": "1.00:00:00"
     },
     "EmailVerification": {
-      "VerificationBaseUrl": "http://localhost:4200/verificar-email"
+      "VerificationBaseUrl": "http://localhost:4200/confirm-email"
+    },
+    "PasswordReset": {
+      "ResetBaseUrl": "http://localhost:4200/reset-password"
     }
   }
 }
