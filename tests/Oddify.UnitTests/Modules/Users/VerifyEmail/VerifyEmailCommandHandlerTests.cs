@@ -18,7 +18,7 @@ public sealed class VerifyEmailCommandHandlerTests
 
     private VerifyEmailCommandHandler CriarHandler() => new(_tokenRepository, _userRepository, _unitOfWork, _dateTimeProvider);
 
-    private (EmailVerificationToken Token, User User) CriarTokenEUsuario(DateTime agora, DateTime expiraEm)
+    private static (EmailVerificationToken Token, User User) CriarTokenEUsuario(DateTime agora, DateTime expiraEm)
     {
         var user = User.Create("user@example.com", "hash", "Ada", "Lovelace");
         var token = EmailVerificationToken.Create(user.Id, "raw-token", expiraEm, agora);

@@ -10,4 +10,7 @@
     <InternalsVisibleTo Include="Oddify.Modules.Analise.Infrastructure" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
+  </ItemGroup>
 </Project>

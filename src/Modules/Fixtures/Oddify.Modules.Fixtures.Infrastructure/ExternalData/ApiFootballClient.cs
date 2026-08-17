@@ -86,7 +86,7 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
             return 0;
         }
 
-        Match match = Regex.Match(round, @"\d+$");
+        Match match = Regex.Match(round, @"\d+$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
         return match.Success ? int.Parse(match.Value, CultureInfo.InvariantCulture) : 0;
     }

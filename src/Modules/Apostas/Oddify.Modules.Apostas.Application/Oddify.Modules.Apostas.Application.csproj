@@ -8,4 +8,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Oddify.UnitTests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
+  </ItemGroup>
 </Project>

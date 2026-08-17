@@ -1,5 +1,2 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Common\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
-  </ItemGroup>
 </Project>

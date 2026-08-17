@@ -5,11 +5,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MassTransit.Abstractions" Version="8.2.1" />
+    <PackageReference Include="MassTransit.Abstractions" Version="9.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
   </ItemGroup>
 
 </Project>

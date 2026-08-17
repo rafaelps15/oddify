@@ -25,7 +25,7 @@ internal sealed partial class RequestLoggingPipelineBehavior<TRequest, TResponse
                 LogProcessingRequest(logger, typeof(TRequest).Name);
             }
 
-            TResponse result = await next();
+            TResponse result = await next(cancellationToken);
 
             if (result.IsSuccess)
             {

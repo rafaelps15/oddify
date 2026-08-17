@@ -6,6 +6,9 @@
     <ProjectReference Include="..\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Anthropic" Version="12.38.0" />
+    <PackageReference Include="Anthropic" Version="12.40.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
   </ItemGroup>
 </Project>

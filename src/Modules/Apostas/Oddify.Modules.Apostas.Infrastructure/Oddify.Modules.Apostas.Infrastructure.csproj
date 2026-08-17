@@ -4,4 +4,7 @@
     <ProjectReference Include="..\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
     <ProjectReference Include="..\Oddify.Modules.Apostas.Presentation\Oddify.Modules.Apostas.Presentation.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
+  </ItemGroup>
 </Project>

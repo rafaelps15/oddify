@@ -34,7 +34,7 @@ public sealed class LigasTests(OddifyWebAppFactory factory) : IAsyncLifetime
 
         LigaResponse? liga = await getResponse.Content.ReadFromJsonAsync<LigaResponse>();
         liga.Should().NotBeNull();
-        liga!.Nome.Should().Be("Liga de Teste");
+        liga.Nome.Should().Be("Liga de Teste");
         liga.Calibrada.Should().BeFalse();
     }
 

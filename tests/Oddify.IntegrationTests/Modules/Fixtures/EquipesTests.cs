@@ -29,7 +29,7 @@ public sealed class EquipesTests(OddifyWebAppFactory factory) : IAsyncLifetime
         List<EquipeResponse>? equipes = await response.Content.ReadFromJsonAsync<List<EquipeResponse>>();
 
         equipes.Should().NotBeNull();
-        equipes!.Should().HaveCount(2);
+        equipes.Should().HaveCount(2);
         equipes.Should().Contain(e => e.Id == equipeAId && e.Nome == "Time A");
         equipes.Should().Contain(e => e.Id == equipeBId && e.Nome == "Time B");
     }
@@ -46,7 +46,7 @@ public sealed class EquipesTests(OddifyWebAppFactory factory) : IAsyncLifetime
         List<EquipeResponse>? equipes = await response.Content.ReadFromJsonAsync<List<EquipeResponse>>();
 
         equipes.Should().NotBeNull();
-        equipes!.Should().ContainSingle(e => e.Id == equipeId);
+        equipes.Should().ContainSingle(e => e.Id == equipeId);
     }
 
     private async Task<Guid> CriarLigaAsync()

@@ -23,7 +23,7 @@ public sealed class PartidasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         PartidaResponse? partida = await (await _client.GetAsync($"partidas/{partidaId}")).Content.ReadFromJsonAsync<PartidaResponse>();
 
         partida.Should().NotBeNull();
-        partida!.Rodada.Should().Be(4);
+        partida.Rodada.Should().Be(4);
         partida.Temporada.Should().Be(2026);
     }
 

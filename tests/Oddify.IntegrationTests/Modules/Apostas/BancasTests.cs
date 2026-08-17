@@ -35,7 +35,7 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
 
         BancaResponse? banca = await getResponse.Content.ReadFromJsonAsync<BancaResponse>();
         banca.Should().NotBeNull();
-        banca!.Nome.Should().Be("Banca principal");
+        banca.Nome.Should().Be("Banca principal");
         banca.SaldoAtual.Should().Be(1000m);
         banca.PercentualPorEntrada.Should().Be(0.05m);
         banca.PerfilDeRisco.Should().Be(1);
@@ -75,8 +75,8 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         List<BancaResponse>? bancas = await response.Content.ReadFromJsonAsync<List<BancaResponse>>();
         bancas.Should().NotBeNull();
-        bancas!.Should().HaveCount(2);
-        bancas!.Select(b => b.Nome).Should().BeEquivalentTo("Banca principal", "Banca paper trading");
+        bancas.Should().HaveCount(2);
+        bancas.Select(b => b.Nome).Should().BeEquivalentTo("Banca principal", "Banca paper trading");
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         SugestaoDeStakeResponse? sugestao = await response.Content.ReadFromJsonAsync<SugestaoDeStakeResponse>();
 
         sugestao.Should().NotBeNull();
-        sugestao!.StakeSugerido.Should().Be(50m);
+        sugestao.StakeSugerido.Should().Be(50m);
         sugestao.ProbabilidadeImplicita.Should().Be(0.5m);
         sugestao.Vantagem.Should().Be(0.10m);
         sugestao.FracaoDeKelly.Should().Be(0.25m);

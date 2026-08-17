@@ -11,4 +11,8 @@
     <ProjectReference Include="..\Oddify.Modules.Users.Application\Oddify.Modules.Users.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
+  </ItemGroup>
+
 </Project>

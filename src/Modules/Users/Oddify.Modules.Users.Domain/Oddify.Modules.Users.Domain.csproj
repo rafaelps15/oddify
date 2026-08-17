@@ -10,4 +10,8 @@
     <ProjectReference Include="..\..\..\Common\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
+  </ItemGroup>
+
 </Project>
