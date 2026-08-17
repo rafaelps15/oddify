@@ -13,9 +13,9 @@ internal sealed class AnalisarPartida : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("analises/analisar", async (Request request, ISender sender) =>
+        app.MapPost("partidas/{id}/analisar", async (Guid id, Request request, ISender sender) =>
         {
-            Result<Guid> result = await sender.Send(new AnalisarPartidaCommand(request.PartidaId, request.Mercado));
+            Result<Guid> result = await sender.Send(new AnalisarPartidaCommand(id, request.Mercado));
 
             return result.Match(Results.Ok, ApiResults.Problem);
         })
@@ -24,8 +24,6 @@ internal sealed class AnalisarPartida : IEndpoint
 
     internal sealed class Request
     {
-        public Guid PartidaId { get; init; }
-
         public string Mercado { get; init; }
     }
 }
