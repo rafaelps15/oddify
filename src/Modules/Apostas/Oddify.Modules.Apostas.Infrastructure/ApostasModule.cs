@@ -62,5 +62,6 @@ public static class ApostasModule
         services.AddScoped<IMovimentacaoDaBancaRepository, MovimentacaoDaBancaRepository>();
         services.AddScoped<IJornadaDeAlavancagemRepository, JornadaDeAlavancagemRepository>();
         services.AddScoped<IPassoDaJornadaRepository, PassoDaJornadaRepository>();
+        services.AddScoped<IFaixaDeMetaCatalogoRepository, FaixaDeMetaCatalogoRepository>();
     }
 }

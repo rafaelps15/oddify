@@ -74,7 +74,7 @@ unusual — stay inside the architecture's scope.
 
 ## 3. Application layer — queries (reads)
 
-Every query handler in scope must match `add-feature/references/query-slice.md` (§B1–B5) **exactly** —
+Every query handler in scope must match `add-feature/references/query-slice.md` (§B1–B6) **exactly** —
 that file is the executable spec for this section, not just background reading. Read it before
 reviewing any query handler, and cite the specific `§B_` section in each finding instead of a bare
 "convention" reference.
@@ -82,6 +82,20 @@ reviewing any query handler, and cite the specific `§B_` section in each findin
 - [ ] **Queries never go through the repository or `IUnitOfWork`.** A query handler that resolves
       `I<Entity>Repository` (loading a full EF-tracked aggregate just to read a few fields) is a finding
       — it should query via `IDbConnectionFactory` + Dapper directly.
+- [ ] **Every `Get<X>QueryHandler` has the constructor `(IDbConnectionFactory dbConnectionFactory)`,
+      `async Handle`, and a real `await using DbConnection` + SQL query** (query-slice.md §B4b). A
+      parameterless class with a non-`async` `Handle` returning `Task.FromResult(...)` and no SQL at all
+      is a finding, even if it "obviously" doesn't need the database — confirmed shipped this way once,
+      backing a small fixed catalog that should have been a seeded table. The one narrow, explicitly-
+      commented exception is a handler with zero persisted state behind it at all (every value supplied
+      on the request or a true unkeyed constant); anything with more than that — especially a fixed,
+      keyed catalog — is this finding, not the exception.
+- [ ] **A static catalog array read directly by both a `QueryHandler` and a `CommandHandler`** (e.g. a
+      `private static readonly T[] Catalog` inside an `Application/Calculo/...Calculator.cs`) is a
+      finding — two copies of the same fixed rows with nothing keeping them in sync will drift the first
+      time one is edited without the other. Point at query-slice.md §B4b: the catalog belongs in a real
+      seeded table (EF `HasData` + migration), read via Dapper on the query side and via a narrow
+      read-only repository on the command side.
 - [ ] **SQL correctness.** Columns are aliased `AS {nameof(Response.Property)}`; only `nameof(...)`
       expressions are interpolated into the SQL string — any interpolation of a request value directly
       into the SQL text (rather than passed as a Dapper parameter) is a **SQL injection finding**, flag it
@@ -100,6 +114,14 @@ reviewing any query handler, and cite the specific `§B_` section in each findin
       separate intermediate type converted afterward (query-slice.md §B4). If you find a `<Entity>Row`
       record and a `.ToResponse(...)` extension sitting next to a query handler, that's the finding —
       point at §B4 for the fix, not just "simplify this."
+- [ ] **Parent+children multi-mapping always merges through a `Dictionary<Guid, TResponse>`, even in a
+      single-item handler filtered by id.** Dapper constructs a fresh parent instance per row (one per
+      child), so `rows.FirstOrDefault()` after a multi-map silently keeps only the first child and drops
+      the rest whenever the parent has more than one — a real, high-severity correctness bug (confirmed
+      shipped this way once), not a style nitpick. Any single-item multi-mapping handler that ends in
+      `.FirstOrDefault()`/`.First()`/`.SingleOrDefault()` instead of a dictionary lookup by the request's
+      id is this finding — point at query-slice.md §B4 for the fix, and flag it as high severity even
+      though the query "looks like" it should only ever return one parent anyway.
 - [ ] **No `foreach` in a query handler.** LINQ reshaping, the multi-mapping callback, or — when the
       operation is really a per-group dedup/first-row selection — `DISTINCT ON` in the SQL itself
       (query-slice.md §B4 rules) replaces it. `List<T>.ForEach(...)` doesn't count as `foreach` for this

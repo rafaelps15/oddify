@@ -14,14 +14,11 @@ follow that instead of this skill's fakes — this skill documents the no-mockin
 because that's what a from-scratch Clean-Architecture/Modular-Monolith .NET solution defaults to absent
 evidence otherwise, not because mocking libraries are wrong in general.
 
-> **Heads up for this repo specifically:** `Oddify.UnitTests` already references **NSubstitute** and
-> every existing handler test (e.g. `DepositarNaBancaCommandHandlerTests`,
-> `GetResultadosDasPernasQueryHandlerTests`) substitutes dependencies with it rather than using
-> hand-written fakes. Match that — use `Substitute.For<T>()`, not the fake classes below — for handler
-> tests written for this repo. See [../add-feature/references/tests.md](../add-feature/references/tests.md)
-> for the NSubstitute-based template and a real integration-test example
-> (`OddifyWebAppFactory`/`BancasTests`). Sections A (Domain entity tests) and C (architecture tests)
-> below are unaffected — they don't use test doubles either way.
+If Step 0 finds the target repo's test project already references NSubstitute (or Moq) and existing
+handler tests use `Substitute.For<T>()` throughout, match that instead of the hand-written fakes below —
+see [../add-feature/references/tests.md](../add-feature/references/tests.md) for the NSubstitute-based
+template and a real integration-test example. Sections A (Domain entity tests) and C (architecture
+tests) below are unaffected either way — they don't use test doubles.
 
 ## Step 0 — Detect the project's real conventions
 

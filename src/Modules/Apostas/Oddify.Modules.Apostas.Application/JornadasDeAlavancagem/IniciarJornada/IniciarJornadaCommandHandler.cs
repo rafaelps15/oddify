@@ -11,6 +11,7 @@ namespace Oddify.Modules.Apostas.Application.JornadasDeAlavancagem.IniciarJornad
 
 internal sealed class IniciarJornadaCommandHandler(
     IJornadaDeAlavancagemRepository jornadaDeAlavancagemRepository,
+    IFaixaDeMetaCatalogoRepository faixaDeMetaCatalogoRepository,
     IBancaRepository bancaRepository,
     IUnitOfWork unitOfWork,
     IUserContext userContext,
@@ -26,8 +27,13 @@ internal sealed class IniciarJornadaCommandHandler(
             return Result.Failure<Guid>(JornadaDeAlavancagemErrors.JaTemJornadaEmAndamento(userContext.UserId));
         }
 
-        RegrasDeAlavancagem.FaixaDeMetaInfo info = RegrasDeAlavancagem.ObterInfo(request.FaixaMeta);
-        decimal bancaMinima = RegrasDeAlavancagem.CalcularBancaMinima(info.NumeroDeFracoes);
+        FaixaDeMetaCatalogo? catalogo = await faixaDeMetaCatalogoRepository.GetAsync(request.FaixaMeta, cancellationToken);
+        if (catalogo is null)
+        {
+            return Result.Failure<Guid>(JornadaDeAlavancagemErrors.FaixaDeMetaCatalogoNaoEncontrado(request.FaixaMeta));
+        }
+
+        decimal bancaMinima = RegrasDeAlavancagem.CalcularBancaMinima(catalogo.NumeroDeFracoes);
 
         if (request.ValorInicial < bancaMinima)
         {
@@ -45,7 +51,7 @@ internal sealed class IniciarJornadaCommandHandler(
             userContext.UserId,
             $"Alavancagem — {request.FaixaMeta}",
             request.ValorInicial,
-            percentualPorEntrada: 1m / info.NumeroDeFracoes,
+            percentualPorEntrada: 1m / catalogo.NumeroDeFracoes,
             PerfilDeRisco.Agressivo,
             modoPaperTrading: false,
             FinalidadeDaBanca.Alavancagem,
@@ -53,8 +59,9 @@ internal sealed class IniciarJornadaCommandHandler(
 
         bancaRepository.Insert(banca);
 
-        decimal valorObjetivo = request.ValorInicial * info.Multiplicador;
-        decimal probabilidadeDeConclusao = RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(request.FaixaMeta);
+        decimal valorObjetivo = request.ValorInicial * catalogo.Multiplicador;
+        decimal probabilidadeDeConclusao =
+            RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(catalogo.NumeroDeFracoes, catalogo.TotalDePassos);
 
         var jornada = JornadaDeAlavancagem.Create(
             userContext.UserId,
@@ -62,8 +69,8 @@ internal sealed class IniciarJornadaCommandHandler(
             request.FaixaMeta,
             request.ValorInicial,
             valorObjetivo,
-            info.NumeroDeFracoes,
-            info.TotalDePassos,
+            catalogo.NumeroDeFracoes,
+            catalogo.TotalDePassos,
             probabilidadeDeConclusao,
             agora);
 

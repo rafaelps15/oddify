@@ -1,4 +1,4 @@
-# Oddify Agent Skills for Claude Code
+# .NET Modular Monolith Agent Skills for Claude Code
 
 A skill pack that teaches Claude Code the conventions of this repository's .NET Modular Monolith
 template — so every module, entity, and feature it builds looks like it was written by hand: strict

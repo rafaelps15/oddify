@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Oddify.Modules.Apostas.Infrastructure.Database;
@@ -11,9 +12,11 @@ using Oddify.Modules.Apostas.Infrastructure.Database;
 namespace Oddify.Modules.Apostas.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApostasDbContext))]
-    partial class ApostasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817192008_Add_FaixaDeMetaCatalogo")]
+    partial class Add_FaixaDeMetaCatalogo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

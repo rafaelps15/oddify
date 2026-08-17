@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Oddify.Modules.Apostas.Application.Calculo;
-using Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem;
 
 namespace Oddify.UnitTests.Modules.Apostas.Calculo;
 
@@ -43,38 +42,25 @@ public sealed class RegrasDeAlavancagemTests
     }
 
     [Theory]
-    [InlineData(FaixaDeMeta.Dobrar, 3, 3, 2)]
-    [InlineData(FaixaDeMeta.Triplicar, 3, 5, 3)]
-    [InlineData(FaixaDeMeta.CincoVezes, 4, 8, 5)]
-    public void ObterInfo_should_return_catalog_entry_for_each_faixa(
-        FaixaDeMeta faixa, int numeroDeFracoesEsperado, int totalDePassosEsperado, int multiplicadorEsperado)
+    [InlineData(3, 3)]
+    [InlineData(3, 5)]
+    [InlineData(4, 8)]
+    public void CalcularProbabilidadeDeConclusao_should_equal_avanco_por_passo_raised_to_total_de_passos(
+        int numeroDeFracoes, int totalDePassos)
     {
-        RegrasDeAlavancagem.FaixaDeMetaInfo info = RegrasDeAlavancagem.ObterInfo(faixa);
+        decimal avancoPorPasso = RegrasDeAlavancagem.CalcularProbabilidadeDeAvancoPorPasso(numeroDeFracoes);
+        decimal esperado = (decimal)Math.Pow((double)avancoPorPasso, totalDePassos);
 
-        info.NumeroDeFracoes.Should().Be(numeroDeFracoesEsperado);
-        info.TotalDePassos.Should().Be(totalDePassosEsperado);
-        info.Multiplicador.Should().Be(multiplicadorEsperado);
-    }
-
-    [Theory]
-    [InlineData(FaixaDeMeta.Dobrar)]
-    [InlineData(FaixaDeMeta.Triplicar)]
-    [InlineData(FaixaDeMeta.CincoVezes)]
-    public void CalcularProbabilidadeDeConclusao_should_equal_avanco_por_passo_raised_to_total_de_passos(FaixaDeMeta faixa)
-    {
-        RegrasDeAlavancagem.FaixaDeMetaInfo info = RegrasDeAlavancagem.ObterInfo(faixa);
-        decimal avancoPorPasso = RegrasDeAlavancagem.CalcularProbabilidadeDeAvancoPorPasso(info.NumeroDeFracoes);
-        decimal esperado = (decimal)Math.Pow((double)avancoPorPasso, info.TotalDePassos);
-
-        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(faixa).Should().Be(esperado);
+        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(numeroDeFracoes, totalDePassos).Should().Be(esperado);
     }
 
     [Fact]
     public void CalcularProbabilidadeDeConclusao_should_be_within_spec_ballpark_for_each_faixa()
     {
-        // Spec 17.12: Dobrar ~48%, Triplicar ~29%, CincoVezes ~49%.
-        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(FaixaDeMeta.Dobrar).Should().BeApproximately(0.48m, 0.01m);
-        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(FaixaDeMeta.Triplicar).Should().BeApproximately(0.29m, 0.01m);
-        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(FaixaDeMeta.CincoVezes).Should().BeApproximately(0.49m, 0.01m);
+        // Spec 17.12: Dobrar (3 frações, 3 passos) ~48%, Triplicar (3 frações, 5 passos) ~29%,
+        // CincoVezes (4 frações, 8 passos) ~49%.
+        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(3, 3).Should().BeApproximately(0.48m, 0.01m);
+        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(3, 5).Should().BeApproximately(0.29m, 0.01m);
+        RegrasDeAlavancagem.CalcularProbabilidadeDeConclusao(4, 8).Should().BeApproximately(0.49m, 0.01m);
     }
 }

@@ -149,10 +149,21 @@ internal sealed class GetTodoItemQueryHandler(IDbConnectionFactory dbConnectionF
              WHERE t.id = @TodoItemId
              """;
 
-        IEnumerable<TodoItemResponse> rows = await connection.QueryAsync<TodoItemResponse, TodoChecklistItemResponse?, TodoItemResponse>(
+        Dictionary<Guid, TodoItemResponse> todoItemsDictionary = [];
+
+        await connection.QueryAsync<TodoItemResponse, TodoChecklistItemResponse?, TodoItemResponse>(
             sql,
             (todoItem, checklistItem) =>
             {
+                if (todoItemsDictionary.TryGetValue(todoItem.Id, out TodoItemResponse? existingTodoItem))
+                {
+                    todoItem = existingTodoItem;
+                }
+                else
+                {
+                    todoItemsDictionary.Add(todoItem.Id, todoItem);
+                }
+
                 if (checklistItem is not null)
                 {
                     todoItem.ChecklistItems.Add(checklistItem);
@@ -163,17 +174,23 @@ internal sealed class GetTodoItemQueryHandler(IDbConnectionFactory dbConnectionF
             request,
             splitOn: nameof(TodoChecklistItemResponse.ChecklistItemId));
 
-        TodoItemResponse? todoItem = rows.FirstOrDefault();
-
-        if (todoItem is null)
+        if (!todoItemsDictionary.TryGetValue(request.TodoItemId, out TodoItemResponse? todoItemResponse))
         {
             return Result.Failure<TodoItemResponse>(TodoItemErrors.NotFound(request.TodoItemId));
         }
 
-        return todoItem;
+        return todoItemResponse;
     }
 }
 ```
+
+**Always use the `Dictionary`, even here where `WHERE t.id = @TodoItemId` means only one parent can
+possibly come back.** Dapper's multi-mapping constructs a **new** `TodoItemResponse` instance for
+every row (one per child), so a `rows.FirstOrDefault()` after the fact silently keeps only the first
+child and drops the rest the moment a `TodoItem` has more than one checklist item — a real bug that
+shipped this way before, not a hypothetical. The `Dictionary` re-merges every row back onto the same
+instance regardless of cardinality, so the single-item and list-returning handlers below share one
+mental model instead of two.
 
 For a **list** of parents each with children (`GetTodoItemsQuery`), the same technique generalizes: a
 `Dictionary<Guid, TodoItemResponse>` for O(1) "have I seen this parent yet" lookups, alongside a plain
@@ -207,6 +224,90 @@ await connection.QueryAsync<TodoItemResponse, TodoChecklistItemResponse?, TodoIt
 
 return todoItems;
 ```
+
+## B4b. Every query handler follows B1–B3's shape — no silent "it doesn't need the DB" exception
+
+`(IDbConnectionFactory dbConnectionFactory)` constructor, `async Task<Result<T>> Handle(...)`, `await
+using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();`, real Dapper SQL —
+**every** `Get<X>QueryHandler`, no exceptions based on "this one's just a calculation." A handler with a
+bare `internal sealed class ... : IQueryHandler<...>` (no constructor), a non-`async` `Handle` returning
+`Task.FromResult(...)`, and zero SQL is a finding — confirmed shipped this way once (a query handler that
+computed a small fixed catalog from an in-memory array instead of fetching it), caught only when a second
+review pass compared it line-by-line against a real Dapper-backed handler and found no constructor and no
+`await` at all.
+
+If what the query returns is a **fixed, keyed catalog** — a handful of rows a user picks from before
+creating something (priority levels, plan tiers, target ranges) — that catalog is real persisted data,
+not an in-memory array, even though nothing ever inserts/updates it through user action:
+
+```csharp
+namespace <RootNamespace>.Modules.Todos.Domain.TodoItems;
+
+// Seeded reference data — never inserted/updated by a Command, only read.
+public sealed class TodoPriorityCatalog : Entity
+{
+    private TodoPriorityCatalog()
+    {
+    }
+
+    public TodoPriority Priority { get; private set; }
+
+    public int Weight { get; private set; }
+
+    public int DefaultDueInDays { get; private set; }
+
+    public static TodoPriorityCatalog Create(TodoPriority priority, int weight, int defaultDueInDays) =>
+        new() { Priority = priority, Weight = weight, DefaultDueInDays = defaultDueInDays };
+}
+
+// Read-only — used by the one CommandHandler that needs the same catalog (a CommandHandler never uses
+// Dapper, so it can't read the table the way the query handler below does).
+public interface ITodoPriorityCatalogRepository
+{
+    Task<TodoPriorityCatalog?> GetAsync(TodoPriority priority, CancellationToken cancellationToken = default);
+}
+```
+
+```csharp
+// Infrastructure — seeded once via HasData + a generated migration, same convention as any other
+// small, fixed reference table (well-known roles/permissions, status catalogs, etc.).
+internal sealed class TodoPriorityCatalogConfiguration : IEntityTypeConfiguration<TodoPriorityCatalog>
+{
+    public void Configure(EntityTypeBuilder<TodoPriorityCatalog> builder)
+    {
+        builder.HasKey(p => p.Priority);
+
+        builder.HasData(
+            new { Priority = TodoPriority.Low, Weight = 1, DefaultDueInDays = 14 },
+            new { Priority = TodoPriority.Medium, Weight = 2, DefaultDueInDays = 7 },
+            new { Priority = TodoPriority.High, Weight = 3, DefaultDueInDays = 2 });
+    }
+}
+```
+
+The read side fetches it exactly like B1–B3 (`GetTodoPrioritiesQueryHandler`, constructor + async +
+Dapper, `FROM todos.todo_priority_catalog`). The write side (e.g. `CreateTodoItemCommandHandler`, if it
+needs `Weight`/`DefaultDueInDays` to build the entity) injects `ITodoPriorityCatalogRepository` alongside
+its own repository and returns `Result.Failure<T>(TodoItemErrors.PriorityCatalogNotFound(request.Priority))`
+if the lookup comes back null — one seeded table, read two different ways for the two different sides,
+never two copies of the same rows.
+
+**Never** duplicate the catalog as a `private static readonly TCatalog[] Catalog` array inside an
+`internal static class ...Calculator` in `Application/Calculo/`, read directly by both a `QueryHandler`
+and a `CommandHandler` — that puts the same fixed rows in two places with nothing keeping them in sync,
+and they **will** drift the first time someone edits one and forgets the other (a real bug, not a
+hypothetical: it shipped this way once). A shared static calculator class is still exactly the right
+place for the **formulas** built on top of the catalog's numbers (`CalculateSomething(int weight, int
+defaultDueInDays)`, taking them as plain parameters) — it just never owns the catalog's rows itself.
+
+**The one sanctioned exception**: a query handler backed by **zero persisted state at all** — every value
+it needs is either supplied directly on the request or a true, unkeyed constant used identically
+everywhere in the module (not a per-key catalog) — may skip the constructor/`async`/`DbConnection` and
+return `Task.FromResult(...)` instead. This is narrow: a "what-if" calculator where the caller supplies
+every input (e.g. a stake-sizing preview taking balance/odds/probability straight from the request,
+comparing against a fixed formula constant) qualifies; a catalog with more than one row, keyed by
+anything, does not. Mark the exception with an explicit comment explaining why there's no
+`IDbConnectionFactory` — don't leave a future reader to guess whether it was forgotten.
 
 ## B5. Enriching a child with data from another module (`PublicApi`)
 
@@ -244,7 +345,9 @@ todoItem.ChecklistItems.ForEach(c => c.Enriquecer(assigneesById.GetValueOrDefaul
 Rules:
 - `IQuery<TResponse>` records carry only the filter/paging parameters — never a full entity.
 - The handler opens its own connection via `await using DbConnection connection = await
-  dbConnectionFactory.OpenConnectionAsync();`, one per `Handle` call.
+  dbConnectionFactory.OpenConnectionAsync();`, one per `Handle` call — see §B4b for the one narrow,
+  explicitly-commented exception, and for what to do instead when a "no DB needed" handler is actually
+  hiding an in-memory catalog that belongs in a seeded table.
 - SQL is a `const string` `"""..."""` raw string literal, interpolated **only** for `nameof(...)` column
   aliases (so renaming a response property is a compile error if the SQL falls out of sync) — never
   interpolate actual parameter values into the SQL text; pass `request` (or a private `sealed record

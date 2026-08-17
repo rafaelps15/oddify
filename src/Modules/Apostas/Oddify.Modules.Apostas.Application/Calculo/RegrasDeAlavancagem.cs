@@ -1,12 +1,12 @@
-using Oddify.Modules.Apostas.Domain.JornadasDeAlavancagem;
-
 namespace Oddify.Modules.Apostas.Application.Calculo;
 
-// Parâmetros do módulo de Alavancagem (spec 17.12) — a spec mestra marca banca mínima, faixas de
+// Fórmulas do módulo de Alavancagem (spec 17.12) — a spec mestra marca banca mínima, faixas de
 // meta e número de frações como "estrutura a definir"; só a matemática de avanço/quebra por
-// fração é dada de verdade (p~70% por entrada). Os valores abaixo são a primeira versão desses
-// parâmetros, revisar com o produto antes de expor a usuários reais — ver decisão registrada na
-// tarefa de implementação desta feature.
+// fração é dada de verdade (p~70% por entrada). O catálogo por faixa (multiplicador/frações/
+// passos) mora em FaixaDeMetaCatalogo (Domain, seedado via migration) — fonte única usada tanto
+// por IniciarJornadaCommandHandler (via IFaixaDeMetaCatalogoRepository) quanto por
+// GetFaixasDeMetaQueryHandler (via Dapper); esta classe só faz a matemática em cima dos números
+// já buscados, nunca guarda o catálogo em memória.
 internal static class RegrasDeAlavancagem
 {
     // Restrição fixa da spec: só entra oportunidade com odd <= 1.50 (maximiza taxa de acerto) e
@@ -19,18 +19,6 @@ internal static class RegrasDeAlavancagem
 
     // "Matematica com p~70% por entrada" — spec 17.12.
     private const decimal ProbabilidadeBasePorEntrada = 0.70m;
-
-    public sealed record FaixaDeMetaInfo(FaixaDeMeta Faixa, int NumeroDeFracoes, int TotalDePassos, int Multiplicador);
-
-    private static readonly FaixaDeMetaInfo[] Catalogo =
-    [
-        new FaixaDeMetaInfo(FaixaDeMeta.Dobrar, NumeroDeFracoes: 3, TotalDePassos: 3, Multiplicador: 2),
-        new FaixaDeMetaInfo(FaixaDeMeta.Triplicar, NumeroDeFracoes: 3, TotalDePassos: 5, Multiplicador: 3),
-        new FaixaDeMetaInfo(FaixaDeMeta.CincoVezes, NumeroDeFracoes: 4, TotalDePassos: 8, Multiplicador: 5)
-    ];
-
-    public static FaixaDeMetaInfo ObterInfo(FaixaDeMeta faixa) =>
-        Array.Find(Catalogo, c => c.Faixa == faixa) ?? throw new ArgumentOutOfRangeException(nameof(faixa), faixa, "Faixa de meta desconhecida");
 
     public static decimal CalcularBancaMinima(int numeroDeFracoes) => numeroDeFracoes * UnidadeDeEntrada;
 
@@ -47,11 +35,10 @@ internal static class RegrasDeAlavancagem
         return (decimal)(1 - probabilidadeZeroVitorias - probabilidadeUmaVitoria);
     }
 
-    public static decimal CalcularProbabilidadeDeConclusao(FaixaDeMeta faixa)
+    public static decimal CalcularProbabilidadeDeConclusao(int numeroDeFracoes, int totalDePassos)
     {
-        FaixaDeMetaInfo info = ObterInfo(faixa);
-        decimal avancoPorPasso = CalcularProbabilidadeDeAvancoPorPasso(info.NumeroDeFracoes);
+        decimal avancoPorPasso = CalcularProbabilidadeDeAvancoPorPasso(numeroDeFracoes);
 
-        return (decimal)Math.Pow((double)avancoPorPasso, info.TotalDePassos);
+        return (decimal)Math.Pow((double)avancoPorPasso, totalDePassos);
     }
 }

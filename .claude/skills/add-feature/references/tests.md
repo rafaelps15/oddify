@@ -1,11 +1,10 @@
 # Test Templates
 
-Stack actually used by this repo's `Oddify.UnitTests` / `Oddify.IntegrationTests` projects: **xUnit**
-+ **FluentAssertions** + **NSubstitute** for handler unit tests, and a `WebApplicationFactory`-based
-fixture (`OddifyWebAppFactory`) over a real Postgres for integration tests. Confirm this against the
-target repo's actual test project references before writing anything — if a repo built from this
-template genuinely has no mocking library referenced, follow the hand-written-fakes approach from the
-`add-tests` skill instead.
+Default stack assumed by this template: **xUnit** + **FluentAssertions** + **NSubstitute** for handler
+unit tests, and a `WebApplicationFactory`-based fixture (`<ProjectName>WebAppFactory`) over a real
+Postgres for integration tests. Confirm this against the target repo's actual test project references
+before writing anything — if a repo built from this template genuinely has no mocking library
+referenced, follow the hand-written-fakes approach from the `add-tests` skill instead.
 
 ## Command handler unit tests
 
@@ -113,9 +112,9 @@ only by the integration test below, through the real endpoint against a real Pos
 ## Integration tests
 
 `tests/<Solution>.IntegrationTests/Modules/<Module>/<Entities>Tests.cs`. Inherit the repo's
-`WebApplicationFactory`-backed fixture (e.g. `OddifyWebAppFactory`) through the shared xUnit collection,
-reset the database in `InitializeAsync`, and drive the feature through real HTTP — never call the
-handler directly here.
+`WebApplicationFactory`-backed fixture (e.g. `<ProjectName>WebAppFactory`) through the shared xUnit
+collection, reset the database in `InitializeAsync`, and drive the feature through real HTTP — never
+call the handler directly here.
 
 ```csharp
 using System.Net;
@@ -125,7 +124,7 @@ using FluentAssertions;
 namespace <RootNamespace>.IntegrationTests.Modules.Todos;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class TodoItemsTests(OddifyWebAppFactory factory) : IAsyncLifetime
+public sealed class TodoItemsTests(<ProjectName>WebAppFactory factory) : IAsyncLifetime
 {
     private readonly HttpClient _client = factory.CreateClient();
 
@@ -171,6 +170,6 @@ feature (list/search) needs at least a happy-path test asserting the returned sh
 dotnet test
 ```
 
-Integration tests need a reachable Postgres (see `OddifyWebAppFactory`/Testcontainers setup). For the
+Integration tests need a reachable Postgres (see `<ProjectName>WebAppFactory`/Testcontainers setup). For the
 full test taxonomy — Domain entity tests, hand-written-fake handler tests if this repo genuinely has no
 mocking library, and architecture tests — use the `add-tests` skill.

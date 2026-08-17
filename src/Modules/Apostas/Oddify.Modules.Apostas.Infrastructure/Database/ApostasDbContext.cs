@@ -26,6 +26,8 @@ public sealed class ApostasDbContext(DbContextOptions<ApostasDbContext> options)
 
     internal DbSet<PassoDaJornada> PassosDaJornada { get; set; }
 
+    internal DbSet<FaixaDeMetaCatalogo> FaixasDeMetaCatalogo { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Apostas);

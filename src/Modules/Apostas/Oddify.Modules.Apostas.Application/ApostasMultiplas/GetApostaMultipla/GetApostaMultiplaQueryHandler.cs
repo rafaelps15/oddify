@@ -35,36 +35,43 @@ internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConne
              WHERE am.id = @ApostaMultiplaId
              """;
 
-        ApostaMultiplaResponse? apostaMultipla = null;
+        Dictionary<Guid, ApostaMultiplaResponse> apostasMultiplasDictionary = [];
 
         await connection.QueryAsync<ApostaMultiplaResponse, PernaResponse?, ApostaMultiplaResponse>(
             sql,
             (aposta, perna) =>
             {
-                apostaMultipla ??= aposta;
+                if (apostasMultiplasDictionary.TryGetValue(aposta.Id, out ApostaMultiplaResponse? existingApostaMultipla))
+                {
+                    aposta = existingApostaMultipla;
+                }
+                else
+                {
+                    apostasMultiplasDictionary.Add(aposta.Id, aposta);
+                }
 
                 if (perna is not null)
                 {
-                    apostaMultipla.Pernas.Add(perna);
+                    aposta.Pernas.Add(perna);
                 }
 
-                return apostaMultipla;
+                return aposta;
             },
             request,
             splitOn: nameof(PernaResponse.PernaId));
 
-        if (apostaMultipla is null)
+        if (!apostasMultiplasDictionary.TryGetValue(request.ApostaMultiplaId, out ApostaMultiplaResponse? apostaMultiplaResponse))
         {
             return Result.Failure<ApostaMultiplaResponse>(ApostaMultiplaErrors.NotFound(request.ApostaMultiplaId));
         }
 
         IReadOnlyCollection<PartidaResumoResponse> partidas = await fixturesApi.ObterPartidasResumoAsync(
-            apostaMultipla.Pernas.Select(p => p.PartidaId).Distinct().ToList(), cancellationToken);
+            apostaMultiplaResponse.Pernas.Select(p => p.PartidaId).Distinct().ToList(), cancellationToken);
 
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        apostaMultipla.Pernas.ForEach(perna => perna.Enriquecer(partidasPorId.GetValueOrDefault(perna.PartidaId)));
+        apostaMultiplaResponse.Pernas.ForEach(perna => perna.Enriquecer(partidasPorId.GetValueOrDefault(perna.PartidaId)));
 
-        return apostaMultipla;
+        return apostaMultiplaResponse;
     }
 }
