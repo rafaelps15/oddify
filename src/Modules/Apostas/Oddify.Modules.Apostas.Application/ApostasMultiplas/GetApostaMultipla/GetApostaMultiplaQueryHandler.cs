@@ -35,21 +35,23 @@ internal sealed class GetApostaMultiplaQueryHandler(IDbConnectionFactory dbConne
              WHERE am.id = @ApostaMultiplaId
              """;
 
-        IEnumerable<ApostaMultiplaResponse> rows = await connection.QueryAsync<ApostaMultiplaResponse, PernaResponse?, ApostaMultiplaResponse>(
+        ApostaMultiplaResponse? apostaMultipla = null;
+
+        await connection.QueryAsync<ApostaMultiplaResponse, PernaResponse?, ApostaMultiplaResponse>(
             sql,
             (aposta, perna) =>
             {
+                apostaMultipla ??= aposta;
+
                 if (perna is not null)
                 {
-                    aposta.Pernas.Add(perna);
+                    apostaMultipla.Pernas.Add(perna);
                 }
 
-                return aposta;
+                return apostaMultipla;
             },
             request,
             splitOn: nameof(PernaResponse.PernaId));
-
-        ApostaMultiplaResponse? apostaMultipla = rows.FirstOrDefault();
 
         if (apostaMultipla is null)
         {
