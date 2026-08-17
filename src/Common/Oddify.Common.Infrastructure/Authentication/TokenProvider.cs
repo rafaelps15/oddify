@@ -19,7 +19,7 @@ internal sealed class TokenProvider(IOptionsMonitor<JwtOptions> optionsMonitor) 
         {
             Subject = new ClaimsIdentity(
             [
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, email)
             ]),
             Expires = DateTime.UtcNow.AddMinutes(options.ExpirationInMinutes),
