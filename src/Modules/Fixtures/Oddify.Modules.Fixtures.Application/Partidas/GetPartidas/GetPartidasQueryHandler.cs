@@ -18,6 +18,12 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
         // não filtra por situação; 1 (Agendadas) só Agendada (0); 2 (Encerradas) agrupa Encerrada
         // (1) e Liquidada (2). Sem filtro de "ao vivo": não existe esse status hoje (ver
         // StatusFiltroDePartida) — quando a integração de dado ao vivo real existir, entra aqui.
+        //
+        // cardinality(@Ids) trata array vazio igual a NULL: o model binding do Minimal API resolve
+        // `[FromQuery] Guid[]? ids` ausente como array vazio, não `null` — só checar `@Ids IS NULL`
+        // deixava esse filtro sempre "ativo" com um array vazio, zerando a lista inteira mesmo sem
+        // ninguém pedir filtro por id (bug reproduzido em QA manual: /partidas sem nenhum query
+        // param voltava [] com a tabela cheia).
         const string sql =
             $"""
              SELECT
@@ -36,7 +42,7 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
              WHERE (@LigaId IS NULL OR liga_id = @LigaId)
                AND (@Rodada IS NULL OR rodada = @Rodada)
                AND (@Temporada IS NULL OR temporada = @Temporada)
-               AND (@Ids IS NULL OR id = ANY(@Ids))
+               AND (cardinality(@Ids) IS NULL OR cardinality(@Ids) = 0 OR id = ANY(@Ids))
                AND (
                  @Status = 0
                  OR (@Status = 1 AND situacao = 0)

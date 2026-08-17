@@ -14,6 +14,8 @@ internal sealed class GetEquipesQueryHandler(IDbConnectionFactory dbConnectionFa
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
+        // cardinality(@Ids) trata array vazio igual a NULL — ver comentário equivalente em
+        // GetPartidasQueryHandler (mesmo bug de model binding do Minimal API para `Guid[]?`).
         const string sql =
             $"""
              SELECT
@@ -24,7 +26,7 @@ internal sealed class GetEquipesQueryHandler(IDbConnectionFactory dbConnectionFa
                  logo AS {nameof(EquipeResponse.Logo)}
              FROM fixtures.equipes
              WHERE (@LigaId IS NULL OR liga_id = @LigaId)
-               AND (@Ids IS NULL OR id = ANY(@Ids))
+               AND (cardinality(@Ids) IS NULL OR cardinality(@Ids) = 0 OR id = ANY(@Ids))
              ORDER BY nome
              """;
 
