@@ -4,7 +4,7 @@ using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
 using Oddify.Modules.Users.Application.Abstractions.Data;
-using Oddify.Modules.Users.Application.Abstractions.Outbox;
+using Oddify.Common.Application.Outbox;
 using Oddify.Modules.Users.Application.Users.EmailVerification;
 using Oddify.Modules.Users.Application.Users.ResendVerification;
 using Oddify.Modules.Users.Domain.EmailVerification;

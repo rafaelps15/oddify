@@ -3,7 +3,7 @@ using NSubstitute;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
 using Oddify.Modules.Users.Application.Abstractions.Data;
-using Oddify.Modules.Users.Application.Abstractions.Outbox;
+using Oddify.Common.Application.Outbox;
 using Oddify.Modules.Users.Application.Users.PasswordReset;
 using Oddify.Modules.Users.Application.Users.RequestPasswordReset;
 using Oddify.Modules.Users.Domain.PasswordReset;

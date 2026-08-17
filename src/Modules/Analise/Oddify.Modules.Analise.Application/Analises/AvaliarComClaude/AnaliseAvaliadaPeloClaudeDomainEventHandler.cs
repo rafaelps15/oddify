@@ -1,5 +1,7 @@
-using Oddify.Common.Application.EventBus;
+using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
+using Oddify.Common.Application.Outbox;
+using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Domain.Analises;
 using Oddify.Modules.Analise.IntegrationEvents;
 
@@ -7,7 +9,9 @@ namespace Oddify.Modules.Analise.Application.Analises.AvaliarComClaude;
 
 internal sealed class AnaliseAvaliadaPeloClaudeDomainEventHandler(
     IAnaliseDePartidaRepository analiseRepository,
-    IEventBus eventBus)
+    IOutboxWriter outboxWriter,
+    IUnitOfWork unitOfWork,
+    IDateTimeProvider dateTimeProvider)
     : IDomainEventHandler<AnaliseAvaliadaPeloClaudeDomainEvent>
 {
     public async Task Handle(AnaliseAvaliadaPeloClaudeDomainEvent notification, CancellationToken cancellationToken)
@@ -24,16 +28,16 @@ internal sealed class AnaliseAvaliadaPeloClaudeDomainEventHandler(
             return;
         }
 
-        await eventBus.PublishAsync(
-            new AnaliseConfirmadaIntegrationEvent(
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                analise.Id,
-                analise.PartidaId,
-                analise.Mercado,
-                analise.OddDeMercado,
-                analise.ProbDixonColes,
-                notification.Decisao == DecisaoDoClaude.Reduz),
-            cancellationToken);
+        outboxWriter.Enqueue(new AnaliseConfirmadaIntegrationEvent(
+            Guid.NewGuid(),
+            dateTimeProvider.UtcNow,
+            analise.Id,
+            analise.PartidaId,
+            analise.Mercado,
+            analise.OddDeMercado,
+            analise.ProbDixonColes,
+            notification.Decisao == DecisaoDoClaude.Reduz));
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

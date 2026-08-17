@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using Oddify.Common.Application.Clock;
-using Oddify.Modules.Users.Application.Abstractions.Outbox;
+using Oddify.Common.Application.Outbox;
 using Oddify.Modules.Users.Domain.PasswordReset;
 using Oddify.Modules.Users.IntegrationEvents;
 

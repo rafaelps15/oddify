@@ -19,6 +19,7 @@ using Oddify.Common.Infrastructure.Clock;
 using Oddify.Common.Infrastructure.Data;
 using Oddify.Common.Infrastructure.Emailing;
 using Oddify.Common.Infrastructure.Interceptors;
+using Oddify.Common.Infrastructure.Outbox;
 using StackExchange.Redis;
 
 namespace Oddify.Common.Infrastructure;
@@ -29,6 +30,7 @@ public static class InfrastructureConfiguration
         this IServiceCollection services,
         IConfiguration configuration,
         Action<IRegistrationConfigurator>[] moduleConfigureConsumers,
+        OutboxModule[] outboxModules,
         string databaseConnectionString,
         string redisConnectionString)
     {
@@ -101,6 +103,8 @@ public static class InfrastructureConfiguration
                 cfg.ConfigureEndpoints(context);
             });
         });
+
+        services.AddOutboxProcessing(configuration, outboxModules);
 
         return services;
     }

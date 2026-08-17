@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
@@ -10,8 +9,7 @@ namespace Oddify.Modules.Analise.Application.Analises.AvaliarComClaude;
 internal sealed class AvaliarComClaudeCommandHandler(
     IAnaliseDePartidaRepository analiseRepository,
     IClaudeAvaliadorCriticoService claudeService,
-    IUnitOfWork unitOfWork,
-    ILogger<AvaliarComClaudeCommandHandler> logger)
+    IUnitOfWork unitOfWork)
     : ICommandHandler<AvaliarComClaudeCommand>
 {
     internal const string VersaoDoPrompt = "avaliador-critico-v1";
@@ -44,12 +42,11 @@ internal sealed class AvaliarComClaudeCommandHandler(
 
         if (veredictoResult.IsFailure)
         {
-            logger.LogWarning(
-                "Falha ao avaliar análise {AnaliseId} com o Claude: {Erro}",
-                request.AnaliseId,
-                veredictoResult.Error.Description);
-
-            return Result.Success();
+            // Propaga o erro do serviço em vez de engolir pra Success — o RequestLoggingPipelineBehavior
+            // já loga "Completed request ... with error" com o Error completo no contexto estruturado,
+            // então não precisa de log manual aqui, e o caller passa a saber que a avaliação falhou em
+            // vez de receber um 200 silencioso sem nada ter mudado.
+            return Result.Failure(veredictoResult.Error);
         }
 
         VeredictoClaude veredicto = veredictoResult.Value;

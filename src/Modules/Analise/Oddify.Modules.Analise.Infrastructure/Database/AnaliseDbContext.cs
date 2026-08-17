@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Domain.Analises;
 
@@ -8,10 +9,13 @@ public sealed class AnaliseDbContext(DbContextOptions<AnaliseDbContext> options)
 {
     internal DbSet<AnaliseDePartida> AnalisesDePartida { get; set; }
 
+    internal DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Analise);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnaliseDbContext).Assembly);
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }
 }

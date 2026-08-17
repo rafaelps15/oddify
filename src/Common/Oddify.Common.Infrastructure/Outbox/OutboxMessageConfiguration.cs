@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Oddify.Modules.Users.Infrastructure.Outbox;
+namespace Oddify.Common.Infrastructure.Outbox;
 
-internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
+// Aplicada explicitamente em OnModelCreating de cada DbContext que usa outbox (via
+// AddOutboxWriter<T>/ApplyConfiguration) — mora em Common.Infrastructure, então
+// ApplyConfigurationsFromAssembly do próprio módulo não a descobre sozinha.
+public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
     {

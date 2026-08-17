@@ -1,4 +1,4 @@
-namespace Oddify.Modules.Users.Application.Abstractions.Outbox;
+namespace Oddify.Common.Application.Outbox;
 
 public sealed class OutboxProcessorOptions
 {

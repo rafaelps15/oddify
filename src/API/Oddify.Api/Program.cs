@@ -4,6 +4,7 @@ using Oddify.Api.Extensions;
 using Oddify.Api.Middleware;
 using Oddify.Common.Application;
 using Oddify.Common.Infrastructure;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Common.Presentation.Serialization;
 using Oddify.Modules.Analise.Infrastructure;
@@ -37,9 +38,19 @@ builder.Services.AddApplication([
 string databaseConnectionString = builder.Configuration.GetConnectionString("Database")!;
 string redisConnectionString = builder.Configuration.GetConnectionString("Cache")!;
 
+// Só entram aqui os módulos que publicam integration event pra fora de si mesmos (cross-module
+// ou entrega garantida) — Apostas hoje só consome, não publica, então não precisa de outbox.
+OutboxModule[] outboxModules =
+[
+    new OutboxModule("users", Oddify.Modules.Users.IntegrationEvents.AssemblyReference.Assembly),
+    new OutboxModule("fixtures", Oddify.Modules.Fixtures.IntegrationEvents.AssemblyReference.Assembly),
+    new OutboxModule("analise", Oddify.Modules.Analise.IntegrationEvents.AssemblyReference.Assembly)
+];
+
 builder.Services.AddInfrastructure(
     builder.Configuration,
     [ApostasModule.ConfigureConsumers, UsersModule.ConfigureConsumers],
+    outboxModules,
     databaseConnectionString,
     redisConnectionString);
 

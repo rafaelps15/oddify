@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Infrastructure.Interceptors;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Application.Abstractions.Fixtures;
@@ -42,6 +43,8 @@ public static class AnaliseModule
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AnaliseDbContext>());
 
         services.AddScoped<IAnaliseDePartidaRepository, AnaliseDePartidaRepository>();
+
+        services.AddOutboxWriter<AnaliseDbContext>();
 
         services.AddScoped<IAnaliseDePartidaDadosService, AnaliseDePartidaDadosService>();
 

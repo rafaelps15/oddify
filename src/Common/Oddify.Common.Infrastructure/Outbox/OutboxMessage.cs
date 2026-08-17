@@ -1,9 +1,10 @@
-namespace Oddify.Modules.Users.Infrastructure.Outbox;
+namespace Oddify.Common.Infrastructure.Outbox;
 
 // Uma linha da outbox: guarda a mensagem serializada (Type + Content) até o
 // OutboxProcessorJob publicá-la no bus. RetryCount conta tentativas falhas; FailedAtUtc marca
 // quando o limite de tentativas estourou (a mensagem para de ser repescada, mas fica na tabela
-// pra inspeção).
+// pra inspeção). Uma linha por módulo, cada uma na tabela outbox_messages do schema daquele
+// módulo — ver OutboxModule/AddOutboxProcessing.
 public sealed class OutboxMessage
 {
     public Guid Id { get; init; }

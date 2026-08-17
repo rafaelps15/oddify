@@ -1,11 +1,17 @@
-using Oddify.Common.Application.EventBus;
+using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
+using Oddify.Common.Application.Outbox;
+using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.IntegrationEvents;
 
 namespace Oddify.Modules.Fixtures.Application.Cotacoes.RegistrarCotacao;
 
-internal sealed class CotacaoColetadaDomainEventHandler(ICotacaoRepository cotacaoRepository, IEventBus eventBus)
+internal sealed class CotacaoColetadaDomainEventHandler(
+    ICotacaoRepository cotacaoRepository,
+    IOutboxWriter outboxWriter,
+    IUnitOfWork unitOfWork,
+    IDateTimeProvider dateTimeProvider)
     : IDomainEventHandler<CotacaoColetadaDomainEvent>
 {
     public async Task Handle(CotacaoColetadaDomainEvent notification, CancellationToken cancellationToken)
@@ -17,14 +23,14 @@ internal sealed class CotacaoColetadaDomainEventHandler(ICotacaoRepository cotac
             return;
         }
 
-        await eventBus.PublishAsync(
-            new CotacaoColetadaIntegrationEvent(
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                cotacao.Id,
-                cotacao.PartidaId,
-                cotacao.Mercado,
-                cotacao.Odd),
-            cancellationToken);
+        outboxWriter.Enqueue(new CotacaoColetadaIntegrationEvent(
+            Guid.NewGuid(),
+            dateTimeProvider.UtcNow,
+            cotacao.Id,
+            cotacao.PartidaId,
+            cotacao.Mercado,
+            cotacao.Odd));
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

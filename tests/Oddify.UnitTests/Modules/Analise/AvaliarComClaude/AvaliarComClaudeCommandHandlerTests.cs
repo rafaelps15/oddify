@@ -1,6 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
@@ -15,11 +13,8 @@ public sealed class AvaliarComClaudeCommandHandlerTests
     private readonly IAnaliseDePartidaRepository _analiseRepository = Substitute.For<IAnaliseDePartidaRepository>();
     private readonly IClaudeAvaliadorCriticoService _claudeService = Substitute.For<IClaudeAvaliadorCriticoService>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    // NullLogger em vez de um substitute: NSubstitute não consegue gerar um proxy para
-    // ILogger<T> quando T é um tipo internal de outro assembly forte-assinado (Microsoft.Extensions.Logging.Abstractions).
-    private readonly ILogger<AvaliarComClaudeCommandHandler> _logger = NullLogger<AvaliarComClaudeCommandHandler>.Instance;
 
-    private AvaliarComClaudeCommandHandler CriarHandler() => new(_analiseRepository, _claudeService, _unitOfWork, _logger);
+    private AvaliarComClaudeCommandHandler CriarHandler() => new(_analiseRepository, _claudeService, _unitOfWork);
 
     private static AnaliseDePartida CriarAnaliseAprovada() =>
         AnaliseDePartida.Create(Guid.NewGuid(), "vitoria_casa", 0.55m, 0.55m, 0.5m, 0.05m, 1.5m, aprovadaNoFiltro: true, null, DateTime.UtcNow);
@@ -65,17 +60,19 @@ public sealed class AvaliarComClaudeCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_should_return_success_and_keep_decisao_naoavaliada_when_claude_service_fails()
+    public async Task Handle_should_return_failure_and_keep_decisao_naoavaliada_when_claude_service_fails()
     {
         AnaliseDePartida analise = CriarAnaliseAprovada();
         _analiseRepository.GetAsync(analise.Id, Arg.Any<CancellationToken>()).Returns(analise);
 
+        var erroDoServico = Error.Failure("Analises.ErroNaChamadaAoClaude", "timeout");
         _claudeService.AvaliarAsync(Arg.Any<AnaliseContexto>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<VeredictoClaude>(Error.Failure("Analises.ErroNaChamadaAoClaude", "timeout")));
+            .Returns(Result.Failure<VeredictoClaude>(erroDoServico));
 
         Result resultado = await CriarHandler().Handle(new AvaliarComClaudeCommand(analise.Id, null), CancellationToken.None);
 
-        resultado.IsSuccess.Should().BeTrue();
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(erroDoServico);
         analise.DecisaoDoClaude.Should().Be(DecisaoDoClaude.NaoAvaliada);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }

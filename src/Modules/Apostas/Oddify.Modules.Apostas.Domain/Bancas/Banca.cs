@@ -46,7 +46,7 @@ public sealed class Banca : Entity
         FinalidadeDaBanca finalidade,
         DateTime criadoEmUtc)
     {
-        return new Banca
+        var banca = new Banca
         {
             Id = Guid.NewGuid(),
             UsuarioId = usuarioId,
@@ -61,6 +61,10 @@ public sealed class Banca : Entity
             CriadoEmUtc = criadoEmUtc,
             AtualizadoEmUtc = criadoEmUtc
         };
+
+        banca.Raise(new BancaCriadaDomainEvent(banca.Id));
+
+        return banca;
     }
 
     public MovimentacaoDaBanca RegistrarMovimentacao(
@@ -78,5 +82,7 @@ public sealed class Banca : Entity
     {
         SaldoAtual += delta;
         AtualizadoEmUtc = atualizadoEmUtc;
+
+        Raise(new SaldoDaBancaAjustadoDomainEvent(Id, SaldoAtual));
     }
 }

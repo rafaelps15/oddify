@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Oddify.Common.Infrastructure.Interceptors;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
@@ -61,6 +62,8 @@ public static class FixturesModule
         services.AddScoped<IEstatisticaEquipeRepository, EstatisticaEquipeRepository>();
         services.AddScoped<IEstatisticaJogadorRepository, EstatisticaJogadorRepository>();
         services.AddScoped<ICotacaoRepository, CotacaoRepository>();
+
+        services.AddOutboxWriter<FixturesDbContext>();
 
         services.AddScoped<IFixturesApi, FixturesApi>();
 

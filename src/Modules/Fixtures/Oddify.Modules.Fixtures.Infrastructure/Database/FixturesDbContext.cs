@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.Domain.Equipes;
@@ -26,10 +27,13 @@ public sealed class FixturesDbContext(DbContextOptions<FixturesDbContext> option
 
     internal DbSet<Cotacao> Cotacoes { get; set; }
 
+    internal DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Fixtures);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FixturesDbContext).Assembly);
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
     }
 }

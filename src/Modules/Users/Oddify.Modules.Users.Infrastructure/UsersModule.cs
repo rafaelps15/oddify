@@ -8,10 +8,10 @@ using Oddify.Common.Application.Authorization;
 using Oddify.Common.Application.Caching;
 using Oddify.Common.Infrastructure.Authorization;
 using Oddify.Common.Infrastructure.Interceptors;
+using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Users.Application.Abstractions.Data;
 using Oddify.Modules.Users.Application.Abstractions.EmailVerification;
-using Oddify.Modules.Users.Application.Abstractions.Outbox;
 using Oddify.Modules.Users.Application.Abstractions.PasswordReset;
 using Oddify.Modules.Users.Application.Users.EmailVerification;
 using Oddify.Modules.Users.Application.Users.PasswordReset;
@@ -22,12 +22,10 @@ using Oddify.Modules.Users.Domain.Users;
 using Oddify.Modules.Users.Infrastructure.Authorization;
 using Oddify.Modules.Users.Infrastructure.Database;
 using Oddify.Modules.Users.Infrastructure.EmailVerification;
-using Oddify.Modules.Users.Infrastructure.Outbox;
 using Oddify.Modules.Users.Infrastructure.PasswordReset;
 using Oddify.Modules.Users.Infrastructure.Roles;
 using Oddify.Modules.Users.Infrastructure.Users;
 using Oddify.Modules.Users.Presentation.IntegrationEvents;
-using Quartz;
 
 namespace Oddify.Modules.Users.Infrastructure;
 
@@ -78,44 +76,15 @@ public static class UsersModule
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<PasswordResetTokenIssuer>();
 
-        services.AddScoped<IOutboxWriter, OutboxWriter>();
+        services.AddOutboxWriter<UsersDbContext>();
 
         services.Configure<EmailVerificationOptions>(configuration.GetSection("Users:EmailVerification"));
         services.Configure<PasswordResetOptions>(configuration.GetSection("Users:PasswordReset"));
-
-        services.AddOutboxProcessor(configuration);
 
         // PermissionProvider é registrado em Common.Infrastructure/InfrastructureConfiguration.cs —
         // vive lá porque PermissionAuthorizationHandler (autorização cross-cutting) o resolve
         // diretamente, sem depender de nenhum módulo específico.
         services.AddScoped<IPermissionService>(sp =>
             new CachedPermissionService(sp.GetRequiredService<PermissionProvider>(), sp.GetRequiredService<ICacheService>()));
-    }
-
-    private static void AddOutboxProcessor(this IServiceCollection services, IConfiguration configuration)
-    {
-        OutboxProcessorOptions options =
-            configuration.GetSection("Users:OutboxProcessor").Get<OutboxProcessorOptions>() ?? new OutboxProcessorOptions();
-
-        services.Configure<OutboxProcessorOptions>(configuration.GetSection("Users:OutboxProcessor"));
-        services.AddHostedService<OutboxCleanupBackgroundService>();
-
-        if (!options.Enabled)
-        {
-            return;
-        }
-
-        services.AddQuartz(quartz =>
-        {
-            var jobKey = new JobKey(nameof(OutboxProcessorJob));
-
-            quartz.AddJob<OutboxProcessorJob>(job => job.WithIdentity(jobKey));
-
-            quartz.AddTrigger(trigger => trigger
-                .ForJob(jobKey)
-                .WithSimpleSchedule(schedule => schedule.WithInterval(options.Interval).RepeatForever()));
-        });
-
-        services.AddQuartzHostedService(quartz => quartz.WaitForJobsToComplete = true);
     }
 }

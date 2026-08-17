@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
 using Oddify.Modules.Users.Application.Abstractions.Data;
-using Oddify.Modules.Users.Application.Abstractions.Outbox;
+using Oddify.Common.Application.Outbox;
 using Oddify.Modules.Users.Domain.Users;
 using Oddify.Modules.Users.IntegrationEvents;
 
