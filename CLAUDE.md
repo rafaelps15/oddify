@@ -34,10 +34,11 @@ in §15 rather than left for someone to rediscover the hard way.
 - **Dapper** — all query-side (read) database access.
 - **EF Core + Npgsql**, `UseSnakeCaseNamingConvention()` (via `EFCore.NamingConventions`) — all
   command-side (write) database access. One Postgres database, **one schema per module**.
-- **MassTransit**, configured with the **in-memory transport** (`UsingInMemory`) — the bus for
-  cross-module integration events. Not Kafka/RabbitMQ/Azure Service Bus; swap the transport later
-  without touching module code, since modules only depend on `IOutboxWriter`/`IEventBus` (§10) —
-  nothing outside `Common.Infrastructure` references MassTransit types directly.
+- **A hand-rolled in-memory event bus** (`InMemoryEventBus`, `Common.Infrastructure/EventBus/`) —
+  the bus for cross-module integration events. A process-static `Subscribe`/`Publish` singleton,
+  not a message-broker library: no transport, no redelivery, no persistence of its own. Modules
+  only depend on `IOutboxWriter`/`IEventBus` (§10) — nothing outside `Common.Infrastructure`
+  references `InMemoryEventBus` directly.
 - **Redis** (`StackExchange.Redis` + `Microsoft.Extensions.Caching.StackExchangeRedis`) via a
   generic `ICacheService` — falls back to `AddDistributedMemoryCache()` in-process if the Redis
   connection throws at startup, so local dev works without a Redis container.
@@ -98,7 +99,7 @@ references another module's `Domain`/`Application`/`Infrastructure`/`Presentatio
 Domain, Application, Infrastructure, or Presentation directly. There are exactly two sanctioned
 exceptions, both to a *contract-only* project, never to another module's real implementation
 layers: one module's `Presentation` project depending on another module's `IntegrationEvents`
-project to implement `IConsumer<TheirEvent>` (§10), and one module's `Application` project
+project to implement `IIntegrationEventHandler<TheirEvent>` (§10), and one module's `Application` project
 depending on another module's `PublicApi` project for a synchronous read (§11) — the latter only
 in a repo that has actually wired `PublicApi` up for real; verify before assuming either way.
 
@@ -218,13 +219,13 @@ Then `AddValidatorsFromAssemblies(moduleAssemblies, includeInternalTypes: true)`
 **`EventBus/`** — `IIntegrationEvent` (`Guid Id`, `DateTime OccurredOnUtc`), the abstract
 `IntegrationEvent` base class implementing it, and `IEventBus.PublishAsync<T>(T,
 CancellationToken)` — a direct, non-durable publish straight onto the bus; the concrete
-MassTransit-backed implementation lives in `Common.Infrastructure` (§5). Legitimate for an event
-where losing it on a crash between commit and publish is genuinely acceptable, but that's a
+`InMemoryEventBus`-backed implementation lives in `Common.Infrastructure` (§5). Legitimate for an
+event where losing it on a crash between commit and publish is genuinely acceptable, but that's a
 deliberate exception, not the default — see `Outbox/` below.
 
 **`Outbox/`** — `IOutboxWriter.Enqueue<T>(T integrationEvent) where T : IIntegrationEvent` — the
 **default** abstraction modules use to publish (§10). The concrete EF-backed writer, the shared
-`OutboxMessage` entity, and the Quartz job that actually drains it onto the MassTransit bus all
+`OutboxMessage` entity, and the Quartz job that actually drains it onto `InMemoryEventBus` all
 live in `Common.Infrastructure` (§5).
 
 **`Data/IDbConnectionFactory`** — `ValueTask<DbConnection> OpenConnectionAsync()`. The only way
@@ -246,103 +247,108 @@ handler has no `Result` return channel of its own.
 
 ## 5. Common.Infrastructure — the shared plumbing
 
-**`InfrastructureConfiguration.AddInfrastructure(IServiceCollection, IConfiguration configuration, Action<IRegistrationConfigurator>[] moduleConfigureConsumers, OutboxModule[] outboxModules, string databaseConnectionString, string redisConnectionString)`**
+**`InfrastructureConfiguration.AddInfrastructure(IServiceCollection, IConfiguration configuration, string databaseConnectionString, string redisConnectionString)`**
 — called once from the API host. Registers, in order:
 1. A singleton `NpgsqlDataSource` (built once from the connection string) + scoped
    `IDbConnectionFactory` → `DbConnectionFactory` (wraps `dataSource.OpenConnectionAsync()`).
-2. Singleton `PublishDomainEventsInterceptor` (see below).
+2. Singleton `InsertOutboxMessagesInterceptor` (see below).
 3. Singleton `IDateTimeProvider` → `DateTimeProvider` (`DateTime.UtcNow` passthrough).
 4. Redis: `try` to `ConnectionMultiplexer.Connect(redisConnectionString)` and register
    `AddStackExchangeRedisCache`; on **any** exception, silently fall back to
    `AddDistributedMemoryCache()`. Either way, `ICacheService` → `CacheService` is registered on
    top.
-5. Singleton `IEventBus` → the MassTransit-backed `EventBus` (`internal sealed class
-   EventBus(IBus bus) : IEventBus` — `PublishAsync` just calls `bus.Publish`). This is a direct,
-   non-durable publish — see the Outbox subsection below for why `IOutboxWriter` is the *default*
-   choice and when reaching for `IEventBus` directly is still legitimate.
-6. `AddMassTransit(...)`: runs every module's `ConfigureConsumers` delegate (passed in as the
-   `moduleConfigureConsumers` array — see §12), `SetKebabCaseEndpointNameFormatter()`, and
-   `UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context))`.
-7. `AddOutboxProcessing(configuration, outboxModules)` (see the Outbox subsection below) — a
-   Quartz job plus a shared cleanup `BackgroundService`, one job per entry in `outboxModules`.
-   No-ops entirely (registers nothing, starts nothing) when `outboxModules` is empty, which is the
-   normal state for a module that only *consumes* integration events and never publishes any.
+5. Singleton `IEventBus` → `EventBus` (`Common.Infrastructure/EventBus/`), a thin client that
+   delegates every call to the process-static `InMemoryEventBus.Instance` (`Subscribe`/`Publish`
+   in a `Dictionary<string, List<IIntegrationEventHandler>>` — no transport, no redelivery). This
+   is a direct, non-durable publish — see the Outbox subsection below for why `IOutboxWriter` is
+   the *default* choice and when reaching for `IEventBus` directly is still legitimate.
+6. Quartz bootstrap shared by every module's jobs: `services.Configure<OutboxProcessorOptions>(...)`,
+   `AddQuartz()`, `AddQuartzHostedService(...)`, and `AddHostedService<OutboxCleanupBackgroundService>()`.
+   Each module contributes its **own** outbox/inbox job from its own composition root (§12) via
+   `AddOutboxProcessor(schema)`/`AddInboxProcessor(schema, presentationAssembly)` — nothing about
+   which modules publish or consume is threaded through `AddInfrastructure` itself.
 
-**`PublishDomainEventsInterceptor : SaveChangesInterceptor`** (lives in an `Outbox` folder/
-namespace by convention, but — **important, don't be misled by the name** — this is *not* a
-persisted transactional outbox. There is no outbox table, no background dispatcher, no
-at-least-once redelivery. It's a synchronous, in-process MediatR publish that runs inside
-`SavedChangesAsync`, immediately after the EF `SaveChangesAsync` call it wraps has already
-committed:
+**`InsertOutboxMessagesInterceptor : SaveChangesInterceptor`** (`Common.Infrastructure/Outbox/`) —
+a **real, transactional outbox capture**, not just an in-process notification. It hooks
+`SavingChanges`/`SavingChangesAsync` (*before* the underlying `SaveChanges` commits, not after),
+sweeps every tracked `Entity`'s `DomainEvents`, and inserts one `OutboxMessage` row per event into
+the *same* `DbContext`/transaction that's about to commit:
 ```csharp
-public sealed class PublishDomainEventsInterceptor(IServiceScopeFactory serviceScopeFactory) : SaveChangesInterceptor
+public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
 {
-    public override async ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result, CancellationToken ct = default)
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
-        if (eventData.Context is not null) await PublishDomainEventsAsync(eventData.Context);
-        return await base.SavedChangesAsync(eventData, result, ct);
+        InsertOutboxMessages(eventData.Context!);
+        return base.SavingChanges(eventData, result);
     }
 
-    private async Task PublishDomainEventsAsync(DbContext context)
+    private static void InsertOutboxMessages(DbContext context)
     {
-        var domainEvents = context.ChangeTracker.Entries<Entity>()
-            .Select(e => e.Entity)
+        var outboxMessages = context.ChangeTracker.Entries<Entity>()
+            .Select(entry => entry.Entity)
             .SelectMany(entity => { var events = entity.DomainEvents; entity.ClearDomainEvents(); return events; })
+            .Select(domainEvent => OutboxMessage.Create(
+                domainEvent.Id, domainEvent.GetType().AssemblyQualifiedName!,
+                JsonSerializer.Serialize(domainEvent, domainEvent.GetType(), EventSerializerOptions.Instance),
+                domainEvent.OccurredOnUtc))
             .ToList();
 
-        using IServiceScope scope = serviceScopeFactory.CreateScope();
-        IPublisher publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-        foreach (IDomainEvent domainEvent in domainEvents) await publisher.Publish(domainEvent);
+        context.Set<OutboxMessage>().AddRange(outboxMessages);
     }
 }
 ```
-Registered once per module's `DbContext` via `.AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>())`
-in that module's composition root (§12). If a domain-event handler throws, the exception
-propagates out of the original `SaveChangesAsync` call that triggered it — there is no isolation
-between "the write succeeded" and "the reaction to the write succeeded." Know this before relying
-on domain events for anything that must not roll back the triggering write on failure.
+Registered once per module's `DbContext` via `.AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>())`
+in that module's composition root (§12). Because the outbox row is added to the *same*
+`ChangeTracker`/transaction as the business write, "the write succeeded" and "the event got
+durably queued" succeed or fail together — there is no window where one commits without the
+other. This is genuinely the persisted, at-least-once mechanism (there is no separate
+"non-durable" domain-event path to confuse it with).
 
-This interceptor is for **in-process `IDomainEvent`s only**. A module that needs to publish an
-**`IIntegrationEvent`** — anything another module's `Presentation` project might consume (§10) —
-never uses this interceptor and never calls the bus directly either; it goes through the real
-outbox described next. Confusing the two is an easy mistake: both live under an `Outbox`
-namespace/folder, but only one of them is actually durable.
-
-**Outbox (`Common.Infrastructure/Outbox/`)** — the persisted, at-least-once mechanism for
-integration events, shared by every module that publishes one this way (not module-specific; this
-used to be duplicated per module before it was generalized here — don't reintroduce a second
-copy). This is the **default** path — reach for it first:
-- **`IOutboxWriter.Enqueue<T>(T integrationEvent)`** (`Common.Application`) — the default way to
-  queue an integration event. A domain-event handler calls it, then calls its own
-  `IUnitOfWork.SaveChangesAsync(...)` — the queued row is written by that same, ordinary
-  `SaveChanges` call, so it has the same durability as any other write the handler makes.
+**Outbox (`Common.Infrastructure/Outbox/`)** — shared by every module that publishes this way (not
+module-specific; don't reintroduce a per-module copy):
+- **`IOutboxWriter.Enqueue<T>(T integrationEvent)`** (`Common.Application`) — for an integration
+  event a command handler builds explicitly (not just a domain event the interceptor already
+  captures automatically). Enqueues onto the `DbContext`'s change tracker only; the caller still
+  has to call its own `IUnitOfWork.SaveChangesAsync(...)` for it to actually persist — same
+  durability guarantee as `InsertOutboxMessagesInterceptor` above, just an explicit second path.
   `IEventBus.PublishAsync(...)` (above) is still available as a direct, non-durable publish — a
   deliberate choice for an event where losing it on a crash between commit and publish is
   genuinely acceptable, never the default reach just because it's one line shorter. If you're not
   sure which one a new event needs, it needs `IOutboxWriter`.
-- **`OutboxMessage`** (`Common.Infrastructure`) — `Id`, `Type`, `Content` (JSON, `jsonb` column),
-  `OccurredOnUtc`, `ProcessedOnUtc`, `Error`, `RetryCount`, `FailedAtUtc`. A module that publishes
-  adds a `DbSet<OutboxMessage>` and an explicit
-  `modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration())` in its own `DbContext` (this
-  configuration lives in `Common.Infrastructure`, so the module's own
+- **`OutboxMessage`** (`Common.Infrastructure`) — `Id` (same `Id` as the underlying domain/
+  integration event, never a new `Guid`), `Type` (`AssemblyQualifiedName`), `Content` (JSON,
+  `jsonb` column), `OccurredOnUtc`, `ProcessedOnUtc`. A module that publishes adds a
+  `DbSet<OutboxMessage>` and an explicit `modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration())`
+  in its own `DbContext` (this configuration lives in `Common.Infrastructure`, so the module's own
   `ApplyConfigurationsFromAssembly` scan doesn't pick it up automatically) — the table lands in
   that module's own schema, same as every other table it owns. No shared cross-module
   `outbox_messages` table, ever, not even for plumbing like this — same cross-module rule as §2.
 - **`EfOutboxWriter<TContext>`** — the `IOutboxWriter` implementation, generic over the module's
   own `DbContext` type. A module registers it with `services.AddOutboxWriter<TasksDbContext>()`
   (§12) rather than referencing the concrete writer type directly.
-- **`OutboxModule(string Schema, Assembly MessageAssembly)`** — one entry per publishing module,
-  built in `Program.cs` and passed into `AddInfrastructure(...)` (§14). `Schema` and
-  `MessageAssembly` only ever come from code the host itself controls, never from a request — that
-  is what makes it safe for `OutboxProcessorJob`/`OutboxCleanupBackgroundService` to interpolate
-  `Schema` directly into SQL table names instead of parameterizing it.
-- **`OutboxProcessorJob`** — one Quartz job instance per `OutboxModule` (distinct `JobKey`,
-  `Schema`/`MessageAssembly` passed via `JobDataMap`, not DI options — options are shared across
-  every module's job instance). Polls that module's `outbox_messages` table (`FOR UPDATE SKIP
-  LOCKED`, batched, oldest first), resolves the CLR type from `MessageAssembly`, publishes via
-  MassTransit's `IPublishEndpoint`, and marks each row processed or retried/failed.
+- **`OutboxModule(string Schema)`** — one DI-registered instance per publishing module, contributed
+  by that module's own `services.AddOutboxProcessor(Schemas.Tasks)` call (§12), not built centrally
+  in `Program.cs`. `Schema` only ever comes from code the host itself controls, never from a
+  request — that is what makes it safe for `OutboxProcessorJob`/`OutboxCleanupBackgroundService` to
+  interpolate it directly into SQL table names instead of parameterizing it.
+- **`OutboxProcessorJob`** — one Quartz job instance per `OutboxModule` (distinct `JobKey`, `Schema`
+  passed via `JobDataMap`). Polls `SELECT ... FROM {schema}.outbox_messages WHERE processed_on_utc
+  IS NULL ORDER BY occurred_on_utc` — no batching, no row locking, no retry/failure tracking:
+  every unprocessed row is read and processed one at a time, in order. Resolves the CLR type via
+  `Type.GetType(message.Type)`; if it's an `IIntegrationEvent` (explicitly `IOutboxWriter`-enqueued),
+  publishes straight onto `InMemoryEventBus.Instance` — never through MediatR. Otherwise it's a
+  domain event captured automatically by the interceptor: deserializes to `IDomainEvent` and
+  dispatches it locally via MediatR's `IPublisher.Publish` (in-module `IDomainEventHandler<T>`
+  reactions only — if one of those needs to notify another module, it calls `IEventBus.PublishAsync(...)`
+  itself, from inside its own `Handle`). Each row is marked `processed_on_utc = now()` right after
+  it's handled; if handling throws, the exception propagates out of `Execute` and that row (and any
+  still-unprocessed rows after it in the same poll) stays pending for the next tick — a poisoned
+  message blocks nothing but itself and needs to be fixed and left to drain on the next poll, not
+  chased with automatic retries.
 - **`OutboxCleanupBackgroundService`** — one shared instance (not one per module) that loops over
-  every `OutboxModule` on an interval and deletes processed rows older than `RetentionPeriod`.
+  every `OutboxModule`/`InboxModule` on an interval (`OutboxProcessorOptions.CleanupInterval`) and
+  deletes processed rows older than `RetentionPeriod` from both `outbox_messages` and
+  `inbox_messages`.
 
 **`CacheService`** — `System.Text.Json` (`Utf8JsonWriter` + `ArrayBufferWriter<byte>`) serialize/
 deserialize over `IDistributedCache`'s byte-array API.
@@ -583,11 +589,13 @@ module's migrations never collide with another's.
 
 ## 10. Cross-module communication (integration events)
 
-The **only working** cross-module mechanism in this template is: domain event → domain-event
-handler → **outbox write** (§5) → that module's `OutboxProcessorJob` → MassTransit in-memory bus
-→ consumer in another module's `Presentation` project → a command in that module. (A `PublicApi`
-synchronous-call project also exists per module — see §11 — but is a separate, currently-
-unimplemented mechanism; don't conflate the two.)
+The **only working** cross-module mechanism in this template is: domain event → **outbox write**
+(§5, automatic via `InsertOutboxMessagesInterceptor`) → that module's `OutboxProcessorJob` →
+`InMemoryEventBus` → the consuming module's own generic inbox-writer handler → that module's
+**own** `inbox_messages` table → that module's `ProcessInboxJob` → the real
+`IIntegrationEventHandler<T>` in its `Presentation` project → a command in that module. (A
+`PublicApi` synchronous-call project also exists per module — see §11 — but is a separate,
+currently-unimplemented mechanism; don't conflate the two.)
 
 **Why this is always asynchronous, never a synchronous call into another module's command
 surface**: the publishing module has no business reason to know how — or whether — any other
@@ -639,14 +647,17 @@ boundary itself rather than adding a synchronous escape hatch here.
    project depends on `Common.Application` only.
 4. The **consuming module**'s `Presentation` project takes a `ProjectReference` to the
    publisher's `IntegrationEvents` project (and *only* that project — never the publisher's
-   Domain/Application/Infrastructure/Presentation) and implements `IConsumer<TEvent>`:
+   Domain/Application/Infrastructure/Presentation) and implements the real business reaction,
+   deriving from the shared `IntegrationEventHandler<T>` base (bridges the untyped
+   `IIntegrationEventHandler.Handle(IIntegrationEvent, ct)` the inbox job calls through to the
+   strongly-typed override below):
    ```csharp
    public sealed class TodoItemCreatedIntegrationEventConsumer(ISender sender)
-       : IConsumer<TodoItemCreatedIntegrationEvent>
+       : IntegrationEventHandler<TodoItemCreatedIntegrationEvent>
    {
-       public async Task Consume(ConsumeContext<TodoItemCreatedIntegrationEvent> context)
+       public override async Task Handle(TodoItemCreatedIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
        {
-           Result result = await sender.Send(new MirrorTodoItemCommand(context.Message.TodoItemId, context.Message.Title));
+           Result result = await sender.Send(new MirrorTodoItemCommand(integrationEvent.TodoItemId, integrationEvent.Title), cancellationToken);
 
            if (result.IsFailure)
            {
@@ -655,19 +666,41 @@ boundary itself rather than adding a synchronous escape hatch here.
        }
    }
    ```
-5. The consuming module registers the consumer in its own composition root:
+5. **No manual registration for this class** — `<Module>Module.AddXModule(...)` already calls
+   `services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly)` (§12), which
+   finds every `IIntegrationEventHandler<T>` in that assembly by reflection. What *does* need
+   wiring is the bus subscription that gets the raw message durably into this module's own inbox
+   in the first place — that's `<Module>Module.Initialize(IServiceProvider serviceProvider)`,
+   called once from `Program.cs` **after** `builder.Build()` (§14), which reuses that same
+   reflection scan to discover which event types this module's handlers care about, and for each
+   one subscribes a **generic, business-logic-free** handler onto the bus:
    ```csharp
-   public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator) =>
-       registrationConfigurator.AddConsumer<TodoItemCreatedIntegrationEventConsumer>();
+   public static void Initialize(IServiceProvider serviceProvider)
+   {
+       IEventBus eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+       foreach (Type integrationEventType in /* every T from this module's IIntegrationEventHandler<T> */)
+       {
+           Type genericHandlerType = typeof(IntegrationEventGenericHandler<>).MakeGenericType(integrationEventType);
+           var genericHandler = (IIntegrationEventHandler)Activator.CreateInstance(genericHandlerType, serviceProvider)!;
+
+           eventBus.Subscribe(integrationEventType, genericHandler);
+       }
+   }
    ```
-   and the API host collects every module's `ConfigureConsumers` into the array passed to
-   `AddInfrastructure(...)` (§5/§14).
-6. The **publishing** module additionally contributes an `OutboxModule(schema, messageAssembly)`
-   entry to the array built in `Program.cs` and passed to that same `AddInfrastructure(...)` call
-   (§14) — this is what actually wires up the `OutboxProcessorJob` that drains the table step 2
-   just wrote to. Forgetting this step is a real, easy-to-miss failure mode: the module builds,
-   the write succeeds, rows accumulate in that module's own `outbox_messages` table, and nothing
-   ever publishes them, because no job was ever registered to poll it.
+   `IntegrationEventGenericHandler<T>` (`Infrastructure/Inbox/`, one per consuming module) does
+   nothing but INSERT the raw message into that module's own `inbox_messages` table — the same
+   durability-first, no-business-logic role a message broker's own receive endpoint would play.
+   The reflection happens here (in `Infrastructure`) rather than citing `TodoItemCreatedIntegrationEvent`
+   by name, specifically so `Infrastructure` never needs a `ProjectReference` to another module's
+   `IntegrationEvents` project — only `Presentation` is allowed that (§2).
+6. The **publishing** module calls `services.AddOutboxProcessor(Schemas.Tasks)` from its own
+   composition root (§12) — this is what actually wires up the `OutboxProcessorJob` that drains
+   the table step 2 just wrote to. Forgetting this step is a real, easy-to-miss failure mode: the
+   module builds, the write succeeds, rows accumulate in that module's own `outbox_messages`
+   table, and nothing ever publishes them, because no job was ever registered to poll it. The
+   **consuming** module symmetrically needs `services.AddInboxProcessor(Schemas.Tasks, Presentation.AssemblyReference.Assembly)`
+   for `ProcessInboxJob` to drain what `IntegrationEventGenericHandler<T>` wrote in step 5.
 
 A "mirror" entity created this way (case 1 in §8's domain-event exceptions) typically has a
 `Create(Guid id, ...)` factory that takes the **foreign** id directly as its own `Id` (not a new
@@ -704,13 +737,30 @@ public static class TasksModule
     public static IServiceCollection AddTasksModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEndpoints(Presentation.AssemblyReference.Assembly);
+
+        // Only present on a module that CONSUMES another module's integration events — registers
+        // every IIntegrationEventHandler<T> found in Presentation (§10).
+        services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly);
+
         services.AddInfrastructure(configuration);
         return services;
     }
 
-    // Only present on a module that CONSUMES another module's integration events:
-    public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator) =>
-        registrationConfigurator.AddConsumer<SomeIntegrationEventConsumer>();
+    // Only present on a module that CONSUMES another module's integration events — subscribes a
+    // generic inbox-writer handler per event type onto the bus (§10). Called from Program.cs
+    // *after* builder.Build(), once IEventBus exists in the container.
+    public static void Initialize(IServiceProvider serviceProvider)
+    {
+        IEventBus eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
+        foreach (Type integrationEventType in /* every T from this module's IIntegrationEventHandler<T> */)
+        {
+            Type genericHandlerType = typeof(IntegrationEventGenericHandler<>).MakeGenericType(integrationEventType);
+            var genericHandler = (IIntegrationEventHandler)Activator.CreateInstance(genericHandlerType, serviceProvider)!;
+
+            eventBus.Subscribe(integrationEventType, genericHandler);
+        }
+    }
 
     private static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -718,15 +768,20 @@ public static class TasksModule
             .UseNpgsql(configuration.GetConnectionString("Database"),
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Tasks))
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
+            .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<TasksDbContext>());
         services.AddScoped<ITodoItemRepository, TodoItemRepository>();
 
-        // Only present on a module that PUBLISHES integration events (§10) — pairs with an
-        // OutboxModule(Schemas.Tasks, Tasks.IntegrationEvents.AssemblyReference.Assembly) entry
-        // contributed in Program.cs. A module that only consumes never needs this.
+        // Only present on a module that PUBLISHES integration events (§10) — wires up the
+        // OutboxProcessorJob that drains this module's own outbox_messages table. A module that
+        // only consumes never needs this.
         // services.AddOutboxWriter<TasksDbContext>();
+        // services.AddOutboxProcessor(Schemas.Tasks);
+
+        // Only present on a module that CONSUMES another module's integration events — wires up
+        // the ProcessInboxJob that drains what Initialize's generic handler wrote (§10).
+        // services.AddInboxProcessor(Schemas.Tasks, Presentation.AssemblyReference.Assembly);
 
         // A Redis-only aggregate (no EF, no repository — see §13) registers its own service instead:
         // services.AddSingleton<TodoDraftService>();
@@ -809,12 +864,9 @@ Fixed order, don't reshuffle without a reason:
 5. `AddApplication([Module1.Application.AssemblyReference.Assembly, Module2..., ...])` — every
    module's `Application` assembly, one array, one call.
 6. Read `Database`/`Cache` connection strings from configuration.
-7. Build the `OutboxModule[]` array — one `new OutboxModule("<schema>",
-   Module1.IntegrationEvents.AssemblyReference.Assembly)` entry per module that **publishes** an
-   integration event (§10); a module that only consumes contributes nothing here. Then
-   `AddInfrastructure([Module1Module.ConfigureConsumers, ...], outboxModules,
-   databaseConnectionString, redisConnectionString)` — the consumer array only needs entries from
-   modules that actually **consume** another module's integration events, same as before.
+7. `AddInfrastructure(configuration, databaseConnectionString, redisConnectionString)` — no
+   per-module arrays here; each module wires its own outbox/inbox job and consumer registration
+   from its own composition root (§5/§12).
 8. `configuration.AddModuleConfiguration(["module1", "module2", ...])` — loads
    `modules.<name>.json` (required) + `modules.<name>.Development.json` (optional) per module,
    layered into the same `IConfiguration`.
@@ -822,14 +874,17 @@ Fixed order, don't reshuffle without a reason:
 10. `Add<Module>Module(configuration)` — once per module, in any order (they don't depend on
     each other at this point).
 11. `builder.Build()`.
-12. `if (Environment.IsDevelopment())`: `UseSwagger()` + `UseSwaggerUI()` + `app.ApplyMigrations()`
+12. `<Module>Module.Initialize(app.Services)` — once per module that **consumes** another
+    module's integration events (§10/§12); a module that only publishes contributes nothing here.
+    Must come after `builder.Build()`, since it resolves `IEventBus` from the now-built container.
+13. `if (Environment.IsDevelopment())`: `UseSwagger()` + `UseSwaggerUI()` + `app.ApplyMigrations()`
     (auto-applies every module's pending EF migrations — **Development only**, never in
     Production; a real deployment applies migrations out-of-band).
-13. `app.MapEndpoints()` — maps every module's endpoints (§6).
-14. `MapHealthChecks("health", ...)`.
-15. `UseSerilogRequestLogging()`.
-16. `UseExceptionHandler()`.
-17. `app.Run()`.
+14. `app.MapEndpoints()` — maps every module's endpoints (§6).
+15. `MapHealthChecks("health", ...)`.
+16. `UseSerilogRequestLogging()`.
+17. `UseExceptionHandler()`.
+18. `app.Run()`.
 
 `GlobalExceptionHandler : IExceptionHandler` is the absolute last resort — anything that escapes
 both a handler's own `Result.Failure` path *and* `ExceptionHandlingPipelineBehavior` lands here,
@@ -889,7 +944,7 @@ intentional conventions to replicate:
   these exist in this template's baseline; introducing one is a scope decision to confirm with
   the user first, not a silent addition.
 - Never hand-write or hand-edit an EF migration file — always `dotnet ef migrations add` (§9).
-- Use `.claude/skills/` (`add-module`, `add-entity`, `add-feature`, `add-tests`, `ca-review`) —
+- Use `.claude/skills/` (`add-entity`, `add-feature`, `add-messaging`, `add-tests`, `ca-review`) —
   they encode every rule above as directly runnable scaffolding with a consistent fictional
   `Tasks`/`TodoItem` worked example. Prefer them over freehand implementations so new code
   matches the existing slices exactly, and run `ca-review` before considering a change done.

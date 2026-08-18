@@ -12,6 +12,7 @@ root [`CLAUDE.md`](../../CLAUDE.md); these skills are its executable counterpart
 |---|---|---|
 | **add-entity** | `/add-entity TodoList with a name and owner` | Adds a Domain entity end to end: entity class, error catalog, domain events, repository interface, optional EF configuration, and DI/DbContext wiring. |
 | **add-feature** | `/add-feature complete a todo item` | Scaffolds a complete vertical slice: command/query, handler, validator, and minimal-API endpoint. |
+| **add-messaging** | `/add-messaging todo item completed, notify Rewards` | Wires a cross-module integration event end to end: contract, outbox publish, inbox consume, and (if needed) a module's first-time outbox/inbox setup. |
 | **add-tests** | `/add-tests CompleteTodoItemCommand` | Writes Domain entity tests, Application handler tests (hand-written fakes, no mocking framework), and reflection-based architecture tests. |
 | **ca-review** | `/ca-review` | Reviews pending changes against the template's conventions: layer boundaries, Result usage, CQRS shape, validation placement, and module isolation. |
 
@@ -45,9 +46,14 @@ your-project/
         ├── add-entity/
         ├── add-feature/
         │   └── references/
+        ├── add-messaging/
         ├── add-tests/
         └── ca-review/
 ```
+
+`add-messaging` assumes the same hand-rolled Outbox/Inbox/`InMemoryEventBus` mechanism documented
+in `CLAUDE.md` §5/§10 — if the target project uses a real message broker instead, that skill (and
+those sections) need adapting first, the other four don't depend on it either way.
 
 ## Try it
 
