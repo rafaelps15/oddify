@@ -22,7 +22,9 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
             userContext.UserId,
             (int)TipoDeMovimentacao.Deposito,
             (int)ResultadoDaAposta.Pendente,
-            (int)ResultadoDaAposta.Ganha);
+            (int)ResultadoDaAposta.Ganha,
+            (int)ResultadoDaAposta.Anulada,
+            (int)ResultadoDaAposta.MeioGanha);
 
         // Depósitos e apostas resolvidas são agregados em subconsultas independentes (nunca um
         // JOIN direto entre movimentacoes_da_banca e apostas_multiplas na mesma linha) — cada
@@ -58,8 +60,8 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
                      SUM(CASE WHEN lucro_ou_perda < 0 THEN lucro_ou_perda ELSE 0 END) AS total_perdido,
                      SUM(COALESCE(lucro_ou_perda, 0)) AS lucro,
                      SUM(stake) FILTER (WHERE resultado != @Pendente) AS total_apostado,
-                     COUNT(*) FILTER (WHERE resultado != @Pendente) AS decididas,
-                     COUNT(*) FILTER (WHERE resultado = @Ganha) AS ganhas,
+                     COUNT(*) FILTER (WHERE resultado NOT IN (@Pendente, @Anulada)) AS decididas,
+                     COUNT(*) FILTER (WHERE resultado IN (@Ganha, @MeioGanha)) AS ganhas,
                      COUNT(*) FILTER (WHERE resultado != @Pendente) AS quantidade
                  FROM apostas.apostas_multiplas
                  GROUP BY banca_id
@@ -77,5 +79,5 @@ internal sealed class GetResumoDaBancaQueryHandler(IDbConnectionFactory dbConnec
         return resultado;
     }
 
-    private sealed record ResumoParametros(Guid BancaId, Guid UsuarioId, int Deposito, int Pendente, int Ganha);
+    private sealed record ResumoParametros(Guid BancaId, Guid UsuarioId, int Deposito, int Pendente, int Ganha, int Anulada, int MeioGanha);
 }

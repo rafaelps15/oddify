@@ -26,8 +26,15 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
     {
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
 
-        var parametros = new DesempenhoParametros(request.BancaId, userContext.UserId);
+        var parametros = new DesempenhoParametros(
+            request.BancaId,
+            userContext.UserId,
+            (int)ResultadoDaAposta.Pendente,
+            (int)ResultadoDaAposta.Anulada);
 
+        // MeioGanha/MeioPerdida contam como acerto/erro parcial (mesma regra de
+        // GetDesempenhoPorMercado) — Anulada fica de fora, igual Pendente, por não representar uma
+        // decisão de verdade.
         const string sql =
             $"""
              WITH pernas_por_aposta AS (
@@ -43,7 +50,8 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
                  ppa.unica_partida_id AS {nameof(ApostaComPartidaRow.PartidaId)}
              FROM apostas.apostas_multiplas am
              JOIN pernas_por_aposta ppa ON ppa.aposta_multipla_id = am.id
-             WHERE am.banca_id = @BancaId AND am.usuario_id = @UsuarioId AND am.resultado IN (1, 2)
+             WHERE am.banca_id = @BancaId AND am.usuario_id = @UsuarioId
+               AND am.resultado NOT IN (@Pendente, @Anulada)
              """;
 
         List<ApostaComPartidaRow> rows = (await connection.QueryAsync<ApostaComPartidaRow>(sql, parametros)).AsList();
@@ -58,8 +66,8 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
             .Select(g => new DesempenhoResponse(
                 g.Key,
                 g.Count(),
-                g.Count(e => e.Row.Resultado == ResultadoDaAposta.Ganha),
-                g.Count(e => e.Row.Resultado == ResultadoDaAposta.Perdida),
+                g.Count(e => e.Row.Resultado is ResultadoDaAposta.Ganha or ResultadoDaAposta.MeioGanha),
+                g.Count(e => e.Row.Resultado is ResultadoDaAposta.Perdida or ResultadoDaAposta.MeioPerdida),
                 g.Sum(e => e.Row.LucroOuPerda),
                 g.Sum(e => e.Row.Stake) > 0 ? g.Sum(e => e.Row.LucroOuPerda) / g.Sum(e => e.Row.Stake) : null))
             .OrderByDescending(d => d.Lucro)
@@ -68,5 +76,5 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
         return resultado;
     }
 
-    private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId);
+    private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId, int Pendente, int Anulada);
 }
