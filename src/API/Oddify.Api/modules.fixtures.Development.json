@@ -13,6 +13,15 @@
         "72": 2023,
         "2": 2023,
         "3": 2023
+      },
+      "TheOddsApiSportKeys": {
+        "39": "soccer_epl",
+        "140": "soccer_spain_la_liga",
+        "135": "soccer_italy_serie_a",
+        "78": "soccer_germany_bundesliga",
+        "61": "soccer_france_ligue_one",
+        "71": "soccer_brazil_campeonato",
+        "72": "soccer_brazil_serie_b"
       }
     }
   }

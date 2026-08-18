@@ -46,6 +46,62 @@ public sealed class PartidaTests
     }
 
     [Fact]
+    public void AtualizarAoVivo_should_set_gols_and_situacao_em_andamento_and_raise_event_on_first_call()
+    {
+        Partida partida = CriarPartidaAgendada();
+        partida.ClearDomainEvents();
+
+        Result resultado = partida.AtualizarAoVivo(1, 0);
+
+        resultado.IsSuccess.Should().BeTrue();
+        partida.GolsCasa.Should().Be(1);
+        partida.GolsVisitante.Should().Be(0);
+        partida.Situacao.Should().Be(SituacaoDaPartida.EmAndamento);
+        partida.DomainEvents.Should().ContainSingle(e => e is PartidaEmAndamentoDomainEvent);
+    }
+
+    [Fact]
+    public void AtualizarAoVivo_should_update_score_without_raising_event_again_when_already_em_andamento()
+    {
+        Partida partida = CriarPartidaAgendada();
+        partida.AtualizarAoVivo(1, 0);
+        partida.ClearDomainEvents();
+
+        Result resultado = partida.AtualizarAoVivo(2, 0);
+
+        resultado.IsSuccess.Should().BeTrue();
+        partida.GolsCasa.Should().Be(2);
+        partida.Situacao.Should().Be(SituacaoDaPartida.EmAndamento);
+        partida.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AtualizarAoVivo_should_fail_when_partida_already_encerrada()
+    {
+        Partida partida = CriarPartidaAgendada();
+        partida.RegistrarResultado(2, 1);
+
+        Result resultado = partida.AtualizarAoVivo(2, 1);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(PartidaErrors.JaEncerrada(partida.Id));
+    }
+
+    [Fact]
+    public void RegistrarResultado_should_succeed_from_em_andamento()
+    {
+        Partida partida = CriarPartidaAgendada();
+        partida.AtualizarAoVivo(1, 0);
+        partida.ClearDomainEvents();
+
+        Result resultado = partida.RegistrarResultado(2, 1);
+
+        resultado.IsSuccess.Should().BeTrue();
+        partida.Situacao.Should().Be(SituacaoDaPartida.Encerrada);
+        partida.DomainEvents.Should().ContainSingle(e => e is PartidaEncerradaDomainEvent);
+    }
+
+    [Fact]
     public void Reagendar_should_update_data_and_raise_event_when_data_is_different()
     {
         Partida partida = CriarPartidaAgendada();

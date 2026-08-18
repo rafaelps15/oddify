@@ -10,7 +10,11 @@ public enum StatusFiltroDePartida
 
     // "Encerradas" agrupa Encerrada + Liquidada (jogo terminou, processado ou não) — a mesma
     // combinação que a tela de Partidas usa pro card "Encerradas" do resumo rápido.
-    Encerradas = 2
+    Encerradas = 2,
+
+    // Situacao.EmAndamento (ver SincronizarAoVivo) — só o jogo rolando agora, nunca inclui
+    // Agendada/Encerrada/Liquidada.
+    AoVivo = 3
 }
 
 public sealed record GetPartidasQuery(

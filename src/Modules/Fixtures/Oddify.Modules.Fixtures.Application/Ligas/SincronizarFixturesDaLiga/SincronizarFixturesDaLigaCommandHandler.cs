@@ -71,7 +71,8 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
             partidaRepository.Insert(partida);
         }
 
-        if (fixture is { Encerrada: true, GolsCasa: not null, GolsVisitante: not null } && partida.Situacao == SituacaoDaPartida.Agendada)
+        if (fixture is { Encerrada: true, GolsCasa: not null, GolsVisitante: not null } &&
+            partida.Situacao is SituacaoDaPartida.Agendada or SituacaoDaPartida.EmAndamento)
         {
             partida.RegistrarResultado(fixture.GolsCasa.Value, fixture.GolsVisitante.Value);
         }

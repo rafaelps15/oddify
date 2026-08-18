@@ -16,8 +16,7 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
 
         // @Status chega como o int subjacente do enum (Dapper mapeia automaticamente) — 0 (Todas)
         // não filtra por situação; 1 (Agendadas) só Agendada (0); 2 (Encerradas) agrupa Encerrada
-        // (1) e Liquidada (2). Sem filtro de "ao vivo": não existe esse status hoje (ver
-        // StatusFiltroDePartida) — quando a integração de dado ao vivo real existir, entra aqui.
+        // (1) e Liquidada (2); 3 (AoVivo) só EmAndamento (3, ver SincronizarAoVivo).
         //
         // cardinality(@Ids) trata array vazio igual a NULL: o model binding do Minimal API resolve
         // `[FromQuery] Guid[]? ids` ausente como array vazio, não `null` — só checar `@Ids IS NULL`
@@ -47,6 +46,7 @@ internal sealed class GetPartidasQueryHandler(IDbConnectionFactory dbConnectionF
                  @Status = 0
                  OR (@Status = 1 AND situacao = 0)
                  OR (@Status = 2 AND situacao IN (1, 2))
+                 OR (@Status = 3 AND situacao = 3)
                )
              ORDER BY data_utc DESC
              """;

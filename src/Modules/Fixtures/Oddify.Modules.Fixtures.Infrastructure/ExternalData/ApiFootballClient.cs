@@ -42,6 +42,41 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
         }
     }
 
+    public async Task<Result<IReadOnlyCollection<FixtureAoVivoExternoDto>>> GetFixturesAoVivoAsync(
+        IReadOnlyCollection<string> ligaIdsExternos,
+        CancellationToken cancellationToken = default)
+    {
+        if (ligaIdsExternos.Count == 0)
+        {
+            return Result.Success<IReadOnlyCollection<FixtureAoVivoExternoDto>>([]);
+        }
+
+        if (!await orcamento.TentarConsumirAsync())
+        {
+            return Result.Failure<IReadOnlyCollection<FixtureAoVivoExternoDto>>(
+                Error.Failure("Fixtures.OrcamentoDeRequisicoesEsgotado", "Cota diária de requisições da API-Football foi esgotada."));
+        }
+
+        try
+        {
+            FixturesResponse? resposta = await httpClient.GetFromJsonAsync<FixturesResponse>(
+                $"fixtures?live={string.Join('-', ligaIdsExternos)}",
+                SerializerOptions,
+                cancellationToken);
+
+            IReadOnlyCollection<FixtureAoVivoExternoDto> fixtures = resposta?.Response is null
+                ? []
+                : resposta.Response.Select(MapearFixtureAoVivo).ToList();
+
+            return Result.Success(fixtures);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Result.Failure<IReadOnlyCollection<FixtureAoVivoExternoDto>>(
+                Error.Failure("Fixtures.ApiFootballIndisponivel", ex.Message));
+        }
+    }
+
     public async Task<bool> VerificarStatusAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -74,6 +109,21 @@ internal sealed class ApiFootballClient(HttpClient httpClient, OrcamentoDeRequis
             ExtrairRodada(fixture.League.Round),
             fixture.League.Flag);
     }
+
+    // Códigos de status curto da api-football: 1H/HT/2H/ET/BT/P/SUSP/INT/LIVE cobrem o jogo em
+    // andamento (incluindo intervalo/prorrogação/pênaltis antes do apito final); FT/AET/PEN é
+    // "encerrada" (mesmo critério de MapearFixture). Qualquer outro código (NS, PST, CANC, ABD...)
+    // não é nem um nem outro — a sincronização ao vivo ignora esse fixture nesse ciclo.
+    private static readonly HashSet<string> StatusEmAndamento = ["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"];
+    private static readonly HashSet<string> StatusEncerrada = ["FT", "AET", "PEN"];
+
+    private static FixtureAoVivoExternoDto MapearFixtureAoVivo(FixtureDto fixture) =>
+        new(
+            fixture.Fixture.Id.ToString(CultureInfo.InvariantCulture),
+            StatusEmAndamento.Contains(fixture.Fixture.Status.Short),
+            StatusEncerrada.Contains(fixture.Fixture.Status.Short),
+            fixture.Goals.Home,
+            fixture.Goals.Away);
 
     // league.round da api-football é um rótulo textual (ex.: "Regular Season - 4", "Relegation
     // Round - 3"), não um número isolado — extrai o inteiro final. Rótulos sem número no final
