@@ -3,6 +3,8 @@ using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.Domain.Equipes;
+using Oddify.Modules.Fixtures.Domain.Escalacoes;
+using Oddify.Modules.Fixtures.Domain.EscalacoesDeJogador;
 using Oddify.Modules.Fixtures.Domain.EstatisticasDeEquipe;
 using Oddify.Modules.Fixtures.Domain.EstatisticasDeJogador;
 using Oddify.Modules.Fixtures.Domain.Jogadores;
@@ -26,6 +28,10 @@ public sealed class FixturesDbContext(DbContextOptions<FixturesDbContext> option
     internal DbSet<EstatisticaJogador> EstatisticasDeJogador { get; set; }
 
     internal DbSet<Cotacao> Cotacoes { get; set; }
+
+    internal DbSet<Escalacao> Escalacoes { get; set; }
+
+    internal DbSet<EscalacaoJogador> EscalacoesDeJogador { get; set; }
 
     internal DbSet<OutboxMessage> OutboxMessages { get; set; }
 

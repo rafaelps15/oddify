@@ -11,6 +11,8 @@ using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
 using Oddify.Modules.Fixtures.Domain.Equipes;
+using Oddify.Modules.Fixtures.Domain.Escalacoes;
+using Oddify.Modules.Fixtures.Domain.EscalacoesDeJogador;
 using Oddify.Modules.Fixtures.Domain.EstatisticasDeEquipe;
 using Oddify.Modules.Fixtures.Domain.EstatisticasDeJogador;
 using Oddify.Modules.Fixtures.Domain.Jogadores;
@@ -19,6 +21,8 @@ using Oddify.Modules.Fixtures.Domain.Partidas;
 using Oddify.Modules.Fixtures.Infrastructure.Cotacoes;
 using Oddify.Modules.Fixtures.Infrastructure.Database;
 using Oddify.Modules.Fixtures.Infrastructure.Equipes;
+using Oddify.Modules.Fixtures.Infrastructure.Escalacoes;
+using Oddify.Modules.Fixtures.Infrastructure.EscalacoesDeJogador;
 using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeEquipe;
 using Oddify.Modules.Fixtures.Infrastructure.EstatisticasDeJogador;
 using Oddify.Modules.Fixtures.Infrastructure.ExternalData;
@@ -62,6 +66,8 @@ public static class FixturesModule
         services.AddScoped<IEstatisticaEquipeRepository, EstatisticaEquipeRepository>();
         services.AddScoped<IEstatisticaJogadorRepository, EstatisticaJogadorRepository>();
         services.AddScoped<ICotacaoRepository, CotacaoRepository>();
+        services.AddScoped<IEscalacaoRepository, EscalacaoRepository>();
+        services.AddScoped<IEscalacaoJogadorRepository, EscalacaoJogadorRepository>();
 
         services.AddScoped<IFixturesApi, FixturesApi>();
 

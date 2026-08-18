@@ -9,4 +9,6 @@ internal static class Tags
     internal const string Cotacoes = "Cotacoes";
     internal const string EstatisticasDeEquipe = "EstatisticasDeEquipe";
     internal const string EstatisticasDeJogador = "EstatisticasDeJogador";
+    internal const string Escalacoes = "Escalacoes";
+    internal const string EscalacoesDeJogador = "EscalacoesDeJogador";
 }
