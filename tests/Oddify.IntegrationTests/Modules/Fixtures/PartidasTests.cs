@@ -126,6 +126,86 @@ public sealed class PartidasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         rodada.Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetConfrontosDiretos_should_return_only_finished_matches_between_the_two_teams_in_either_order()
+    {
+        (Guid ligaId, Guid equipeAId, Guid equipeBId) = await CriarLigaComDuasEquipesAsync();
+        Guid outroTimeId = await CriarEquipeAsync(ligaId, "Outro Time");
+
+        Guid aVsBId = await CriarPartidaAsync(ligaId, equipeAId, equipeBId, rodada: 1, temporada: 2026);
+        await RegistrarResultadoAsync(aVsBId, 2, 1);
+
+        Guid bVsAId = await CriarPartidaAsync(ligaId, equipeBId, equipeAId, rodada: 2, temporada: 2026);
+        await RegistrarResultadoAsync(bVsAId, 0, 0);
+
+        // Não deve entrar: ainda agendado.
+        await CriarPartidaAsync(ligaId, equipeAId, equipeBId, rodada: 3, temporada: 2026);
+
+        // Não deve entrar: não envolve as duas equipes do confronto.
+        Guid aVsOutroId = await CriarPartidaAsync(ligaId, equipeAId, outroTimeId, rodada: 1, temporada: 2026);
+        await RegistrarResultadoAsync(aVsOutroId, 3, 0);
+
+        HttpResponseMessage response = await _client.GetAsync($"partidas/confrontos-diretos?equipeAId={equipeAId}&equipeBId={equipeBId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        List<PartidaResponse>? confrontos = await response.Content.ReadFromJsonAsync<List<PartidaResponse>>();
+
+        confrontos.Should().HaveCount(2);
+        confrontos.Should().Contain(p => p.Id == aVsBId);
+        confrontos.Should().Contain(p => p.Id == bVsAId);
+        confrontos.Should().NotContain(p => p.Id == aVsOutroId);
+    }
+
+    [Fact]
+    public async Task GetConfrontosDiretos_should_respect_the_quantidade_limit_most_recent_first()
+    {
+        (Guid ligaId, Guid equipeAId, Guid equipeBId) = await CriarLigaComDuasEquipesAsync();
+
+        // dataUtc explícito e bem separado (não DateTime.UtcNow duas vezes seguidas) — a ordenação
+        // por data é exatamente o que este teste verifica, não pode depender da precisão de
+        // timestamp entre duas chamadas quase simultâneas.
+        Guid maisAntigoId = await CriarPartidaComDataAsync(ligaId, equipeAId, equipeBId, new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+        await RegistrarResultadoAsync(maisAntigoId, 1, 1);
+        Guid maisRecenteId = await CriarPartidaComDataAsync(ligaId, equipeAId, equipeBId, new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+        await RegistrarResultadoAsync(maisRecenteId, 2, 0);
+
+        HttpResponseMessage response =
+            await _client.GetAsync($"partidas/confrontos-diretos?equipeAId={equipeAId}&equipeBId={equipeBId}&quantidade=1");
+        List<PartidaResponse>? confrontos = await response.Content.ReadFromJsonAsync<List<PartidaResponse>>();
+
+        confrontos.Should().ContainSingle(p => p.Id == maisRecenteId);
+    }
+
+    private async Task<Guid> CriarPartidaComDataAsync(Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId, DateTime dataUtc)
+    {
+        HttpResponseMessage response = await _client.PostAsJsonAsync("partidas", new
+        {
+            IdExterno = $"partida-{Guid.NewGuid()}",
+            LigaId = ligaId,
+            EquipeCasaId = equipeCasaId,
+            EquipeVisitanteId = equipeVisitanteId,
+            DataUtc = dataUtc,
+            Rodada = 1,
+            Temporada = dataUtc.Year
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
+    private async Task<Guid> CriarEquipeAsync(Guid ligaId, string nome)
+    {
+        HttpResponseMessage response = await _client.PostAsJsonAsync("equipes", new
+        {
+            IdExterno = $"equipe-{Guid.NewGuid()}",
+            Nome = nome,
+            LigaId = ligaId
+        });
+
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
     private async Task<(Guid LigaId, Guid EquipeCasaId, Guid EquipeVisitanteId)> CriarLigaComDuasEquipesAsync()
     {
         HttpResponseMessage ligaResponse = await _client.PostAsJsonAsync("ligas", new
