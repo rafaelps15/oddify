@@ -5,6 +5,7 @@ using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
+using Oddify.Modules.Apostas.Application.ApostasMultiplas;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetResultadosDasPernas;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.LiquidarMultipla;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
@@ -32,9 +33,9 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     private LiquidarMultiplaCommandHandler CriarHandler()
     {
         _userContext.UserId.Returns(_usuarioId);
-        return new(
-            _apostaMultiplaRepository, _pernaDeApostaRepository, _bancaRepository, _movimentacaoDaBancaRepository,
-            _sender, _unitOfWork, _dateTimeProvider, _userContext);
+        var liquidacaoService = new ApostaMultiplaLiquidacaoService(
+            _pernaDeApostaRepository, _bancaRepository, _movimentacaoDaBancaRepository, _sender, _dateTimeProvider);
+        return new(_apostaMultiplaRepository, liquidacaoService, _unitOfWork, _userContext);
     }
 
     private void ConfigurarResultados(IReadOnlyDictionary<Guid, bool> resultadosPorPernaId)

@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -36,15 +35,17 @@ public static class UsersModule
     public static IServiceCollection AddUsersModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEndpoints(Presentation.AssemblyReference.Assembly);
-        services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly, Schemas.Users);
+        services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly);
         services.AddInfrastructure(configuration);
         return services;
     }
 
-    // Um IntegrationEventConsumer<T> (Infrastructure/Inbox) por tipo de integration event que
-    // este módulo consome — ver comentário equivalente em ApostasModule.
-    public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator)
+    // Assina, um por um, cada integration event que este módulo consome — ver comentário
+    // equivalente em ApostasModule.
+    public static void Initialize(IServiceProvider serviceProvider)
     {
+        IEventBus eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
         IEnumerable<Type> integrationEventTypes = Presentation.AssemblyReference.Assembly.GetTypes()
             .Where(type => !type.IsAbstract && type.IsAssignableTo(typeof(IIntegrationEventHandler)) && type != typeof(IIntegrationEventHandler))
             .Select(handlerType => handlerType.GetInterfaces()
@@ -54,7 +55,10 @@ public static class UsersModule
 
         foreach (Type integrationEventType in integrationEventTypes)
         {
-            registrationConfigurator.AddConsumer(typeof(IntegrationEventConsumer<>).MakeGenericType(integrationEventType));
+            Type genericHandlerType = typeof(IntegrationEventGenericHandler<>).MakeGenericType(integrationEventType);
+            var genericHandler = (IIntegrationEventHandler)Activator.CreateInstance(genericHandlerType, serviceProvider)!;
+
+            eventBus.Subscribe(integrationEventType, genericHandler);
         }
     }
 

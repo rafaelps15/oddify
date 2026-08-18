@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -30,7 +29,6 @@ public static class InfrastructureConfiguration
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration,
-        Action<IRegistrationConfigurator>[] moduleConfigureConsumers,
         string databaseConnectionString,
         string redisConnectionString)
     {
@@ -89,25 +87,13 @@ public static class InfrastructureConfiguration
         services.TryAddSingleton<ITokenProvider, TokenProvider>();
         services.TryAddSingleton<IEmailSender, ConsoleEmailSender>();
 
-        services.AddMassTransit(configure =>
-        {
-            foreach (Action<IRegistrationConfigurator> configureConsumer in moduleConfigureConsumers)
-            {
-                configureConsumer(configure);
-            }
-
-            configure.SetKebabCaseEndpointNameFormatter();
-
-            configure.UsingInMemory((context, cfg) =>
-            {
-                cfg.ConfigureEndpoints(context);
-            });
-        });
-
         // Cada módulo contribui seu próprio job (AddOutboxProcessor/AddInboxProcessor, chamados de
         // dentro do próprio composition root) via IConfigureOptions<QuartzOptions> — aqui só o
         // bootstrapping compartilhado: opções, o scheduler em si, e o cleanup (que enumera
-        // IEnumerable<OutboxModule>/IEnumerable<InboxModule> contribuído por cada módulo).
+        // IEnumerable<OutboxModule>/IEnumerable<InboxModule> contribuído por cada módulo). O bus em
+        // si é o InMemoryEventBus estático (ver EventBus/) — cada módulo consumidor assina os
+        // eventos que quer no próprio Initialize (chamado de Program.cs depois do builder.Build()),
+        // não há wiring de bus centralizado aqui.
         services.Configure<OutboxProcessorOptions>(configuration.GetSection("OutboxProcessor"));
         services.AddQuartz();
         services.AddQuartzHostedService(quartz => quartz.WaitForJobsToComplete = true);

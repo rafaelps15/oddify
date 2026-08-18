@@ -37,8 +37,6 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
 
     internal DbSet<InboxMessage> InboxMessages { get; set; }
 
-    internal DbSet<InboxMessageConsumer> InboxMessageConsumers { get; set; }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Users);
@@ -53,6 +51,5 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : D
         modelBuilder.ApplyConfiguration(new PasswordResetTokenConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
         modelBuilder.ApplyConfiguration(new InboxMessageConfiguration());
-        modelBuilder.ApplyConfiguration(new InboxMessageConsumerConfiguration());
     }
 }

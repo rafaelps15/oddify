@@ -5,10 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MassTransit.Abstractions" Version="8.2.1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Oddify.Common.Domain\Oddify.Common.Domain.csproj" />
   </ItemGroup>
 

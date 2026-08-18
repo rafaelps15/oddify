@@ -6,28 +6,18 @@ namespace Oddify.Common.Infrastructure.Inbox;
 
 public static class IntegrationEventHandlerRegistrationExtensions
 {
-    // Espelho de AddDomainEventHandlers — acha por reflexão cada IIntegrationEventHandler<T>
-    // concreto no assembly Presentation do módulo, registra cada um resolvendo pra uma versão
-    // decorada com IdempotentIntegrationEventHandler<T>.
-    public static IServiceCollection AddIntegrationEventHandlers(this IServiceCollection services, Assembly presentationAssembly, string schema)
+    // Acha por reflexão cada IIntegrationEventHandler<T> concreto no assembly Presentation do
+    // módulo e registra cada um puro — sem idempotência extra por handler. O projeto de referência
+    // (Modular Monolith with DDD) não tem isso; a única proteção contra reprocessamento é
+    // ProcessedOnUtc na própria linha da inbox.
+    public static IServiceCollection AddIntegrationEventHandlers(this IServiceCollection services, Assembly presentationAssembly)
     {
         IEnumerable<Type> handlerTypes = presentationAssembly.GetTypes()
             .Where(type => !type.IsAbstract && type.IsAssignableTo(typeof(IIntegrationEventHandler)) && type != typeof(IIntegrationEventHandler));
 
         foreach (Type handlerType in handlerTypes)
         {
-            Type integrationEventType = handlerType.GetInterfaces()
-                .Single(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IIntegrationEventHandler<>))
-                .GetGenericArguments()[0];
-
-            Type idempotentClosedType = typeof(IdempotentIntegrationEventHandler<>).MakeGenericType(integrationEventType);
-
-            services.AddScoped(handlerType, sp =>
-            {
-                object innerHandler = ActivatorUtilities.CreateInstance(sp, handlerType);
-
-                return ActivatorUtilities.CreateInstance(sp, idempotentClosedType, innerHandler, schema);
-            });
+            services.AddScoped(handlerType);
         }
 
         return services;

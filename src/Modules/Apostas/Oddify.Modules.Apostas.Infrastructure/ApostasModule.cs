@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -9,6 +8,7 @@ using Oddify.Common.Infrastructure.Inbox;
 using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
+using Oddify.Modules.Apostas.Application.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
@@ -34,17 +34,23 @@ public static class ApostasModule
     public static IServiceCollection AddApostasModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEndpoints(Presentation.AssemblyReference.Assembly);
-        services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly, Schemas.Apostas);
+        services.AddIntegrationEventHandlers(Presentation.AssemblyReference.Assembly);
         services.AddInfrastructure(configuration);
         return services;
     }
 
-    // Um IntegrationEventConsumer<T> (Infrastructure/Inbox) por tipo de integration event que
-    // este módulo consome — achado por reflexão a partir de quem implementa
-    // IIntegrationEventHandler<T> no assembly Presentation, em vez de registrar cada consumer à
-    // mão um por um.
-    public static void ConfigureConsumers(IRegistrationConfigurator registrationConfigurator)
+    // Assina, um por um, cada integration event que este módulo consome — espelha
+    // EventsBusStartup.Initialize do projeto de referência (Modular Monolith with DDD). Os tipos
+    // ainda são achados por reflexão (a partir de quem implementa IIntegrationEventHandler<T> no
+    // assembly Presentation) em vez de citados por nome aqui: Infrastructure não pode referenciar
+    // o projeto IntegrationEvents de outro módulo (essa exceção é só de Presentation, ver
+    // CLAUDE.md §2/§10) — só Presentation, que já referencia esses tipos pra implementar os
+    // consumers de negócio, sabe o nome deles em tempo de compilação. Chamado de Program.cs depois
+    // de builder.Build(), quando o IEventBus já existe no container.
+    public static void Initialize(IServiceProvider serviceProvider)
     {
+        IEventBus eventBus = serviceProvider.GetRequiredService<IEventBus>();
+
         IEnumerable<Type> integrationEventTypes = Presentation.AssemblyReference.Assembly.GetTypes()
             .Where(type => !type.IsAbstract && type.IsAssignableTo(typeof(IIntegrationEventHandler)) && type != typeof(IIntegrationEventHandler))
             .Select(handlerType => handlerType.GetInterfaces()
@@ -54,7 +60,10 @@ public static class ApostasModule
 
         foreach (Type integrationEventType in integrationEventTypes)
         {
-            registrationConfigurator.AddConsumer(typeof(IntegrationEventConsumer<>).MakeGenericType(integrationEventType));
+            Type genericHandlerType = typeof(IntegrationEventGenericHandler<>).MakeGenericType(integrationEventType);
+            var genericHandler = (IIntegrationEventHandler)Activator.CreateInstance(genericHandlerType, serviceProvider)!;
+
+            eventBus.Subscribe(integrationEventType, genericHandler);
         }
     }
 
@@ -71,6 +80,8 @@ public static class ApostasModule
                 .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApostasDbContext>());
+
+        services.AddScoped<ApostaMultiplaLiquidacaoService>();
 
         services.AddScoped<IBancaRepository, BancaRepository>();
         services.AddScoped<IApostaMultiplaRepository, ApostaMultiplaRepository>();

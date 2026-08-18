@@ -42,7 +42,6 @@ string redisConnectionString = builder.Configuration.GetConnectionString("Cache"
 // do bootstrapping compartilhado (Quartz, cleanup, etc).
 builder.Services.AddInfrastructure(
     builder.Configuration,
-    [ApostasModule.ConfigureConsumers, UsersModule.ConfigureConsumers],
     databaseConnectionString,
     redisConnectionString);
 
@@ -58,6 +57,12 @@ builder.Services.AddApostasModule(builder.Configuration);
 builder.Services.AddUsersModule(builder.Configuration);
 
 WebApplication app = builder.Build();
+
+// Assina os consumers genéricos de cada módulo consumidor no bus in-memory — precisa acontecer
+// depois de builder.Build(), quando o IEventBus já existe no container (espelha
+// EventsBusStartup.Initialize do projeto de referência, chamado depois do container montado).
+ApostasModule.Initialize(app.Services);
+UsersModule.Initialize(app.Services);
 
 if (app.Environment.IsDevelopment())
 {

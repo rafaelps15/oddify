@@ -24,6 +24,14 @@ internal sealed class ApostaMultiplaRepository(ApostasDbContext context) : IApos
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<ApostaMultipla>> GetPendentesPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)
+    {
+        return await context.ApostasMultiplas
+            .Where(a => a.Resultado == ResultadoDaAposta.Pendente)
+            .Where(a => context.PernasDeAposta.Any(p => p.ApostaMultiplaId == a.Id && p.PartidaId == partidaId))
+            .ToListAsync(cancellationToken);
+    }
+
     public void Insert(ApostaMultipla apostaMultipla)
     {
         context.ApostasMultiplas.Add(apostaMultipla);

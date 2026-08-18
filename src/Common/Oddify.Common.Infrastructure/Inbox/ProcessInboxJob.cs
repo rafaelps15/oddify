@@ -3,29 +3,26 @@ using System.Reflection;
 using System.Text.Json;
 using Dapper;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.EventBus;
-using Oddify.Common.Application.Outbox;
 using Oddify.Common.Infrastructure.Serialization;
 using Quartz;
 
 namespace Oddify.Common.Infrastructure.Inbox;
 
-// Espelho de OutboxProcessorJob — uma instância por módulo que consome integration event de
-// outro módulo. Lê um lote de inbox_messages pendentes, resolve cada IIntegrationEventHandler<T>
-// local (IntegrationEventHandlersFactory, no assembly Presentation do módulo) e invoca.
+// Espelho de OutboxProcessorJob — uma instância por módulo que consome integration event de outro
+// módulo. Lê as inbox_messages pendentes, resolve e invoca cada IIntegrationEventHandler<T> local
+// (IntegrationEventHandlersFactory, no assembly Presentation do módulo), marca processado. Sem
+// lote/lock/retry, mesmo raciocínio de OutboxProcessorJob: se uma mensagem falhar, a exceção sobe e
+// ela continua pendente pra próxima rodada.
 //
 // S2077 desabilitado neste arquivo: {schema} vem só de InboxModule (código do host), nunca de
-// request — Id/RetryCount/Error/Exhausted/BatchSize continuam parametrizados via Dapper.
+// request — Id continua parametrizado via Dapper normalmente.
 #pragma warning disable S2077
 [DisallowConcurrentExecution]
-internal sealed partial class ProcessInboxJob(
+internal sealed class ProcessInboxJob(
     IDbConnectionFactory dbConnectionFactory,
-    IServiceScopeFactory serviceScopeFactory,
-    IOptions<OutboxProcessorOptions> options,
-    ILogger<ProcessInboxJob> logger) : IJob
+    IServiceScopeFactory serviceScopeFactory) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
@@ -34,103 +31,56 @@ internal sealed partial class ProcessInboxJob(
         CancellationToken cancellationToken = context.CancellationToken;
 
         await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
-        await using DbTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         string selectSql =
             $"""
-             SELECT id AS Id, type AS Type, content AS Content, retry_count AS RetryCount
+             SELECT id AS Id, type AS Type, content AS Content
              FROM {schema}.inbox_messages
-             WHERE processed_on_utc IS NULL AND failed_at_utc IS NULL
+             WHERE processed_on_utc IS NULL
              ORDER BY occurred_on_utc
-             LIMIT @BatchSize
-             FOR UPDATE SKIP LOCKED
              """;
 
-        var command = new CommandDefinition(selectSql, new { options.Value.BatchSize }, transaction, cancellationToken: cancellationToken);
-        List<InboxMessageRow> messages = (await connection.QueryAsync<InboxMessageRow>(command)).AsList();
+        List<InboxMessageRow> messages = (await connection.QueryAsync<InboxMessageRow>(
+            new CommandDefinition(selectSql, cancellationToken: cancellationToken))).AsList();
 
         foreach (InboxMessageRow message in messages)
         {
-            await ProcessMessageAsync(connection, transaction, schema, presentationAssembly, message, cancellationToken);
+            await ProcessMessageAsync(connection, schema, presentationAssembly, message, cancellationToken);
         }
-
-        await transaction.CommitAsync(cancellationToken);
     }
 
     private async Task ProcessMessageAsync(
         DbConnection connection,
-        DbTransaction transaction,
         string schema,
         Assembly presentationAssembly,
         InboxMessageRow message,
         CancellationToken cancellationToken)
     {
-        try
+        Type integrationEventType = Type.GetType(message.Type)
+            ?? throw new InvalidOperationException($"Unknown integration event type '{message.Type}'.");
+
+        var integrationEvent = (IIntegrationEvent)JsonSerializer.Deserialize(message.Content, integrationEventType, EventSerializerOptions.Instance)!;
+
+        using IServiceScope scope = serviceScopeFactory.CreateScope();
+
+        IEnumerable<IIntegrationEventHandler> handlers =
+            IntegrationEventHandlersFactory.GetHandlers(integrationEventType, scope.ServiceProvider, presentationAssembly);
+
+        foreach (IIntegrationEventHandler handler in handlers)
         {
-            var integrationEventType = Type.GetType(message.Type);
-
-            if (integrationEventType is null)
-            {
-                throw new InvalidOperationException($"Unknown integration event type '{message.Type}'.");
-            }
-
-            var integrationEvent = (IIntegrationEvent)JsonSerializer.Deserialize(message.Content, integrationEventType, EventSerializerOptions.Instance)!;
-
-            using IServiceScope scope = serviceScopeFactory.CreateScope();
-
-            IEnumerable<IIntegrationEventHandler> handlers =
-                IntegrationEventHandlersFactory.GetHandlers(integrationEventType, scope.ServiceProvider, presentationAssembly);
-
-            foreach (IIntegrationEventHandler handler in handlers)
-            {
-                await handler.Handle(integrationEvent, cancellationToken);
-            }
-
-            await MarkAsProcessedAsync(connection, transaction, schema, message.Id, cancellationToken);
+            await handler.Handle(integrationEvent, cancellationToken);
         }
-        catch (Exception exception)
-        {
-            LogMessageFailed(logger, message.Id, exception);
 
-            await MarkAsFailedAsync(connection, transaction, schema, message, exception.Message, cancellationToken);
-        }
+        await MarkAsProcessedAsync(connection, schema, message.Id, cancellationToken);
     }
 
-    private static async Task MarkAsProcessedAsync(DbConnection connection, DbTransaction transaction, string schema, Guid id, CancellationToken cancellationToken)
+    private static async Task MarkAsProcessedAsync(DbConnection connection, string schema, Guid id, CancellationToken cancellationToken)
     {
         string sql = $"UPDATE {schema}.inbox_messages SET processed_on_utc = now() WHERE id = @Id";
 
-        await connection.ExecuteAsync(new CommandDefinition(sql, new { Id = id }, transaction, cancellationToken: cancellationToken));
+        await connection.ExecuteAsync(new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken));
     }
 
-    private async Task MarkAsFailedAsync(
-        DbConnection connection,
-        DbTransaction transaction,
-        string schema,
-        InboxMessageRow message,
-        string error,
-        CancellationToken cancellationToken)
-    {
-        int retryCount = message.RetryCount + 1;
-        bool exhausted = retryCount >= options.Value.MaxAttempts;
-
-        string sql =
-            $"""
-             UPDATE {schema}.inbox_messages
-             SET retry_count = @RetryCount, error = @Error, failed_at_utc = CASE WHEN @Exhausted THEN now() ELSE NULL END
-             WHERE id = @Id
-             """;
-
-        await connection.ExecuteAsync(new CommandDefinition(
-            sql,
-            new { message.Id, RetryCount = retryCount, Error = error, Exhausted = exhausted },
-            transaction,
-            cancellationToken: cancellationToken));
-    }
-
-    private sealed record InboxMessageRow(Guid Id, string Type, string Content, int RetryCount);
-
-    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Falha ao processar a inbox message {MessageId}")]
-    private static partial void LogMessageFailed(ILogger logger, Guid messageId, Exception exception);
+    private sealed record InboxMessageRow(Guid Id, string Type, string Content);
 }
 #pragma warning restore S2077

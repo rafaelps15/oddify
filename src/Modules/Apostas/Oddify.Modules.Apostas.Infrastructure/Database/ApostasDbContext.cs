@@ -34,8 +34,6 @@ public sealed class ApostasDbContext(DbContextOptions<ApostasDbContext> options)
 
     internal DbSet<InboxMessage> InboxMessages { get; set; }
 
-    internal DbSet<InboxMessageConsumer> InboxMessageConsumers { get; set; }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schemas.Apostas);
@@ -43,6 +41,5 @@ public sealed class ApostasDbContext(DbContextOptions<ApostasDbContext> options)
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApostasDbContext).Assembly);
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
         modelBuilder.ApplyConfiguration(new InboxMessageConfiguration());
-        modelBuilder.ApplyConfiguration(new InboxMessageConsumerConfiguration());
     }
 }

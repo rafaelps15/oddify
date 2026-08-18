@@ -15,6 +15,11 @@ public interface IApostaMultiplaRepository
     // jornada dona do passo já foi carregada de forma escopada antes).
     Task<IReadOnlyCollection<ApostaMultipla>> GetPorPassoDaJornadaAsync(Guid passoDaJornadaId, CancellationToken cancellationToken = default);
 
+    // Usado por LiquidarApostasDaPartidaEncerradaCommandHandler (disparado pelo consumer do
+    // PartidaEncerradaIntegrationEvent) — sem escopo de usuário pelo mesmo motivo de GetByIdAsync:
+    // não há usuário autenticado na requisição, só o id da partida que o evento carrega.
+    Task<IReadOnlyCollection<ApostaMultipla>> GetPendentesPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+
     void Insert(ApostaMultipla apostaMultipla);
 
     void Delete(ApostaMultipla apostaMultipla);
