@@ -12,14 +12,15 @@ using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Emailing;
 using Oddify.Common.Application.EventBus;
+using Oddify.Common.Application.Outbox;
 using Oddify.Common.Infrastructure.Authentication;
 using Oddify.Common.Infrastructure.Authorization;
 using Oddify.Common.Infrastructure.Caching;
 using Oddify.Common.Infrastructure.Clock;
 using Oddify.Common.Infrastructure.Data;
 using Oddify.Common.Infrastructure.Emailing;
-using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Infrastructure.Outbox;
+using Quartz;
 using StackExchange.Redis;
 
 namespace Oddify.Common.Infrastructure;
@@ -30,7 +31,6 @@ public static class InfrastructureConfiguration
         this IServiceCollection services,
         IConfiguration configuration,
         Action<IRegistrationConfigurator>[] moduleConfigureConsumers,
-        OutboxModule[] outboxModules,
         string databaseConnectionString,
         string redisConnectionString)
     {
@@ -39,7 +39,7 @@ public static class InfrastructureConfiguration
 
         services.TryAddScoped<IDbConnectionFactory, DbConnectionFactory>();
 
-        services.TryAddSingleton<PublishDomainEventsInterceptor>();
+        services.TryAddSingleton<InsertOutboxMessagesInterceptor>();
 
         services.TryAddSingleton<IDateTimeProvider, DateTimeProvider>();
 
@@ -104,7 +104,14 @@ public static class InfrastructureConfiguration
             });
         });
 
-        services.AddOutboxProcessing(configuration, outboxModules);
+        // Cada módulo contribui seu próprio job (AddOutboxProcessor/AddInboxProcessor, chamados de
+        // dentro do próprio composition root) via IConfigureOptions<QuartzOptions> — aqui só o
+        // bootstrapping compartilhado: opções, o scheduler em si, e o cleanup (que enumera
+        // IEnumerable<OutboxModule>/IEnumerable<InboxModule> contribuído por cada módulo).
+        services.Configure<OutboxProcessorOptions>(configuration.GetSection("OutboxProcessor"));
+        services.AddQuartz();
+        services.AddQuartzHostedService(quartz => quartz.WaitForJobsToComplete = true);
+        services.AddHostedService<OutboxCleanupBackgroundService>();
 
         return services;
     }

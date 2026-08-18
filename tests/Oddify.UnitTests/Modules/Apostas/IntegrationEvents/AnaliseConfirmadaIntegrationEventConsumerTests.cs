@@ -1,5 +1,4 @@
 using FluentAssertions;
-using MassTransit;
 using MediatR;
 using NSubstitute;
 using Oddify.Common.Application.Exceptions;
@@ -16,23 +15,15 @@ public sealed class AnaliseConfirmadaIntegrationEventConsumerTests
 
     private AnaliseConfirmadaIntegrationEventConsumer CriarConsumer() => new(_sender);
 
-    private static ConsumeContext<AnaliseConfirmadaIntegrationEvent> CriarContexto(AnaliseConfirmadaIntegrationEvent evento)
-    {
-        ConsumeContext<AnaliseConfirmadaIntegrationEvent> context = Substitute.For<ConsumeContext<AnaliseConfirmadaIntegrationEvent>>();
-        context.Message.Returns(evento);
-        context.CancellationToken.Returns(CancellationToken.None);
-        return context;
-    }
-
     [Fact]
-    public async Task Consume_should_dispatch_registrar_analise_disponivel_command()
+    public async Task Handle_should_dispatch_registrar_analise_disponivel_command()
     {
         var evento = new AnaliseConfirmadaIntegrationEvent(
             Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.85m, 0.62m, reduzida: false);
         _sender.Send(Arg.Any<RegistrarAnaliseDisponivelParaApostaCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        await CriarConsumer().Consume(CriarContexto(evento));
+        await CriarConsumer().Handle(evento, CancellationToken.None);
 
         await _sender.Received(1).Send(
             Arg.Is<RegistrarAnaliseDisponivelParaApostaCommand>(c =>
@@ -46,14 +37,14 @@ public sealed class AnaliseConfirmadaIntegrationEventConsumerTests
     }
 
     [Fact]
-    public async Task Consume_should_throw_when_command_fails()
+    public async Task Handle_should_throw_when_command_fails()
     {
         var evento = new AnaliseConfirmadaIntegrationEvent(
             Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 1.85m, 0.62m, reduzida: false);
         _sender.Send(Arg.Any<RegistrarAnaliseDisponivelParaApostaCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(Error.Failure("AnalisesDisponiveis.Falha", "falha simulada")));
 
-        Func<Task> act = () => CriarConsumer().Consume(CriarContexto(evento));
+        Func<Task> act = () => CriarConsumer().Handle(evento, CancellationToken.None);
 
         await act.Should().ThrowAsync<OddifyException>();
     }

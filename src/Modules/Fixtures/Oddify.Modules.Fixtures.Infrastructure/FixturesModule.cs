@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
+using Presentation = Oddify.Modules.Fixtures.Presentation;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
 using Oddify.Modules.Fixtures.Domain.Cotacoes;
@@ -51,7 +51,7 @@ public static class FixturesModule
                     .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Fixtures)
                     .EnableRetryOnFailure())
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
+                .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FixturesDbContext>());
 
@@ -62,8 +62,6 @@ public static class FixturesModule
         services.AddScoped<IEstatisticaEquipeRepository, EstatisticaEquipeRepository>();
         services.AddScoped<IEstatisticaJogadorRepository, EstatisticaJogadorRepository>();
         services.AddScoped<ICotacaoRepository, CotacaoRepository>();
-
-        services.AddOutboxWriter<FixturesDbContext>();
 
         services.AddScoped<IFixturesApi, FixturesApi>();
 
@@ -87,5 +85,7 @@ public static class FixturesModule
         services.AddHealthChecks()
             .AddCheck<ApiFootballHealthCheck>("api-football")
             .AddCheck<TheOddsApiHealthCheck>("the-odds-api");
+
+        services.AddOutboxProcessor(Schemas.Fixtures);
     }
 }

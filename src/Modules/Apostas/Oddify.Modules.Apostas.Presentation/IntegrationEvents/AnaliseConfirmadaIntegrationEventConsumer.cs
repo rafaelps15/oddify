@@ -1,5 +1,5 @@
-using MassTransit;
 using MediatR;
+using Oddify.Common.Application.EventBus;
 using Oddify.Common.Application.Exceptions;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.IntegrationEvents;
@@ -7,22 +7,22 @@ using Oddify.Modules.Apostas.Application.ApostasMultiplas.RegistrarAnaliseDispon
 
 namespace Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 
+// Despachado pelo ProcessInboxJob (fora do momento em que a mensagem chegou no bus) — ver
+// IntegrationEventConsumer<T> (Infrastructure/Inbox), que só grava a mensagem antes de retornar.
 public sealed class AnaliseConfirmadaIntegrationEventConsumer(ISender sender)
-    : IConsumer<AnaliseConfirmadaIntegrationEvent>
+    : IntegrationEventHandler<AnaliseConfirmadaIntegrationEvent>
 {
-    public async Task Consume(ConsumeContext<AnaliseConfirmadaIntegrationEvent> context)
+    public override async Task Handle(AnaliseConfirmadaIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        AnaliseConfirmadaIntegrationEvent evento = context.Message;
-
         Result result = await sender.Send(
             new RegistrarAnaliseDisponivelParaApostaCommand(
-                evento.AnaliseId,
-                evento.PartidaId,
-                evento.Mercado,
-                evento.OddDeMercado,
-                evento.ProbabilidadeConfirmada,
-                evento.Reduzida),
-            context.CancellationToken);
+                integrationEvent.AnaliseId,
+                integrationEvent.PartidaId,
+                integrationEvent.Mercado,
+                integrationEvent.OddDeMercado,
+                integrationEvent.ProbabilidadeConfirmada,
+                integrationEvent.Reduzida),
+            cancellationToken);
 
         if (result.IsFailure)
         {

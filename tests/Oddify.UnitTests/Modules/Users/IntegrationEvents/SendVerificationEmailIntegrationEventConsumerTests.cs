@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Oddify.Common.Application.Emailing;
@@ -17,22 +16,14 @@ public sealed class SendVerificationEmailIntegrationEventConsumerTests
 
     private SendVerificationEmailIntegrationEventConsumer CriarConsumer() => new(_userRepository, _emailSender, _options);
 
-    private static ConsumeContext<SendVerificationEmailIntegrationEvent> CriarContexto(SendVerificationEmailIntegrationEvent evento)
-    {
-        ConsumeContext<SendVerificationEmailIntegrationEvent> context = Substitute.For<ConsumeContext<SendVerificationEmailIntegrationEvent>>();
-        context.Message.Returns(evento);
-        context.CancellationToken.Returns(CancellationToken.None);
-        return context;
-    }
-
     [Fact]
-    public async Task Consume_should_send_email_with_the_raw_token_to_the_user()
+    public async Task Handle_should_send_email_with_the_raw_token_to_the_user()
     {
         var user = User.Create("user@example.com", "hash", "Ada", "Lovelace");
         var evento = new SendVerificationEmailIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, user.Id, "raw-token", DateTime.UtcNow.AddHours(24));
         _userRepository.GetAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
 
-        await CriarConsumer().Consume(CriarContexto(evento));
+        await CriarConsumer().Handle(evento, CancellationToken.None);
 
         await _emailSender.Received(1).SendAsync(
             "user@example.com",
@@ -42,12 +33,12 @@ public sealed class SendVerificationEmailIntegrationEventConsumerTests
     }
 
     [Fact]
-    public async Task Consume_should_do_nothing_when_user_not_found()
+    public async Task Handle_should_do_nothing_when_user_not_found()
     {
         var evento = new SendVerificationEmailIntegrationEvent(Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid(), "raw-token", DateTime.UtcNow.AddHours(24));
         _userRepository.GetAsync(evento.UserId, Arg.Any<CancellationToken>()).Returns((User?)null);
 
-        await CriarConsumer().Consume(CriarContexto(evento));
+        await CriarConsumer().Handle(evento, CancellationToken.None);
 
         await _emailSender.DidNotReceive().SendAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());

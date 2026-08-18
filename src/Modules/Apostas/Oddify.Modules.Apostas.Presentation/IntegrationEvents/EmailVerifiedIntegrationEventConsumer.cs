@@ -1,5 +1,5 @@
-using MassTransit;
 using MediatR;
+using Oddify.Common.Application.EventBus;
 using Oddify.Common.Application.Exceptions;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Bancas.CriarBancaInicial;
@@ -7,15 +7,15 @@ using Oddify.Modules.Users.IntegrationEvents;
 
 namespace Oddify.Modules.Apostas.Presentation.IntegrationEvents;
 
-public sealed class EmailVerifiedIntegrationEventConsumer(ISender sender) : IConsumer<EmailVerifiedIntegrationEvent>
+// Despachado pelo ProcessInboxJob — ver comentário equivalente em
+// AnaliseConfirmadaIntegrationEventConsumer.
+public sealed class EmailVerifiedIntegrationEventConsumer(ISender sender) : IntegrationEventHandler<EmailVerifiedIntegrationEvent>
 {
-    public async Task Consume(ConsumeContext<EmailVerifiedIntegrationEvent> context)
+    public override async Task Handle(EmailVerifiedIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        EmailVerifiedIntegrationEvent evento = context.Message;
-
         Result result = await sender.Send(
-            new CriarBancaInicialCommand(evento.UserId, evento.OccurredOnUtc),
-            context.CancellationToken);
+            new CriarBancaInicialCommand(integrationEvent.UserId, integrationEvent.OccurredOnUtc),
+            cancellationToken);
 
         if (result.IsFailure)
         {

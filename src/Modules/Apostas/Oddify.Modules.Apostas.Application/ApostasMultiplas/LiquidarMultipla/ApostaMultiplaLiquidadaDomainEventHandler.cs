@@ -7,9 +7,10 @@ using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.LiquidarMultipla;
 
-// Só reage quando a aposta liquidada pertence a um passo de jornada de alavancagem
-// (PassoDaJornadaId setado, Origem=Alavancagem) — apostas normais (ManualEntry/ImportacaoDePrint)
-// não têm PassoDaJornadaId, então saem no if abaixo sem disparar nada.
+// Despachado pelo OutboxProcessorJob (fora do request original de liquidação) — só reage quando a
+// aposta liquidada pertence a um passo de jornada de alavancagem (PassoDaJornadaId setado,
+// Origem=Alavancagem); apostas normais (ManualEntry/ImportacaoDePrint) não têm PassoDaJornadaId,
+// então saem no if abaixo sem disparar nada.
 internal sealed class ApostaMultiplaLiquidadaDomainEventHandler(IApostaMultiplaRepository apostaMultiplaRepository, ISender sender)
     : IDomainEventHandler<ApostaMultiplaLiquidadaDomainEvent>
 {

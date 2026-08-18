@@ -1,19 +1,21 @@
-using MassTransit;
 using Oddify.Common.Application.Emailing;
+using Oddify.Common.Application.EventBus;
 using Oddify.Modules.Users.Domain.Users;
 using Oddify.Modules.Users.IntegrationEvents;
 
 namespace Oddify.Modules.Users.Presentation.IntegrationEvents;
 
 // Assina o mesmo EmailVerifiedIntegrationEvent que o EmailVerifiedIntegrationEventConsumer de
-// Apostas assina (pra criar a banca inicial) — múltiplos consumers pro mesmo evento é normal em
-// pub/sub, o MassTransit já suporta isso nativamente.
+// Apostas assina (pra criar a banca inicial) — múltiplos handler pro mesmo evento é normal,
+// IntegrationEventHandlersFactory despacha pra todos que existirem no assembly Presentation.
+// Despachado pelo ProcessInboxJob — ver comentário equivalente em
+// AnaliseConfirmadaIntegrationEventConsumer (Apostas).
 public sealed class SendWelcomeEmailIntegrationEventConsumer(IUserRepository userRepository, IEmailSender emailSender)
-    : IConsumer<EmailVerifiedIntegrationEvent>
+    : IntegrationEventHandler<EmailVerifiedIntegrationEvent>
 {
-    public async Task Consume(ConsumeContext<EmailVerifiedIntegrationEvent> context)
+    public override async Task Handle(EmailVerifiedIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        User? user = await userRepository.GetAsync(context.Message.UserId, context.CancellationToken);
+        User? user = await userRepository.GetAsync(integrationEvent.UserId, cancellationToken);
         if (user is null)
         {
             return;
@@ -25,6 +27,6 @@ public sealed class SendWelcomeEmailIntegrationEventConsumer(IUserRepository use
              <p>Seu e-mail foi verificado com sucesso. Sua conta Oddify está pronta pra uso.</p>
              """;
 
-        await emailSender.SendAsync(user.Email, "Bem-vindo à Oddify", body, context.CancellationToken);
+        await emailSender.SendAsync(user.Email, "Bem-vindo à Oddify", body, cancellationToken);
     }
 }

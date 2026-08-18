@@ -1,13 +1,5 @@
 {
   "Users": {
-    "OutboxProcessor": {
-      "Enabled": true,
-      "Interval": "00:00:10",
-      "BatchSize": 20,
-      "MaxAttempts": 5,
-      "RetentionPeriod": "7.00:00:00",
-      "CleanupInterval": "1.00:00:00"
-    },
     "EmailVerification": {
       "VerificationBaseUrl": "http://localhost:4200/confirm-email"
     },

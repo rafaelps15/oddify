@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Oddify.Common.Infrastructure.Interceptors;
 using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
+using Presentation = Oddify.Modules.Analise.Presentation;
 using Oddify.Modules.Analise.Application.Abstractions.Data;
 using Oddify.Modules.Analise.Application.Abstractions.Fixtures;
 using Oddify.Modules.Analise.Application.Abstractions.Llm;
@@ -38,13 +38,11 @@ public static class AnaliseModule
                     .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Analise)
                     .EnableRetryOnFailure())
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(sp.GetRequiredService<PublishDomainEventsInterceptor>()));
+                .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AnaliseDbContext>());
 
         services.AddScoped<IAnaliseDePartidaRepository, AnaliseDePartidaRepository>();
-
-        services.AddOutboxWriter<AnaliseDbContext>();
 
         services.AddScoped<IAnaliseDePartidaDadosService, AnaliseDePartidaDadosService>();
 
@@ -52,5 +50,7 @@ public static class AnaliseModule
 
         services.AddSingleton<AnthropicClient>(_ => new AnthropicClient());
         services.AddScoped<IClaudeAvaliadorCriticoService, ClaudeAvaliadorCriticoService>();
+
+        services.AddOutboxProcessor(Schemas.Analise);
     }
 }

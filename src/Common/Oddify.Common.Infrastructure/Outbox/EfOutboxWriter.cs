@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Application.EventBus;
 using Oddify.Common.Application.Outbox;
+using Oddify.Common.Infrastructure.Serialization;
 
 namespace Oddify.Common.Infrastructure.Outbox;
 
@@ -12,8 +13,9 @@ internal sealed class EfOutboxWriter<TContext>(TContext context) : IOutboxWriter
     public void Enqueue<T>(T integrationEvent) where T : IIntegrationEvent
     {
         var message = OutboxMessage.Create(
-            typeof(T).FullName!,
-            JsonSerializer.Serialize(integrationEvent),
+            integrationEvent.Id,
+            typeof(T).AssemblyQualifiedName!,
+            JsonSerializer.Serialize(integrationEvent, EventSerializerOptions.Instance),
             integrationEvent.OccurredOnUtc);
 
         context.Set<OutboxMessage>().Add(message);

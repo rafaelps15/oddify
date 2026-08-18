@@ -1,27 +1,23 @@
-using Oddify.Common.Application.Clock;
+using Oddify.Common.Application.EventBus;
 using Oddify.Common.Application.Messaging;
-using Oddify.Common.Application.Outbox;
-using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Domain.Partidas;
 using Oddify.Modules.Fixtures.IntegrationEvents;
 
 namespace Oddify.Modules.Fixtures.Application.Partidas.RegistrarResultado;
 
-internal sealed class PartidaEncerradaDomainEventHandler(
-    IOutboxWriter outboxWriter,
-    IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider)
-    : IDomainEventHandler<PartidaEncerradaDomainEvent>
+// Despachado pelo OutboxProcessorJob (fora do request original) — ver comentário equivalente em
+// AnaliseAvaliadaPeloClaudeDomainEventHandler sobre por que PublishAsync direto é seguro aqui.
+internal sealed class PartidaEncerradaDomainEventHandler(IEventBus eventBus) : IDomainEventHandler<PartidaEncerradaDomainEvent>
 {
     public async Task Handle(PartidaEncerradaDomainEvent notification, CancellationToken cancellationToken)
     {
-        outboxWriter.Enqueue(new PartidaEncerradaIntegrationEvent(
-            Guid.NewGuid(),
-            dateTimeProvider.UtcNow,
-            notification.PartidaId,
-            notification.GolsCasa,
-            notification.GolsVisitante));
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await eventBus.PublishAsync(
+            new PartidaEncerradaIntegrationEvent(
+                Guid.NewGuid(),
+                DateTime.UtcNow,
+                notification.PartidaId,
+                notification.GolsCasa,
+                notification.GolsVisitante),
+            cancellationToken);
     }
 }

@@ -5,10 +5,9 @@ using Oddify.Modules.Users.Domain.Users;
 
 namespace Oddify.Modules.Users.Application.Users.RegisterUser;
 
-// Roda de forma síncrona, dentro do próprio request de cadastro (PublishDomainEventsInterceptor
-// padrão) — só gera+persiste o token e enfileira o e-mail de verificação na outbox
-// (EmailVerificationTokenIssuer); o envio de fato acontece depois, fora do request, via
-// SendVerificationEmailIntegrationEventConsumer.
+// Despachado pelo OutboxProcessorJob (fora do request original de cadastro) — só gera+persiste o
+// token e enfileira o e-mail de verificação na outbox (EmailVerificationTokenIssuer); o envio de
+// fato acontece depois, via SendVerificationEmailIntegrationEventConsumer.
 internal sealed class UserRegisteredDomainEventHandler(
     EmailVerificationTokenIssuer tokenIssuer,
     IUnitOfWork unitOfWork)
