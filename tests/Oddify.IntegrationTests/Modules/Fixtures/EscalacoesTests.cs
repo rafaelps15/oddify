@@ -93,6 +93,39 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task RegistrarEscalacao_should_fail_when_the_partida_does_not_exist()
+    {
+        (_, Guid equipeCasaId, _) = await CriarLigaComDuasEquipesAsync();
+
+        HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes", new
+        {
+            PartidaId = Guid.NewGuid(),
+            EquipeId = equipeCasaId,
+            Formacao = "4-4-2",
+            Tecnico = "Técnico de Teste"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task RegistrarEscalacao_should_fail_when_the_equipe_does_not_exist()
+    {
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
+        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+
+        HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes", new
+        {
+            PartidaId = partidaId,
+            EquipeId = Guid.NewGuid(),
+            Formacao = "4-4-2",
+            Tecnico = "Técnico de Teste"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     private async Task<Guid> RegistrarEscalacaoAsync(Guid partidaId, Guid equipeId, string formacao, string tecnico)
     {
         HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes", new
