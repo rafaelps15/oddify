@@ -1,11 +1,9 @@
 using FluentAssertions;
 using MediatR;
 using NSubstitute;
-using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
-using Oddify.Modules.Apostas.Application.ApostasMultiplas;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.GetResultadosDasPernas;
 using Oddify.Modules.Apostas.Application.ApostasMultiplas.LiquidarMultipla;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
@@ -24,19 +22,19 @@ public sealed class LiquidarMultiplaCommandHandlerTests
     private readonly ISender _sender = Substitute.For<ISender>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
-    private readonly IUserContext _userContext = Substitute.For<IUserContext>();
     private readonly Guid _usuarioId = Guid.NewGuid();
 
     private Banca CriarBanca(decimal saldoInicial) =>
         Banca.Create(_usuarioId, "Banca principal", saldoInicial, 0.05m, PerfilDeRisco.Moderado, modoPaperTrading: true, FinalidadeDaBanca.Principal, DateTime.UtcNow);
 
-    private LiquidarMultiplaCommandHandler CriarHandler()
-    {
-        _userContext.UserId.Returns(_usuarioId);
-        var liquidacaoService = new ApostaMultiplaLiquidacaoService(
-            _pernaDeApostaRepository, _bancaRepository, _movimentacaoDaBancaRepository, _sender, _dateTimeProvider);
-        return new(_apostaMultiplaRepository, liquidacaoService, _unitOfWork, _userContext);
-    }
+    private LiquidarMultiplaCommandHandler CriarHandler() => new(
+        _apostaMultiplaRepository,
+        _pernaDeApostaRepository,
+        _bancaRepository,
+        _movimentacaoDaBancaRepository,
+        _sender,
+        _dateTimeProvider,
+        _unitOfWork);
 
     private void ConfigurarResultados(IReadOnlyDictionary<Guid, bool> resultadosPorPernaId)
     {
@@ -54,7 +52,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
         var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
         var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
-        _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+        _apostaMultiplaRepository.GetByIdAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna1, perna2]);
 
@@ -62,7 +60,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
 
         _bancaRepository.GetAsync(banca.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(banca);
 
-        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
+        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id, _usuarioId), CancellationToken.None);
 
         resultado.IsSuccess.Should().BeTrue();
         apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Ganha);
@@ -86,7 +84,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
         var perna1 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
         var perna2 = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
-        _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+        _apostaMultiplaRepository.GetByIdAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna1, perna2]);
 
@@ -94,7 +92,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
 
         _bancaRepository.GetAsync(banca.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(banca);
 
-        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
+        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id, _usuarioId), CancellationToken.None);
 
         resultado.IsSuccess.Should().BeTrue();
         apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Perdida);
@@ -110,7 +108,7 @@ public sealed class LiquidarMultiplaCommandHandlerTests
 
         var perna = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 2.0m);
 
-        _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+        _apostaMultiplaRepository.GetByIdAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
         _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyCollection<PernaDeAposta>)[perna]);
 
@@ -118,10 +116,38 @@ public sealed class LiquidarMultiplaCommandHandlerTests
         _sender.Send(Arg.Any<GetResultadosDasPernasQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<IReadOnlyDictionary<Guid, bool>>(erro));
 
-        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
+        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id, _usuarioId), CancellationToken.None);
 
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(erro);
         apostaMultipla.Resultado.Should().Be(ResultadoDaAposta.Pendente);
+    }
+
+    [Fact]
+    public async Task Handle_should_return_not_found_when_aposta_belongs_to_a_different_usuario()
+    {
+        Banca banca = CriarBanca(1000m);
+        var apostaMultipla = ApostaMultipla.Create(
+            _usuarioId, banca.Id, oddCombinada: 2.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
+
+        _apostaMultiplaRepository.GetByIdAsync(apostaMultipla.Id, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+
+        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultipla.Id, Guid.NewGuid()), CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(ApostaMultiplaErrors.NotFound(apostaMultipla.Id));
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_should_return_not_found_when_aposta_does_not_exist()
+    {
+        var apostaMultiplaId = Guid.NewGuid();
+        _apostaMultiplaRepository.GetByIdAsync(apostaMultiplaId, Arg.Any<CancellationToken>()).Returns((ApostaMultipla?)null);
+
+        Result resultado = await CriarHandler().Handle(new LiquidarMultiplaCommand(apostaMultiplaId, _usuarioId), CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(ApostaMultiplaErrors.NotFound(apostaMultiplaId));
     }
 }

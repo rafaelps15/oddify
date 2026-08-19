@@ -8,7 +8,6 @@ using Oddify.Common.Infrastructure.Inbox;
 using Oddify.Common.Infrastructure.Outbox;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
-using Oddify.Modules.Apostas.Application.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
 using Oddify.Modules.Apostas.Domain.ApostasMultiplas;
 using Oddify.Modules.Apostas.Domain.Bancas;
@@ -80,8 +79,6 @@ public static class ApostasModule
                 .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApostasDbContext>());
-
-        services.AddScoped<ApostaMultiplaLiquidacaoService>();
 
         services.AddScoped<IBancaRepository, BancaRepository>();
         services.AddScoped<IApostaMultiplaRepository, ApostaMultiplaRepository>();
