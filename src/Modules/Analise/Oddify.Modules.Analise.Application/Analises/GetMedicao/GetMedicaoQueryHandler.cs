@@ -5,11 +5,10 @@ using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.Application.Calculo;
 using Oddify.Modules.Analise.Domain.Analises;
-using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Analise.Application.Analises.GetMedicao;
 
-internal sealed class GetMedicaoQueryHandler(IDbConnectionFactory dbConnectionFactory, IFixturesApi fixturesApi)
+internal sealed class GetMedicaoQueryHandler(IDbConnectionFactory dbConnectionFactory)
     : IQueryHandler<GetMedicaoQuery, MedicaoResponse>
 {
     public async Task<Result<MedicaoResponse>> Handle(GetMedicaoQuery request, CancellationToken cancellationToken)
@@ -19,33 +18,26 @@ internal sealed class GetMedicaoQueryHandler(IDbConnectionFactory dbConnectionFa
         const string sql =
             $"""
              SELECT
-                 partida_id AS {nameof(AnaliseParaMedicao.PartidaId)},
-                 mercado AS {nameof(AnaliseParaMedicao.Mercado)},
-                 prob_poisson_pura AS {nameof(AnaliseParaMedicao.ProbPoissonPura)},
-                 prob_dixon_coles AS {nameof(AnaliseParaMedicao.ProbDixonColes)},
-                 decisao_do_claude AS {nameof(AnaliseParaMedicao.DecisaoDoClaude)}
-             FROM analise.analises_de_partida
-             WHERE aprovada_no_filtro = true
+                 a.partida_id AS {nameof(AnaliseParaMedicao.PartidaId)},
+                 a.mercado AS {nameof(AnaliseParaMedicao.Mercado)},
+                 a.prob_poisson_pura AS {nameof(AnaliseParaMedicao.ProbPoissonPura)},
+                 a.prob_dixon_coles AS {nameof(AnaliseParaMedicao.ProbDixonColes)},
+                 a.decisao_do_claude AS {nameof(AnaliseParaMedicao.DecisaoDoClaude)},
+                 p.gols_casa AS {nameof(AnaliseParaMedicao.GolsCasa)},
+                 p.gols_visitante AS {nameof(AnaliseParaMedicao.GolsVisitante)}
+             FROM analise.analises_de_partida a
+             JOIN analise.partidas p ON p.id = a.partida_id
+             WHERE a.aprovada_no_filtro = true AND p.gols_casa IS NOT NULL AND p.gols_visitante IS NOT NULL
              """;
 
         List<AnaliseParaMedicao> analises = (await connection.QueryAsync<AnaliseParaMedicao>(sql)).AsList();
 
-        IReadOnlyCollection<PartidaResponse> partidas = await fixturesApi.ObterPartidasAsync(
-            analises.Select(a => a.PartidaId).Distinct().ToList(), cancellationToken);
-
-        var partidasPorId = partidas
-            .Where(p => p.GolsCasa is not null && p.GolsVisitante is not null)
-            .ToDictionary(p => p.Id);
-
         var amostras = analises
-            .Where(a => partidasPorId.ContainsKey(a.PartidaId))
-            .Select(a =>
-            {
-                PartidaResponse partida = partidasPorId[a.PartidaId];
-                decimal resultadoReal = MercadoResolver.Resolver(a.Mercado, partida.GolsCasa!.Value, partida.GolsVisitante!.Value) ? 1m : 0m;
-
-                return new AmostraDeMedicao(a.ProbPoissonPura, a.ProbDixonColes, resultadoReal, a.DecisaoDoClaude);
-            })
+            .Select(a => new AmostraDeMedicao(
+                a.ProbPoissonPura,
+                a.ProbDixonColes,
+                MercadoResolver.Resolver(a.Mercado, a.GolsCasa, a.GolsVisitante) ? 1m : 0m,
+                a.DecisaoDoClaude))
             .ToList();
 
         ResultadoDaMedicao resultado = BrierScoreCalculator.Calcular(amostras);

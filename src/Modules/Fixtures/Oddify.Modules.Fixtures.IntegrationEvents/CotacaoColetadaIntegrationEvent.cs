@@ -8,7 +8,8 @@ public sealed class CotacaoColetadaIntegrationEvent(
     Guid cotacaoId,
     Guid partidaId,
     string mercado,
-    decimal odd) : IntegrationEvent(id, occurredOnUtc)
+    decimal odd,
+    string casa) : IntegrationEvent(id, occurredOnUtc)
 {
     public Guid CotacaoId { get; } = cotacaoId;
 
@@ -17,4 +18,6 @@ public sealed class CotacaoColetadaIntegrationEvent(
     public string Mercado { get; } = mercado;
 
     public decimal Odd { get; } = odd;
+
+    public string Casa { get; } = casa;
 }

@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Common\Oddify.Common.Presentation\Oddify.Common.Presentation.csproj" />
     <ProjectReference Include="..\Oddify.Modules.Analise.Application\Oddify.Modules.Analise.Application.csproj" />
+    <ProjectReference Include="..\..\Fixtures\Oddify.Modules.Fixtures.IntegrationEvents\Oddify.Modules.Fixtures.IntegrationEvents.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />

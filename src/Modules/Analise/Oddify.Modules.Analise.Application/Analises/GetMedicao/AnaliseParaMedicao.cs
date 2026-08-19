@@ -7,4 +7,6 @@ internal sealed record AnaliseParaMedicao(
     string Mercado,
     decimal ProbPoissonPura,
     decimal ProbDixonColes,
-    DecisaoDoClaude DecisaoDoClaude);
+    DecisaoDoClaude DecisaoDoClaude,
+    int GolsCasa,
+    int GolsVisitante);

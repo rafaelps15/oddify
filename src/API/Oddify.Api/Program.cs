@@ -61,6 +61,7 @@ WebApplication app = builder.Build();
 // Assina os consumers genéricos de cada módulo consumidor no bus in-memory — precisa acontecer
 // depois de builder.Build(), quando o IEventBus já existe no container (espelha
 // EventsBusStartup.Initialize do projeto de referência, chamado depois do container montado).
+AnaliseModule.Initialize(app.Services);
 ApostasModule.Initialize(app.Services);
 UsersModule.Initialize(app.Services);
 

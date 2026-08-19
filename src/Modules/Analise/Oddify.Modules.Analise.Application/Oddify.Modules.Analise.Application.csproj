@@ -3,7 +3,6 @@
     <ProjectReference Include="..\..\..\Common\Oddify.Common.Application\Oddify.Common.Application.csproj" />
     <ProjectReference Include="..\Oddify.Modules.Analise.Domain\Oddify.Modules.Analise.Domain.csproj" />
     <ProjectReference Include="..\Oddify.Modules.Analise.IntegrationEvents\Oddify.Modules.Analise.IntegrationEvents.csproj" />
-    <ProjectReference Include="..\..\Fixtures\Oddify.Modules.Fixtures.PublicApi\Oddify.Modules.Fixtures.PublicApi.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Oddify.UnitTests" />

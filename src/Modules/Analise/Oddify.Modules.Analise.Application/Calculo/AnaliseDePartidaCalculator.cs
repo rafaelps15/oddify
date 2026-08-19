@@ -1,14 +1,14 @@
-using Oddify.Modules.Fixtures.PublicApi;
+using Oddify.Modules.Analise.Domain.Fixtures;
 
 namespace Oddify.Modules.Analise.Application.Calculo;
 
 public static class AnaliseDePartidaCalculator
 {
     public static AnaliseCalculada Calcular(
-        LigaResponse liga,
-        HistoricoDeEquipeResponse historicoCasa,
-        HistoricoDeEquipeResponse historicoVisitante,
-        CotacaoResponse cotacao,
+        Liga liga,
+        HistoricoDeEquipe historicoCasa,
+        HistoricoDeEquipe historicoVisitante,
+        Cotacao cotacao,
         IReadOnlyDictionary<string, decimal> oddsDoGrupoDeMercado,
         string mercado)
     {

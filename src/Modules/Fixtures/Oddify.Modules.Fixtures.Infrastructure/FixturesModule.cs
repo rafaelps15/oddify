@@ -59,6 +59,8 @@ public static class FixturesModule
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FixturesDbContext>());
 
+        services.AddOutboxWriter<FixturesDbContext>();
+
         services.AddScoped<ILigaConfiguradaRepository, LigaConfiguradaRepository>();
         services.AddScoped<IEquipeRepository, EquipeRepository>();
         services.AddScoped<IJogadorRepository, JogadorRepository>();

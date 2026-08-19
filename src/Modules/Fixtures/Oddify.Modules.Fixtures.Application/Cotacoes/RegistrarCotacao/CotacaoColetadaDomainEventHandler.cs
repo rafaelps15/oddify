@@ -26,7 +26,8 @@ internal sealed class CotacaoColetadaDomainEventHandler(ICotacaoRepository cotac
                 cotacao.Id,
                 cotacao.PartidaId,
                 cotacao.Mercado,
-                cotacao.Odd),
+                cotacao.Odd,
+                cotacao.Casa),
             cancellationToken);
     }
 }
