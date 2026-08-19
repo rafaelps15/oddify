@@ -26,7 +26,7 @@ public sealed class AnaliseDisponivelParaAposta : Entity
         Guid analiseId, Guid partidaId, string mercado, decimal oddDeMercado,
         decimal probabilidadeConfirmada, bool reduzida)
     {
-        return new AnaliseDisponivelParaAposta
+        var analiseDisponivelParaAposta = new AnaliseDisponivelParaAposta
         {
             Id = analiseId,
             PartidaId = partidaId,
@@ -36,6 +36,8 @@ public sealed class AnaliseDisponivelParaAposta : Entity
             Reduzida = reduzida,
             JaUtilizada = false
         };
+
+        return analiseDisponivelParaAposta;
     }
 
     public Result MarcarComoUtilizada()

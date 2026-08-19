@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Oddify.Common.Application.EventBus;
 using Oddify.Common.Infrastructure.Inbox;
 using Oddify.Common.Infrastructure.Outbox;
+using Oddify.Common.Infrastructure.Processing;
 using Oddify.Common.Presentation.Endpoints;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
 using Oddify.Modules.Apostas.Domain.AnalisesDisponiveis;
@@ -91,5 +92,8 @@ public static class ApostasModule
 
         services.AddOutboxProcessor(Schemas.Apostas);
         services.AddInboxProcessor(Schemas.Apostas, Presentation.AssemblyReference.Assembly);
+
+        services.AddCommandsScheduler<ApostasDbContext>();
+        services.AddCommandsProcessor(Schemas.Apostas);
     }
 }

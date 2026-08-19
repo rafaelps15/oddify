@@ -26,7 +26,7 @@ public sealed class Cotacao : Entity
 
     public static Cotacao Create(Guid id, Guid partidaId, string mercado, decimal odd, string casa, DateTime coletadaEmUtc)
     {
-        return new Cotacao
+        var cotacao = new Cotacao
         {
             Id = id,
             PartidaId = partidaId,
@@ -35,5 +35,7 @@ public sealed class Cotacao : Entity
             Casa = casa,
             ColetadaEmUtc = coletadaEmUtc
         };
+
+        return cotacao;
     }
 }

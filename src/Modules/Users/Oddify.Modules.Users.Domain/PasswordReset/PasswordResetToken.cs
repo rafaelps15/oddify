@@ -26,7 +26,7 @@ public sealed class PasswordResetToken : Entity
     // durabilidade, não uma reação in-process — ver PasswordResetTokenIssuer/IOutboxWriter).
     public static PasswordResetToken Create(Guid userId, string rawToken, DateTime expiresAtUtc, DateTime createdAtUtc)
     {
-        return new PasswordResetToken
+        var passwordResetToken = new PasswordResetToken
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -34,6 +34,8 @@ public sealed class PasswordResetToken : Entity
             ExpiresAtUtc = expiresAtUtc,
             CreatedAtUtc = createdAtUtc
         };
+
+        return passwordResetToken;
     }
 
     // Mesmo motivo de EmailVerificationToken.Hash: token já é alta entropia (256 bits

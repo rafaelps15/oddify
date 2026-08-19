@@ -57,6 +57,8 @@ public sealed class PassoDaJornada : Entity
 
         Status = StatusDoPasso.EmAberto;
 
+        Raise(new PassoDaJornadaAbertoDomainEvent(Id, JornadaId));
+
         return Result.Success();
     }
 
@@ -70,6 +72,8 @@ public sealed class PassoDaJornada : Entity
         Status = StatusDoPasso.Avancou;
         ValorResultante = valorResultante;
 
+        Raise(new PassoDaJornadaAvancouDomainEvent(Id, JornadaId, valorResultante));
+
         return Result.Success();
     }
 
@@ -82,6 +86,8 @@ public sealed class PassoDaJornada : Entity
 
         Status = StatusDoPasso.Quebrou;
         ValorResultante = valorResultante;
+
+        Raise(new PassoDaJornadaQuebrouDomainEvent(Id, JornadaId, valorResultante));
 
         return Result.Success();
     }

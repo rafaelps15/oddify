@@ -19,12 +19,14 @@ public sealed class InboxMessage
 
     public static InboxMessage Create(Guid id, string type, string content, DateTime occurredOnUtc)
     {
-        return new InboxMessage
+        var inboxMessage = new InboxMessage
         {
             Id = id,
             Type = type,
             Content = content,
             OccurredOnUtc = occurredOnUtc
         };
+
+        return inboxMessage;
     }
 }

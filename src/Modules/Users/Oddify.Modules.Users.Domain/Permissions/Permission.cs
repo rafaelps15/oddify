@@ -14,10 +14,12 @@ public sealed class Permission : Entity
 
     public static Permission Create(Guid id, string name)
     {
-        return new Permission
+        var permission = new Permission
         {
             Id = id,
             Name = name
         };
+
+        return permission;
     }
 }

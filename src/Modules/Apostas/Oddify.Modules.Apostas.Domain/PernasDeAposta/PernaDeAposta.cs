@@ -25,7 +25,7 @@ public sealed class PernaDeAposta : Entity
 
     public static PernaDeAposta Create(Guid apostaMultiplaId, Guid analiseId, Guid partidaId, string mercado, decimal odd)
     {
-        return new PernaDeAposta
+        var pernaDeAposta = new PernaDeAposta
         {
             Id = Guid.NewGuid(),
             ApostaMultiplaId = apostaMultiplaId,
@@ -35,6 +35,8 @@ public sealed class PernaDeAposta : Entity
             Odd = odd,
             Resultado = ResultadoDaAposta.Pendente
         };
+
+        return pernaDeAposta;
     }
 
     public Result Resolver(bool ganhou)
@@ -45,6 +47,8 @@ public sealed class PernaDeAposta : Entity
         }
 
         Resultado = ganhou ? ResultadoDaAposta.Ganha : ResultadoDaAposta.Perdida;
+
+        Raise(new PernaDeApostaResolvidaDomainEvent(Id, ApostaMultiplaId, ganhou));
 
         return Result.Success();
     }
@@ -60,6 +64,8 @@ public sealed class PernaDeAposta : Entity
 
         Resultado = ResultadoDaAposta.Pendente;
 
+        Raise(new PernaDeApostaReabertaDomainEvent(Id, ApostaMultiplaId));
+
         return Result.Success();
     }
 
@@ -73,6 +79,8 @@ public sealed class PernaDeAposta : Entity
         }
 
         Resultado = ResultadoDaAposta.Anulada;
+
+        Raise(new PernaDeApostaAnuladaDomainEvent(Id, ApostaMultiplaId));
 
         return Result.Success();
     }

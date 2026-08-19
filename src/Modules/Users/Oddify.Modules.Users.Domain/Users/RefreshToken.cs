@@ -33,9 +33,13 @@ public sealed class RefreshToken : Entity
     // há 3 dias" de "sessão usada agora há pouco" na tela de Sessões, atualizado a cada rotação.
     public DateTime LastSeenAtUtc { get; private set; }
 
+    // Sem domain event em Create/Rotate — bookkeeping de sessão local a este módulo, sem nenhum
+    // outro módulo ou consumidor plausível precisando saber que uma sessão foi aberta/renovada
+    // (diferente de EmailVerificationToken/PasswordResetToken, cujo Create dispara envio de e-mail
+    // via outbox — aqui não há efeito colateral nenhum a coordenar).
     public static RefreshToken Create(Guid userId, string token, DateTime expiresAtUtc, DateTime createdAtUtc, string? userAgent)
     {
-        return new RefreshToken
+        var refreshToken = new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -45,6 +49,8 @@ public sealed class RefreshToken : Entity
             UserAgent = userAgent,
             LastSeenAtUtc = createdAtUtc
         };
+
+        return refreshToken;
     }
 
     public void Rotate(string newToken, DateTime newExpiresAtUtc, DateTime rotatedAtUtc)

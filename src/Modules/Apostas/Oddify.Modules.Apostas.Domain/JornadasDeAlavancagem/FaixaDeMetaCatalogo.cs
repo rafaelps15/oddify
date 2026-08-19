@@ -25,12 +25,14 @@ public sealed class FaixaDeMetaCatalogo : Entity
 
     public static FaixaDeMetaCatalogo Create(FaixaDeMeta faixa, int multiplicador, int numeroDeFracoes, int totalDePassos)
     {
-        return new FaixaDeMetaCatalogo
+        var faixaDeMetaCatalogo = new FaixaDeMetaCatalogo
         {
             Faixa = faixa,
             Multiplicador = multiplicador,
             NumeroDeFracoes = numeroDeFracoes,
             TotalDePassos = totalDePassos
         };
+
+        return faixaDeMetaCatalogo;
     }
 }

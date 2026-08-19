@@ -7,22 +7,24 @@ using Microsoft.Extensions.Options;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.Outbox;
 using Oddify.Common.Infrastructure.Inbox;
+using Oddify.Common.Infrastructure.Processing;
 
 namespace Oddify.Common.Infrastructure.Outbox;
 
-// "Arquivar" simplificado pra apagar — mensagens processadas com mais tempo que RetentionPeriod
-// só ocupam espaço e mantêm o conteúdo bruto do evento em texto claro mais tempo do que precisa.
-// Um único serviço cuida da limpeza de outbox_messages E inbox_messages de todos os módulos (uma
-// tabela por schema cada), em vez de um serviço por módulo/tabela.
+// "Arquivar" simplificado pra apagar — mensagens/comandos processados com mais tempo que
+// RetentionPeriod só ocupam espaço e mantêm o conteúdo bruto em texto claro mais tempo do que
+// precisa. Um único serviço cuida da limpeza de outbox_messages, inbox_messages E internal_commands
+// de todos os módulos (uma tabela por schema cada), em vez de um serviço por módulo/tabela.
 //
-// S2077 desabilitado: {schema} vem só de OutboxModule/InboxModule (código no host), nunca de
-// request — CutoffUtc continua parametrizado via Dapper normalmente.
+// S2077 desabilitado: {schema} vem só de OutboxModule/InboxModule/CommandsSchedulerModule (código
+// no host), nunca de request — CutoffUtc continua parametrizado via Dapper normalmente.
 #pragma warning disable S2077
 internal sealed partial class OutboxCleanupBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<OutboxProcessorOptions> options,
     IEnumerable<OutboxModule> outboxModules,
     IEnumerable<InboxModule> inboxModules,
+    IEnumerable<CommandsSchedulerModule> commandsSchedulerModules,
     ILogger<OutboxCleanupBackgroundService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,6 +46,11 @@ internal sealed partial class OutboxCleanupBackgroundService(
             foreach (InboxModule module in inboxModules)
             {
                 await CleanupAsync(module.Schema, "inbox_messages", stoppingToken);
+            }
+
+            foreach (CommandsSchedulerModule module in commandsSchedulerModules)
+            {
+                await CleanupAsync(module.Schema, "internal_commands", stoppingToken);
             }
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));

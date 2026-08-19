@@ -19,12 +19,14 @@ public sealed class OutboxMessage
 
     public static OutboxMessage Create(Guid id, string type, string content, DateTime occurredOnUtc)
     {
-        return new OutboxMessage
+        var outboxMessage = new OutboxMessage
         {
             Id = id,
             Type = type,
             Content = content,
             OccurredOnUtc = occurredOnUtc
         };
+
+        return outboxMessage;
     }
 }

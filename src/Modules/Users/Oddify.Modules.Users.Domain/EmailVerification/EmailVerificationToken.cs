@@ -28,7 +28,7 @@ public sealed class EmailVerificationToken : Entity
     // pra reações síncronas locais, que não é o caso.
     public static EmailVerificationToken Create(Guid userId, string rawToken, DateTime expiresAtUtc, DateTime createdAtUtc)
     {
-        return new EmailVerificationToken
+        var emailVerificationToken = new EmailVerificationToken
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -36,6 +36,8 @@ public sealed class EmailVerificationToken : Entity
             ExpiresAtUtc = expiresAtUtc,
             CreatedAtUtc = createdAtUtc
         };
+
+        return emailVerificationToken;
     }
 
     // Único ponto que calcula o hash — usado tanto no Create (pra gravar) quanto por quem

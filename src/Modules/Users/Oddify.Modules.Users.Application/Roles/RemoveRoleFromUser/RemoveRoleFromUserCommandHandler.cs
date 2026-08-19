@@ -38,10 +38,18 @@ internal sealed class RemoveRoleFromUserCommandHandler(
             return Result.Failure(RoleErrors.NotAssigned);
         }
 
+        userRole.MarkAsRemoved();
+
         userRoleRepository.Remove(userRole);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Domain events deste projeto só são despachados de forma assíncrona (outbox + job, ver
+        // CLAUDE.md §5/§10) — a invalidação do cache de permissões continua chamada direto aqui,
+        // não move pra um IDomainEventHandler<UserRoleRemovedDomainEvent>, porque isso introduziria
+        // uma janela real (o intervalo de polling do job) em que um papel já revogado ainda seria
+        // servido do cache. O evento existe pra outros consumidores (auditoria, notificação) que
+        // podem tolerar esse atraso; a invalidação em si é segurança, não pode.
         await permissionService.InvalidateAsync(user.Id, cancellationToken);
 
         return Result.Success();

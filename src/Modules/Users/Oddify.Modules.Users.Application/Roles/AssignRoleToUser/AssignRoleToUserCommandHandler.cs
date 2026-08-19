@@ -44,6 +44,12 @@ internal sealed class AssignRoleToUserCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Domain events deste projeto só são despachados de forma assíncrona (outbox + job, ver
+        // CLAUDE.md §5/§10) — a invalidação do cache de permissões continua chamada direto aqui,
+        // não move pra um IDomainEventHandler<UserRoleAssignedDomainEvent>, porque isso introduziria
+        // uma janela real (o intervalo de polling do job) em que o novo papel ainda não valeria. O
+        // evento existe pra outros consumidores (auditoria, notificação) que podem tolerar esse
+        // atraso; a invalidação em si é segurança, não pode.
         await permissionService.InvalidateAsync(user.Id, cancellationToken);
 
         return Result.Success();

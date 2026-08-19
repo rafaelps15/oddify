@@ -14,10 +14,12 @@ public sealed class RolePermission : Entity
 
     public static RolePermission Create(Guid roleId, Guid permissionId)
     {
-        return new RolePermission
+        var rolePermission = new RolePermission
         {
             RoleId = roleId,
             PermissionId = permissionId
         };
+
+        return rolePermission;
     }
 }

@@ -22,7 +22,7 @@ public sealed class Liga : Entity
 
     public static Liga Create(Guid id, string nome, decimal mediaDeGols, decimal fatorCasa, bool calibrada)
     {
-        return new Liga
+        var liga = new Liga
         {
             Id = id,
             Nome = nome,
@@ -30,6 +30,8 @@ public sealed class Liga : Entity
             FatorCasa = fatorCasa,
             Calibrada = calibrada
         };
+
+        return liga;
     }
 
     public void Atualizar(string nome, decimal mediaDeGols, decimal fatorCasa, bool calibrada)

@@ -14,10 +14,12 @@ public sealed class Role : Entity
 
     public static Role Create(Guid id, string name)
     {
-        return new Role
+        var role = new Role
         {
             Id = id,
             Name = name
         };
+
+        return role;
     }
 }

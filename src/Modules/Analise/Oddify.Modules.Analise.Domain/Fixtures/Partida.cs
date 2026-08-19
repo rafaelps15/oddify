@@ -27,7 +27,7 @@ public sealed class Partida : Entity
 
     public static Partida Create(Guid id, Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId, DateTime dataUtc)
     {
-        return new Partida
+        var partida = new Partida
         {
             Id = id,
             LigaId = ligaId,
@@ -35,6 +35,8 @@ public sealed class Partida : Entity
             EquipeVisitanteId = equipeVisitanteId,
             DataUtc = dataUtc
         };
+
+        return partida;
     }
 
     public void RegistrarResultado(int golsCasa, int golsVisitante)
