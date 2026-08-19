@@ -173,6 +173,15 @@ reviewing any query handler, and cite the specific `§B_` section in each findin
 
 ## 5. Infrastructure layer
 
+Exempt the messaging plumbing under `Common.Application/{EventBus,Outbox}`,
+`Common.Infrastructure/{Outbox,Inbox,EventBus,Processing}`, and each module's own
+`Infrastructure/Inbox/IntegrationEventGenericHandler.cs` from the `sealed`/file-scoped-namespace
+expectations below — that subtree is deliberately written in a different (Kamil Grzybek /
+Modular Monolith with DDD) structural style, documented as a "Style note" in `CLAUDE.md` §5. A
+non-sealed `internal class` or a block-scoped namespace there is not a finding; flag it only if it
+deviates from *that* style (e.g. a primary constructor, or `sealed` on a class Kamil's own
+equivalent doesn't seal).
+
 - [ ] **Repository implementations are `internal sealed`**, and contain no logic beyond translating
       interface calls into EF Core operations (`SingleOrDefaultAsync`, `Add`) — any filtering/business
       logic here should be a finding pointing back to Application or Domain, whichever owns the rule.

@@ -14,6 +14,10 @@ messaging — a **hand-rolled in-memory event bus** (`InMemoryEventBus`, process
 `Subscribe`/`Publish`, no message-broker library) plus a **persisted Outbox/Inbox** for
 at-least-once delivery across modules. Full mechanics live in `CLAUDE.md` §5/§10 — read those
 first; this skill is their executable counterpart, not a replacement for understanding the flow.
+Note the "Style note" in `CLAUDE.md` §5: the shared plumbing (`Outbox/`, `Inbox/`, `EventBus/`,
+`Processing/`, and each module's `IntegrationEventGenericHandler.cs`) is deliberately written in a
+different structural style than the rest of the codebase — don't let that style leak into the code
+*you* write in Steps 1–3, which stays this template's normal Milan/Evently shape.
 
 If the target repo uses a real message broker (MassTransit, NServiceBus, raw RabbitMQ/Kafka client)
 instead of a hand-rolled bus, stop and confirm with the user before applying this skill — it
@@ -189,32 +193,57 @@ Skip entirely if Step 0.4 found this module already has `Initialize`/`Integratio
 — adding a second consumed event type needs nothing here, reflection picks it up automatically.
 
 1. **`Infrastructure/Inbox/IntegrationEventGenericHandler.cs`** — a generic, business-logic-free
-   handler that just inserts whatever it's given into this module's own `inbox_messages`:
+   handler that just inserts whatever it's given into this module's own `inbox_messages`. In this
+   repo it's written in the same deliberately Kamil-Grzybek-styled structure as the rest of
+   `Outbox/`/`Inbox/`/`EventBus/`/`Processing/` (see the "Style note" in `CLAUDE.md` §5) — block
+   namespace, no `sealed`, traditional constructor, not this template's usual file-scoped/primary-
+   constructor/sealed shape:
    ```csharp
-   internal sealed class IntegrationEventGenericHandler<TIntegrationEvent>(IServiceProvider serviceProvider)
-       : IntegrationEventHandler<TIntegrationEvent>
-       where TIntegrationEvent : IIntegrationEvent
+   using System.Data.Common;
+   using System.Text.Json;
+   using Dapper;
+   using Microsoft.Extensions.DependencyInjection;
+   using Oddify.Common.Application.Data;
+   using Oddify.Common.Application.EventBus;
+
+   namespace Oddify.Modules.Tasks.Infrastructure.Inbox
    {
-       private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
-
-       public override async Task Handle(TIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
+       internal class IntegrationEventGenericHandler<TIntegrationEvent> : IntegrationEventHandler<TIntegrationEvent>
+           where TIntegrationEvent : IIntegrationEvent
        {
-           using IServiceScope scope = serviceProvider.CreateScope();
-           IDbConnectionFactory dbConnectionFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-           await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
+           private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
 
-           const string sql = "INSERT INTO tasks.inbox_messages(id, type, content, occurred_on_utc) VALUES (@Id, @Type, @Content::jsonb, @OccurredOnUtc)";
+           private readonly IServiceProvider _serviceProvider;
 
-           await connection.ExecuteAsync(new CommandDefinition(sql, new
+           public IntegrationEventGenericHandler(IServiceProvider serviceProvider)
            {
-               integrationEvent.Id,
-               Type = typeof(TIntegrationEvent).AssemblyQualifiedName,
-               Content = JsonSerializer.Serialize(integrationEvent, SerializerOptions),
-               integrationEvent.OccurredOnUtc
-           }, cancellationToken: cancellationToken));
+               _serviceProvider = serviceProvider;
+           }
+
+           public override async Task Handle(TIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
+           {
+               using IServiceScope scope = _serviceProvider.CreateScope();
+               IDbConnectionFactory dbConnectionFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
+               await using DbConnection connection = await dbConnectionFactory.OpenConnectionAsync();
+
+               const string sql = "INSERT INTO tasks.inbox_messages(id, type, content, occurred_on_utc) VALUES (@Id, @Type, @Content::jsonb, @OccurredOnUtc)";
+
+               await connection.ExecuteAsync(new CommandDefinition(sql, new
+               {
+                   integrationEvent.Id,
+                   Type = typeof(TIntegrationEvent).AssemblyQualifiedName,
+                   Content = JsonSerializer.Serialize(integrationEvent, SerializerOptions),
+                   integrationEvent.OccurredOnUtc
+               }, cancellationToken: cancellationToken));
+           }
        }
    }
    ```
+   Add a local `.editorconfig` next to this file (`[IntegrationEventGenericHandler.cs]` section,
+   `csharp_style_namespace_declarations = block_scoped:none` plus `CA1852`/`S3260` set to `none`) —
+   the repo's root `.editorconfig` enforces file-scoped namespaces and sealed internal types as
+   build errors everywhere else, so without this override the build fails. Copy an existing
+   module's `Infrastructure/Inbox/.editorconfig` rather than writing one from scratch.
    Schema is a hard-coded literal in the SQL (`tasks.inbox_messages`, not string-interpolated from
    a variable) — match whatever the target repo's own existing generic handlers already do here
    (some repos parametrize it safely because of registration order, some hard-code it; verify

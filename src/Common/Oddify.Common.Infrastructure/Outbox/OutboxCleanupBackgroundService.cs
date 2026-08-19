@@ -16,9 +16,7 @@ namespace Oddify.Common.Infrastructure.Outbox
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IOptions<OutboxProcessorOptions> _options;
-        private readonly IEnumerable<OutboxModule> _outboxModules;
-        private readonly IEnumerable<InboxModule> _inboxModules;
-        private readonly IEnumerable<CommandsSchedulerModule> _commandsSchedulerModules;
+        private readonly IReadOnlyList<(string Schema, string Table)> _targets;
         private readonly ILogger<OutboxCleanupBackgroundService> _logger;
 
         public OutboxCleanupBackgroundService(
@@ -31,10 +29,12 @@ namespace Oddify.Common.Infrastructure.Outbox
         {
             _scopeFactory = scopeFactory;
             _options = options;
-            _outboxModules = outboxModules;
-            _inboxModules = inboxModules;
-            _commandsSchedulerModules = commandsSchedulerModules;
             _logger = logger;
+
+            _targets = outboxModules.Select(module => (module.Schema, Table: "outbox_messages"))
+                .Concat(inboxModules.Select(module => (module.Schema, Table: "inbox_messages")))
+                .Concat(commandsSchedulerModules.Select(module => (module.Schema, Table: "internal_commands")))
+                .ToList();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -48,19 +48,9 @@ namespace Oddify.Common.Infrastructure.Outbox
 
             do
             {
-                foreach (OutboxModule module in _outboxModules)
+                foreach ((string schema, string table) in _targets)
                 {
-                    await CleanupAsync(module.Schema, "outbox_messages", stoppingToken);
-                }
-
-                foreach (InboxModule module in _inboxModules)
-                {
-                    await CleanupAsync(module.Schema, "inbox_messages", stoppingToken);
-                }
-
-                foreach (CommandsSchedulerModule module in _commandsSchedulerModules)
-                {
-                    await CleanupAsync(module.Schema, "internal_commands", stoppingToken);
+                    await CleanupAsync(schema, table, stoppingToken);
                 }
             }
             while (await timer.WaitForNextTickAsync(stoppingToken));

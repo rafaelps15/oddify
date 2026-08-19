@@ -298,25 +298,32 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
 }
 ```
 
-`Outbox/`, `Inbox/`, `EventBus/` (both `Common.Application` and `Common.Infrastructure`) and
-`Processing/` (`ICommandsScheduler`/`InternalCommand`) are deliberately written in the structural
-style of the reference project (Modular Monolith with DDD, Kamil Grzybek) rather than this
-template's own Milan/Evently conventions: block-scoped namespaces, `sealed` only where he uses it
-(the `InMemoryEventBus` singleton), and a traditional constructor (`private readonly` field +
-assignment in the body) instead of a primary constructor or a static `Create` factory. Each of
-these folders carries a local `.editorconfig` relaxing `csharp_style_namespace_declarations` (and
-`CA1852`/`S3260` where needed) to make that legal — don't "fix" these files back to file-scoped
-namespaces or primary constructors; that would undo a deliberate choice, not correct a mistake.
-The actual wiring underneath still uses this project's own stack (Microsoft DI, not Autofac; EF
-Core for writes and `System.Text.Json`, not Dapper writes and Newtonsoft.Json) and the async
-outbox+job dispatch for domain events, not Kamil's synchronous decorator-based dispatch — only the
-messaging code's shape/style mirrors his project, not the DI container or the dispatch model.
 Registered once per module's `DbContext` via `.AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>())`
 in that module's composition root (§12). Because the outbox row is added to the *same*
 `ChangeTracker`/transaction as the business write, "the write succeeded" and "the event got
 durably queued" succeed or fail together — there is no window where one commits without the
 other. This is genuinely the persisted, at-least-once mechanism (there is no separate
 "non-durable" domain-event path to confuse it with).
+
+> **Style note.** `Outbox/`, `Inbox/`, `EventBus/` (both `Common.Application` and
+> `Common.Infrastructure`), `Processing/` (`ICommandsScheduler`/`InternalCommand`), and each
+> module's own `Infrastructure/Inbox/IntegrationEventGenericHandler.cs` are deliberately written in
+> the structural style of the reference project (Modular Monolith with DDD, Kamil Grzybek) rather
+> than this template's own Milan/Evently conventions used everywhere else: block-scoped namespaces,
+> `sealed` only where he uses it (the `InMemoryEventBus` singleton), and a traditional constructor
+> (`private readonly` field + assignment in the body) instead of a primary constructor or a static
+> `Create` factory. Each of these folders carries a local `.editorconfig` relaxing
+> `csharp_style_namespace_declarations` (and `CA1852`/`S3260` where needed) to make that legal —
+> don't "fix" these files back to file-scoped namespaces or primary constructors, and when adding a
+> **new** module's `IntegrationEventGenericHandler.cs` (add-messaging Step 4), match this style and
+> add the same kind of local `.editorconfig` override, not the rest of the codebase's style. The
+> actual wiring underneath still uses this project's own stack (Microsoft DI, not Autofac; EF Core
+> for writes and `System.Text.Json`, not Dapper writes and Newtonsoft.Json) and the async
+> outbox+job dispatch for domain events, not Kamil's synchronous decorator-based dispatch — only the
+> messaging code's shape/style mirrors his project, not the DI container or the dispatch model. Code
+> a reader writes *using* this messaging (an integration event contract, a domain-event handler that
+> calls `IOutboxWriter.Enqueue`, a real `IntegrationEventHandler<T>` consumer) stays ordinary
+> Milan/Evently style — only the shared plumbing itself is Kamil-styled.
 
 **Outbox (`Common.Infrastructure/Outbox/`)** — shared by every module that publishes this way (not
 module-specific; don't reintroduce a per-module copy):
@@ -360,9 +367,40 @@ module-specific; don't reintroduce a per-module copy):
   message blocks nothing but itself and needs to be fixed and left to drain on the next poll, not
   chased with automatic retries.
 - **`OutboxCleanupBackgroundService`** — one shared instance (not one per module) that loops over
-  every `OutboxModule`/`InboxModule` on an interval (`OutboxProcessorOptions.CleanupInterval`) and
-  deletes processed rows older than `RetentionPeriod` from both `outbox_messages` and
-  `inbox_messages`.
+  every `OutboxModule`/`InboxModule`/`CommandsSchedulerModule` on an interval
+  (`OutboxProcessorOptions.CleanupInterval`) and deletes processed rows older than
+  `RetentionPeriod` from `outbox_messages`, `inbox_messages`, and `internal_commands` alike.
+
+**Internal command queue (`Common.Infrastructure/Processing/`)** — a durable, at-least-once queue
+for a `Command` whose execution should be *decoupled* from the moment it's decided to run, distinct
+from both `ISender.Send(...)` (runs the whole pipeline synchronously, in the caller's own
+transaction) and the §17 Command re-send pattern (also synchronous, just re-dispatched N times from
+a batch/event handler). Reach for it when a handler needs to enqueue N Commands to run *later, on
+their own schedule*, without the enqueuing request waiting on N full synchronous pipeline
+executions — e.g. a domain-event handler reacting to a batch that shouldn't block the original
+request on processing every affected item inline.
+- **`ICommandsScheduler.EnqueueAsync(ICommand command)`** (`Common.Application/Messaging/`) — the
+  abstraction a handler injects to enqueue. Serializes the `Command` and adds it to the calling
+  `DbContext`'s change tracker only; same durability contract as `IOutboxWriter.Enqueue` — the
+  caller still calls its own `IUnitOfWork.SaveChangesAsync(...)` for it to actually persist.
+- **`InternalCommand`** (`Common.Infrastructure/Processing/`) — one row per enqueued `Command`:
+  `Id` (a fresh `Guid`, not reused from the `Command` — most `Command`s in this template don't
+  expose their own `Id`), `Type` (`AssemblyQualifiedName`), `Content` (JSON), `EnqueuedOnUtc`,
+  `ProcessedOnUtc`. Same no-`RetryCount`/`Error` shape as `OutboxMessage` — a failure leaves the row
+  pending for the next poll, no retry counting or exhaustion.
+- **`EfCommandsScheduler<TContext>`** — the `ICommandsScheduler` implementation, generic over the
+  module's own `DbContext`, mirroring `EfOutboxWriter<TContext>`. A module registers it with
+  `services.AddCommandsScheduler<TasksDbContext>()`.
+- **`InternalCommandProcessorJob`** — one Quartz job instance per module that schedules Commands
+  (registered via `services.AddCommandsProcessor(Schemas.Tasks)`), polling
+  `{schema}.internal_commands` the same way `OutboxProcessorJob` polls `outbox_messages`: read
+  pending rows in enqueue order, deserialize, `ISender.Send(...)` each one in its own DI scope, mark
+  processed. A `Command` that returns `Result.Failure` without throwing is still considered
+  processed — the same "expected business failure isn't grounds to reprocess forever" reasoning as
+  the rest of this template's messaging.
+- Forgetting `AddCommandsProcessor(schema)` is the same silent failure mode as forgetting
+  `AddOutboxProcessor`/`AddInboxProcessor`: rows accumulate in `internal_commands`, nothing ever
+  drains them, and nothing throws to say so.
 
 **`CacheService`** — `System.Text.Json` (`Utf8JsonWriter` + `ArrayBufferWriter<byte>`) serialize/
 deserialize over `IDistributedCache`'s byte-array API.
