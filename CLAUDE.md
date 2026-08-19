@@ -932,7 +932,7 @@ intentional conventions to replicate:
 
 - New use cases go in `Application/<PluralAggregate>/<VerbNoun>/` following the
   Command/Handler/Validator triad (§7) — don't introduce a different mediator or a
-  service-layer/manager-class alternative to MediatR handlers.
+  service-layer/manager-class alternative to MediatR handlers (§17).
 - New entities get their own `<Aggregate>Errors` static class in `Domain` (§9) rather than
   throwing raw exceptions or reusing another aggregate's errors.
 - Query handlers read via Dapper; command handlers write via EF + repository + `IUnitOfWork`.
@@ -948,3 +948,133 @@ intentional conventions to replicate:
   they encode every rule above as directly runnable scaffolding with a consistent fictional
   `Tasks`/`TodoItem` worked example. Prefer them over freehand implementations so new code
   matches the existing slices exactly, and run `ca-review` before considering a change done.
+
+## 17. No generic "Services" — Policies and Command re-send instead
+
+Two upstream reference architectures this template draws from — Milan Jovanovic's modular-monolith
+style and Kamil Grzybek's `modular-monolith-with-ddd` — never have an `IXService`/`XService` class
+holding domain or application orchestration logic anywhere in their Application or Domain layers.
+This template follows the same shape: a "Service" class is a smell, not a layer.
+
+**What counts as a forbidden "Service"**: a DI-registered class (`services.AddScoped<XService>()`)
+whose constructor takes several repositories/collaborators and exposes a method a Command Handler
+calls to do the actual work. What it holds determines where it actually belongs:
+- a decision belonging to a single aggregate → a method on the entity (§8), not a service;
+- a pure decision spanning multiple aggregates → a **Policy** (below);
+- multi-step orchestration (repository calls + domain calls) that more than one Command Handler
+  needs → a sign the two Handlers should collapse into **one Command, re-sent** (below), not a
+  shared class.
+
+**Exempt — plain technical infrastructure**: cache wrappers (`ICacheService`, §4),
+auth/permission lookups, background jobs (`IHostedService`/Quartz-style implementations), external
+API clients (payment gateways, LLM/email providers). These carry no business decision — they're the
+same kind of component as `Common.Application`'s own `ICacheService`. Don't rename or restructure
+these; they were never the anti-pattern.
+
+**Cross-aggregate pure decision → a `Policy`, not a Service.**
+`Domain/<Aggregate>/Policies/<Name>Policy.cs` — `public static class`, no interface, never
+registered in DI, no I/O. Takes data the caller already loaded, returns a decision:
+```csharp
+namespace <ProjectName>.Modules.Tasks.Domain.TodoLists.Policies;
+
+public static class TodoListCompletionPolicy
+{
+    public static bool IsFullyComplete(IReadOnlyCollection<bool> itemCompletionStates)
+        => itemCompletionStates.Count > 0 && itemCompletionStates.All(isComplete => isComplete);
+}
+```
+Called directly by the Command Handler that already has the data
+(`TodoListCompletionPolicy.IsFullyComplete(states)`) — never injected, never wrapped in an
+interface "for testability" (it's a pure static function; call it directly in a unit test).
+
+**Same effect needed from two entry points → resend the same Command.** An operation triggered
+both by a user-facing endpoint and by a batch/event trigger (a domain-event handler, or an
+integration-event consumer reacting to something that affects N aggregates) should be **one
+`Command` + one `CommandHandler`** — the batch/event side re-sends that same `Command` via
+`ISender.Send(...)`, once per affected item, instead of sharing an orchestration class/method
+between two Handlers:
+```csharp
+// Batch trigger: reacts to a TodoListArchivedIntegrationEvent, re-sends the same Command the
+// user-facing endpoint uses, one per pending item — never a shared helper.
+internal sealed class CompletePendingItemsForArchivedListCommandHandler(
+    ITodoItemRepository todoItemRepository, ISender sender)
+    : ICommandHandler<CompletePendingItemsForArchivedListCommand>
+{
+    public async Task<Result> Handle(CompletePendingItemsForArchivedListCommand request, CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<TodoItem> pending = await todoItemRepository.GetPendingForListAsync(request.TodoListId, cancellationToken);
+
+        foreach (TodoItem item in pending)
+        {
+            await sender.Send(new CompleteTodoItemCommand(item.Id, item.OwnerId), cancellationToken);
+        }
+
+        return Result.Success();
+    }
+}
+```
+If the two triggers need different data to authorize/scope the operation (the endpoint has an
+authenticated user, the batch trigger doesn't), that data travels **explicitly on the Command** —
+the single shared `CommandHandler` does an explicit ownership guard against it instead of relying
+on a repository-embedded `GetAsync(id, userId)` filter that only the endpoint-triggered caller can
+satisfy:
+```csharp
+public sealed record CompleteTodoItemCommand(Guid TodoItemId, Guid OwnerId) : ICommand;
+
+internal sealed class CompleteTodoItemCommandHandler(ITodoItemRepository todoItemRepository, IUnitOfWork unitOfWork)
+    : ICommandHandler<CompleteTodoItemCommand>
+{
+    public async Task<Result> Handle(CompleteTodoItemCommand request, CancellationToken cancellationToken)
+    {
+        TodoItem? item = await todoItemRepository.GetByIdAsync(request.TodoItemId, cancellationToken);
+        if (item is null || item.OwnerId != request.OwnerId)
+        {
+            return Result.Failure(TodoItemErrors.NotFound(request.TodoItemId));
+        }
+
+        Result result = item.Complete(DateTime.UtcNow);
+        if (result.IsFailure)
+        {
+            return result;
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+}
+```
+The endpoint resolves `IUserContext.UserId` and passes it in explicitly; it doesn't live inside the
+Handler as an ambient dependency the batch trigger can't satisfy.
+
+**Cross-module read orchestration → inline in the one Handler that needs it.** "Call another
+module's `PublicApi` (§11) several times, aggregate the responses, feed a pure calculator" doesn't
+get its own `IXDataService` wrapper — when only one Handler consumes it, the fetch steps are
+private helper methods on that Handler itself:
+```csharp
+internal sealed class GetTodoItemInsightCommandHandler(
+    IProjectsApi projectsApi, ITodoItemRepository todoItemRepository, IUnitOfWork unitOfWork)
+    : ICommandHandler<GetTodoItemInsightCommand, Guid>
+{
+    public async Task<Result<Guid>> Handle(GetTodoItemInsightCommand request, CancellationToken cancellationToken)
+    {
+        InsightCalculation? calculation = await ComputeInsightAsync(request.TodoItemId, cancellationToken);
+        // ... persist, same shape as any other command handler
+    }
+
+    private async Task<InsightCalculation?> ComputeInsightAsync(Guid todoItemId, CancellationToken cancellationToken)
+    {
+        // fetch from projectsApi, feed InsightCalculator.Calculate(...) — private to this handler
+    }
+}
+```
+Don't introduce the wrapper "for reuse" before a second consumer actually exists — extracting one
+once a second Handler genuinely needs the same fetch is a normal refactor at that point, not a
+violation to pre-empt now.
+
+**Don't relabel, eliminate.** Turning `internal sealed class XService(deps...) { ... }` +
+`services.AddScoped<XService>()` into `internal static class X { public static Task<Result>
+Y(deps as parameters, ...) }` removes the DI registration and the `Service` suffix but **not** the
+underlying shape — it's the same "orchestration shared by two Handlers" responsibility with
+different packaging. If a piece of code still exists purely to be called by more than one Handler
+after applying the rules above, that's the thing to actually resolve (Command re-send is almost
+always possible — see above); don't stop at a cosmetic rename.

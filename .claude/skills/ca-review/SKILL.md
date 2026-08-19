@@ -47,6 +47,11 @@ unusual — stay inside the architecture's scope.
 - [ ] **Repository interfaces live in Domain, not Application/Infrastructure.** An `I<Entity>Repository`
       declared outside the Domain project, or a repository method that leaks an EF/Dapper-specific type
       (`IQueryable<T>`, `DbSet<T>`, a raw `DbConnection`) into its signature, is a finding.
+- [ ] **Cross-aggregate pure decisions are a `Policy`, not inlined in a Handler or hidden in a
+      Service** (§17). A `Domain/<Aggregate>/Policies/<Name>Policy.cs` should be a `public static
+      class`, no interface, never registered in DI, and take-data-return-decision only — no I/O. A
+      "Policy" that got an interface and a DI registration, or one that calls a repository itself
+      instead of receiving already-loaded data, is a finding.
 
 ## 2. Application layer — commands (writes)
 
@@ -71,6 +76,18 @@ unusual — stay inside the architecture's scope.
       `services.AddScoped<CreateXCommandHandler>()` or similar next to a scanned registration is either
       redundant or a sign the scan isn't picking it up (wrong assembly/accessibility) and should be fixed
       at the source, not papered over.
+- [ ] **No generic "Service" class holding orchestration logic** (CLAUDE.md §17). A DI-registered
+      class (`services.AddScoped<XService>()`) whose constructor takes several
+      repositories/collaborators and exposes a method a Command Handler calls to do the actual work
+      is a finding. Point at §17 for the fix depending on what it holds: a single-aggregate decision
+      belongs on the entity; a pure decision spanning multiple aggregates becomes a `Policy` in
+      `Domain/<Aggregate>/Policies/` (static, no interface, no DI); orchestration shared by two
+      Command Handlers means they should collapse into one `Command`, re-sent via `ISender.Send(...)`
+      from the batch/event-triggered side instead of both depending on a shared class. A `static`
+      class/method that still takes several repositories/collaborators as parameters purely to be
+      called from more than one Handler is the same finding wearing a different disguise — the DI
+      registration and `Service` suffix are gone, but the shared-orchestration shape isn't; don't
+      accept that rename as a fix.
 
 ## 3. Application layer — queries (reads)
 
