@@ -1,8 +1,9 @@
-namespace Oddify.Common.Application.EventBus;
-
-public interface IIntegrationEvent
+namespace Oddify.Common.Application.EventBus
 {
-    Guid Id { get; }
+    public interface IIntegrationEvent
+    {
+        Guid Id { get; }
 
-    DateTime OccurredOnUtc { get; }
+        DateTime OccurredOnUtc { get; }
+    }
 }

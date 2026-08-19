@@ -2,30 +2,35 @@ using Microsoft.Extensions.Options;
 using Oddify.Common.Application.Outbox;
 using Quartz;
 
-namespace Oddify.Common.Infrastructure.Outbox;
-
-// Um IConfigureOptions<QuartzOptions> por módulo (ver AddOutboxProcessor) — cada instância
-// registra só o job+trigger do próprio schema. O Quartz consome cada IConfigureOptions<QuartzOptions>
-// registrado ao montar QuartzOptions, então isso funciona registrado em qualquer ordem, de dentro
-// do composition root de cada módulo, sem um array central coordenando quem existe.
-internal sealed class ConfigureOutboxProcessorJob(string schema, IOptions<OutboxProcessorOptions> options)
-    : IConfigureOptions<QuartzOptions>
+namespace Oddify.Common.Infrastructure.Outbox
 {
-    public void Configure(QuartzOptions quartzOptions)
+    internal class ConfigureOutboxProcessorJob : IConfigureOptions<QuartzOptions>
     {
-        if (!options.Value.Enabled)
+        private readonly string _schema;
+        private readonly IOptions<OutboxProcessorOptions> _options;
+
+        public ConfigureOutboxProcessorJob(string schema, IOptions<OutboxProcessorOptions> options)
         {
-            return;
+            _schema = schema;
+            _options = options;
         }
 
-        var jobKey = new JobKey($"OutboxProcessor.{schema}");
+        public void Configure(QuartzOptions quartzOptions)
+        {
+            if (!_options.Value.Enabled)
+            {
+                return;
+            }
 
-        quartzOptions
-            .AddJob<OutboxProcessorJob>(job => job
-                .WithIdentity(jobKey)
-                .UsingJobData("Schema", schema))
-            .AddTrigger(trigger => trigger
-                .ForJob(jobKey)
-                .WithSimpleSchedule(schedule => schedule.WithInterval(options.Value.Interval).RepeatForever()));
+            var jobKey = new JobKey($"OutboxProcessor.{_schema}");
+
+            quartzOptions
+                .AddJob<OutboxProcessorJob>(job => job
+                    .WithIdentity(jobKey)
+                    .UsingJobData("Schema", _schema))
+                .AddTrigger(trigger => trigger
+                    .ForJob(jobKey)
+                    .WithSimpleSchedule(schedule => schedule.WithInterval(_options.Value.Interval).RepeatForever()));
+        }
     }
 }

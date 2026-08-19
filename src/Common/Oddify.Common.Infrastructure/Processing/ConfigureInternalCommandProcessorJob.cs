@@ -4,11 +4,6 @@ using Quartz;
 
 namespace Oddify.Common.Infrastructure.Processing
 {
-    // Um IConfigureOptions<QuartzOptions> por módulo (ver AddCommandsProcessor) — cada instância
-    // registra só o job+trigger do próprio schema. Reaproveita OutboxProcessorOptions (Enabled/Interval)
-    // em vez de uma options própria — mesmo Enabled/Interval que já configura o polling da outbox
-    // também controla o polling da fila de comandos internos; InboxProcessingExtensions já faz o mesmo
-    // reaproveitamento pro Inbox.
     internal class ConfigureInternalCommandProcessorJob : IConfigureOptions<QuartzOptions>
     {
         private readonly string _schema;

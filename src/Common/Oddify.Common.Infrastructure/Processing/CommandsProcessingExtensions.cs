@@ -7,9 +7,6 @@ namespace Oddify.Common.Infrastructure.Processing
 {
     public static class CommandsProcessingExtensions
     {
-        // Chamado de dentro do composition root do próprio módulo (AddXModule) — não de Program.cs.
-        // AddQuartz()/AddQuartzHostedService() já rodam uma vez em AddInfrastructure; isso só contribui
-        // o IConfigureOptions<QuartzOptions> e o CommandsSchedulerModule (pro cleanup) desse módulo.
         public static IServiceCollection AddCommandsProcessor(this IServiceCollection services, string schema)
         {
             services.AddSingleton(new CommandsSchedulerModule(schema));

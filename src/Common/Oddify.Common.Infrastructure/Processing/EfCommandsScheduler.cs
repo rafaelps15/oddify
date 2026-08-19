@@ -18,7 +18,7 @@ namespace Oddify.Common.Infrastructure.Processing
 
         public Task EnqueueAsync(ICommand command)
         {
-            var internalCommand = InternalCommand.Create(
+            var internalCommand = new InternalCommand(
                 command.GetType().AssemblyQualifiedName!,
                 JsonSerializer.Serialize(command, command.GetType(), EventSerializerOptions.Instance),
                 DateTime.UtcNow);
@@ -31,8 +31,6 @@ namespace Oddify.Common.Infrastructure.Processing
 
     public static class CommandsSchedulerServiceCollectionExtensions
     {
-        // Cada módulo que precisa agendar Commands chama isto com o próprio DbContext — mantém
-        // EfCommandsScheduler<T> internal (só Common.Infrastructure precisa do tipo concreto).
         public static IServiceCollection AddCommandsScheduler<TContext>(this IServiceCollection services)
             where TContext : DbContext
         {

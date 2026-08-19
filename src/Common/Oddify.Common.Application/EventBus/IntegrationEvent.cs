@@ -1,14 +1,15 @@
-namespace Oddify.Common.Application.EventBus;
-
-public abstract class IntegrationEvent : IIntegrationEvent
+namespace Oddify.Common.Application.EventBus
 {
-    protected IntegrationEvent(Guid id, DateTime occurredOnUtc)
+    public abstract class IntegrationEvent : IIntegrationEvent
     {
-        Id = id;
-        OccurredOnUtc = occurredOnUtc;
+        protected IntegrationEvent(Guid id, DateTime occurredOnUtc)
+        {
+            Id = id;
+            OccurredOnUtc = occurredOnUtc;
+        }
+
+        public Guid Id { get; init; }
+
+        public DateTime OccurredOnUtc { get; init; }
     }
-
-    public Guid Id { get; init; }
-
-    public DateTime OccurredOnUtc { get; init; }
 }

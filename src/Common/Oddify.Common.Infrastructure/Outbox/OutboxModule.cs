@@ -1,6 +1,12 @@
-namespace Oddify.Common.Infrastructure.Outbox;
+namespace Oddify.Common.Infrastructure.Outbox
+{
+    public class OutboxModule
+    {
+        public OutboxModule(string schema)
+        {
+            Schema = schema;
+        }
 
-// Um por módulo que publica outbox — registrado por AddOutboxProcessor (chamado de dentro do
-// próprio composition root do módulo, não montado como array em Program.cs), resolvido como
-// IEnumerable<OutboxModule> só pra OutboxCleanupBackgroundService saber quais schemas limpar.
-public sealed record OutboxModule(string Schema);
+        public string Schema { get; }
+    }
+}

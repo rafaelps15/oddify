@@ -1,32 +1,27 @@
-namespace Oddify.Common.Infrastructure.Inbox;
-
-// Uma linha da inbox: uma mensagem recebida do bus, gravada aqui pelo IntegrationEventGenericHandler
-// ANTES de qualquer processamento — dá durabilidade do lado de quem recebe, espelhando a outbox do
-// lado de quem publica. Um job por módulo (ProcessInboxJob) lê essas linhas depois e despacha pros
-// IIntegrationEventHandler<T> daquele módulo. Sem RetryCount/Error/FailedAtUtc — mesma razão de
-// OutboxMessage.
-public sealed class InboxMessage
+namespace Oddify.Common.Infrastructure.Inbox
 {
-    public Guid Id { get; init; }
-
-    public string Type { get; init; }
-
-    public string Content { get; init; }
-
-    public DateTime OccurredOnUtc { get; init; }
-
-    public DateTime? ProcessedOnUtc { get; init; }
-
-    public static InboxMessage Create(Guid id, string type, string content, DateTime occurredOnUtc)
+    public class InboxMessage
     {
-        var inboxMessage = new InboxMessage
-        {
-            Id = id,
-            Type = type,
-            Content = content,
-            OccurredOnUtc = occurredOnUtc
-        };
+        public Guid Id { get; set; }
 
-        return inboxMessage;
+        public string Type { get; set; }
+
+        public string Content { get; set; }
+
+        public DateTime OccurredOnUtc { get; set; }
+
+        public DateTime? ProcessedOnUtc { get; set; }
+
+        public InboxMessage(Guid id, string type, string content, DateTime occurredOnUtc)
+        {
+            Id = id;
+            Type = type;
+            Content = content;
+            OccurredOnUtc = occurredOnUtc;
+        }
+
+        private InboxMessage()
+        {
+        }
     }
 }

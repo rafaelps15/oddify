@@ -1,0 +1,8 @@
+# EventBus é mensageria, escrita deliberadamente no estilo estrutural do projeto de referência
+# Modular Monolith with DDD (Kamil Grzybek) — namespace em bloco, não file-scoped, e sealed só
+# onde ele mesmo usa sealed (InMemoryEventBus é sealed lá também). Regra global (:error) segue
+# valendo fora daqui.
+[*.cs]
+csharp_style_namespace_declarations = block_scoped:none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.S3260.severity = none

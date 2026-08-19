@@ -287,7 +287,7 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
         var outboxMessages = context.ChangeTracker.Entries<Entity>()
             .Select(entry => entry.Entity)
             .SelectMany(entity => { var events = entity.DomainEvents; entity.ClearDomainEvents(); return events; })
-            .Select(domainEvent => OutboxMessage.Create(
+            .Select(domainEvent => new OutboxMessage(
                 domainEvent.Id, domainEvent.GetType().AssemblyQualifiedName!,
                 JsonSerializer.Serialize(domainEvent, domainEvent.GetType(), EventSerializerOptions.Instance),
                 domainEvent.OccurredOnUtc))
@@ -297,6 +297,20 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
     }
 }
 ```
+
+`Outbox/`, `Inbox/`, `EventBus/` (both `Common.Application` and `Common.Infrastructure`) and
+`Processing/` (`ICommandsScheduler`/`InternalCommand`) are deliberately written in the structural
+style of the reference project (Modular Monolith with DDD, Kamil Grzybek) rather than this
+template's own Milan/Evently conventions: block-scoped namespaces, `sealed` only where he uses it
+(the `InMemoryEventBus` singleton), and a traditional constructor (`private readonly` field +
+assignment in the body) instead of a primary constructor or a static `Create` factory. Each of
+these folders carries a local `.editorconfig` relaxing `csharp_style_namespace_declarations` (and
+`CA1852`/`S3260` where needed) to make that legal — don't "fix" these files back to file-scoped
+namespaces or primary constructors; that would undo a deliberate choice, not correct a mistake.
+The actual wiring underneath still uses this project's own stack (Microsoft DI, not Autofac; EF
+Core for writes and `System.Text.Json`, not Dapper writes and Newtonsoft.Json) and the async
+outbox+job dispatch for domain events, not Kamil's synchronous decorator-based dispatch — only the
+messaging code's shape/style mirrors his project, not the DI container or the dispatch model.
 Registered once per module's `DbContext` via `.AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>())`
 in that module's composition root (§12). Because the outbox row is added to the *same*
 `ChangeTracker`/transaction as the business write, "the write succeeded" and "the event got

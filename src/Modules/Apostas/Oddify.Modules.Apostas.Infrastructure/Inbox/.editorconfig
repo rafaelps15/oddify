@@ -1,0 +1,4 @@
+[IntegrationEventGenericHandler.cs]
+csharp_style_namespace_declarations = block_scoped:none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.S3260.severity = none

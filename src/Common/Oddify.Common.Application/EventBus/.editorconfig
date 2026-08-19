@@ -1,0 +1,4 @@
+# EventBus (contratos) é mensageria, escrita deliberadamente no estilo estrutural do projeto de
+# referência Modular Monolith with DDD (Kamil Grzybek) — namespace em bloco, não file-scoped.
+[*.cs]
+csharp_style_namespace_declarations = block_scoped:none

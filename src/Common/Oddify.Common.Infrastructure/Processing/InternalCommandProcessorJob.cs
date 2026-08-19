@@ -10,16 +10,6 @@ using Quartz;
 
 namespace Oddify.Common.Infrastructure.Processing
 {
-    // Job periódico do Quartz, uma instância por módulo (JobKey/JobDataMap diferentes, ver
-    // AddCommandsProcessor) — lê os Commands pendentes da fila daquele schema, na ordem em que foram
-    // enfileirados, e reenvia cada um via ISender.Send num escopo de DI novo. Mesma semântica simples
-    // do OutboxProcessorJob: sem lote/lock/retry — se um Command falhar (lançar exceção), a exceção
-    // sobe e a linha continua pendente pra próxima rodada do job (as que já foram marcadas antes dela
-    // continuam processadas). Um Command que retorna Result.Failure sem lançar (o caminho normal do
-    // Result pattern deste projeto) é considerado processado mesmo assim — mesma semântica de "melhor
-    // esforço" que já existia antes desta fila existir (ver comentário histórico em
-    // LiquidarApostasDaPartidaEncerradaCommandHandler): uma falha esperada de negócio não é motivo pra
-    // reprocessar a mesma linha pra sempre.
 #pragma warning disable S2077
     [DisallowConcurrentExecution]
     internal class InternalCommandProcessorJob : IJob
@@ -40,8 +30,6 @@ namespace Oddify.Common.Infrastructure.Processing
 
             await using DbConnection connection = await _dbConnectionFactory.OpenConnectionAsync();
 
-            // Schema vem só de CommandsProcessingExtensions, registrado em código no host, nunca de
-            // entrada externa. Id continua parametrizado via Dapper normalmente.
             string selectSql =
                 $"""
                  SELECT id AS Id, type AS Type, content AS Content
@@ -61,8 +49,6 @@ namespace Oddify.Common.Infrastructure.Processing
 
         private async Task ProcessCommandAsync(DbConnection connection, string schema, InternalCommandRow row, CancellationToken cancellationToken)
         {
-            // Type é o AssemblyQualifiedName completo (gravado por EfCommandsScheduler) — resolve
-            // direto pelo CLR.
             Type commandType = Type.GetType(row.Type) ?? throw new InvalidOperationException($"Unknown command type '{row.Type}'.");
 
             var command = (ICommand)JsonSerializer.Deserialize(row.Content, commandType, EventSerializerOptions.Instance)!;
