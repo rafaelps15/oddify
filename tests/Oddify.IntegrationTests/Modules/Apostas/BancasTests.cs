@@ -143,7 +143,65 @@ public sealed class BancasTests(OddifyWebAppFactory factory) : IAsyncLifetime
         disponiveis.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetResumoDaBanca_should_return_null_variacao_when_there_are_no_movimentacoes_besides_the_saldo_inicial()
+    {
+        // CriarBanca não gera MovimentacaoDaBanca pro saldo inicial (só grava bancas.saldo_atual) —
+        // sem nenhuma linha em movimentacoes_da_banca, não há "início da janela" pra comparar.
+        HttpResponseMessage criarResponse = await _client.PostAsJsonAsync("bancas", new
+        {
+            Nome = "Banca principal",
+            SaldoInicial = 1000m,
+            PercentualPorEntrada = 0.05m,
+            PerfilDeRisco = 1, // Moderado
+            ModoPaperTrading = true,
+        });
+        Guid bancaId = await criarResponse.Content.ReadFromJsonAsync<Guid>();
+
+        HttpResponseMessage response = await _client.GetAsync($"bancas/{bancaId}/resumo");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        ResumoDaBancaResponse? resumo = await response.Content.ReadFromJsonAsync<ResumoDaBancaResponse>();
+        resumo.Should().NotBeNull();
+        resumo.VariacaoAbsoluta.Should().BeNull();
+        resumo.VariacaoPercentual.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetResumoDaBanca_should_compute_variacao_against_the_earliest_movimentacao_in_the_window()
+    {
+        HttpResponseMessage criarResponse = await _client.PostAsJsonAsync("bancas", new
+        {
+            Nome = "Banca principal",
+            SaldoInicial = 1000m,
+            PercentualPorEntrada = 0.05m,
+            PerfilDeRisco = 1, // Moderado
+            ModoPaperTrading = true,
+        });
+        Guid bancaId = await criarResponse.Content.ReadFromJsonAsync<Guid>();
+
+        // Dois depósitos: 1000 -> 1200 -> 1500. Sem filtro de dias, mov_inicio é o primeiro deles
+        // (saldo_apos_movimentacao 1200), não o saldo_inicial da banca (1000).
+        await _client.PostAsJsonAsync($"bancas/{bancaId}/depositos", new { Valor = 200m });
+        await _client.PostAsJsonAsync($"bancas/{bancaId}/depositos", new { Valor = 300m });
+
+        HttpResponseMessage response = await _client.GetAsync($"bancas/{bancaId}/resumo");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        ResumoDaBancaResponse? resumo = await response.Content.ReadFromJsonAsync<ResumoDaBancaResponse>();
+        resumo.Should().NotBeNull();
+        resumo.SaldoAtual.Should().Be(1500m);
+        resumo.VariacaoAbsoluta.Should().Be(300m);
+        resumo.VariacaoPercentual.Should().Be(25m);
+    }
+
     private sealed record BancaResponse(Guid Id, string Nome, decimal SaldoAtual, decimal PercentualPorEntrada, int PerfilDeRisco, bool ModoPaperTrading);
+
+    private sealed record ResumoDaBancaResponse(
+        Guid BancaId,
+        decimal SaldoAtual,
+        decimal? VariacaoAbsoluta,
+        decimal? VariacaoPercentual);
 
     private sealed record SugestaoDeStakeResponse(
         decimal ProbabilidadeImplicita,
