@@ -13,6 +13,10 @@ internal sealed class EquipeConfiguration : IEntityTypeConfiguration<Equipe>
         builder.Property(e => e.Nome).HasMaxLength(200);
         builder.Property(e => e.Logo).HasMaxLength(500);
 
+        // GetByIdExternoAsync é escopado por (IdExterno, LigaId) — mesma justificativa do índice
+        // único em PartidaConfiguration.IdExterno (upsert sem lock em SincronizarFixturesDaLigaCommandHandler).
+        builder.HasIndex(e => new { e.IdExterno, e.LigaId }).IsUnique();
+
         builder.HasOne<LigaConfigurada>().WithMany().HasForeignKey(e => e.LigaId);
     }
 }

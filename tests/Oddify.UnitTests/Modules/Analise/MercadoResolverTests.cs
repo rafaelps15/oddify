@@ -85,4 +85,29 @@ public sealed class MercadoResolverTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Theory]
+    [InlineData("vitoria_casa")]
+    [InlineData("empate")]
+    [InlineData("vitoria_visitante")]
+    [InlineData("ambos_marcam")]
+    [InlineData("ambos_marcam_nao")]
+    [InlineData("over_2_5")]
+    [InlineData("under_2_5")]
+    [InlineData("over_1_5")]
+    public void EhConhecido_should_return_true_for_supported_mercados(string mercado)
+    {
+        MercadoResolver.EhConhecido(mercado).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("mercado_inexistente")]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData(null)]
+    [InlineData("over_abc")]
+    public void EhConhecido_should_return_false_for_unsupported_mercados(string? mercado)
+    {
+        MercadoResolver.EhConhecido(mercado!).Should().BeFalse();
+    }
 }

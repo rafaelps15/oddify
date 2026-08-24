@@ -145,4 +145,69 @@ public sealed class AnalisarPartidaCommandHandlerTests
         _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_should_update_existing_analise_in_place_when_one_already_exists_for_partida_and_mercado()
+    {
+        ConfigurarDadosBasicos();
+
+        _cotacaoRepository.GetMaisRecenteAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>()).Returns(
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow));
+
+        _cotacaoRepository.GetPorPartidaAsync(_partidaId, Arg.Any<CancellationToken>()).Returns(
+        [
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow),
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "empate", 4.2m, "bet365", DateTime.UtcNow),
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_visitante", 6.0m, "bet365", DateTime.UtcNow)
+        ]);
+
+        var analiseExistente = AnaliseDePartida.Create(
+            _partidaId, "vitoria_casa", 0.1m, 0.1m, 0.1m, 0.0m, 1.9m, aprovadaNoFiltro: false, motivoDoDescarte: "antigo",
+            DateTime.UtcNow.AddHours(-1));
+        _analiseRepository.GetPorPartidaEMercadoAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>())
+            .Returns(analiseExistente);
+
+        var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
+
+        Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
+
+        resultado.IsSuccess.Should().BeTrue();
+        resultado.Value.Should().Be(analiseExistente.Id);
+        analiseExistente.OddDeMercado.Should().Be(1.5m);
+        _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_should_reset_claude_fields_when_updating_an_existing_analise()
+    {
+        ConfigurarDadosBasicos();
+
+        _cotacaoRepository.GetMaisRecenteAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>()).Returns(
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow));
+
+        _cotacaoRepository.GetPorPartidaAsync(_partidaId, Arg.Any<CancellationToken>()).Returns(
+        [
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow),
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "empate", 4.2m, "bet365", DateTime.UtcNow),
+            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_visitante", 6.0m, "bet365", DateTime.UtcNow)
+        ]);
+
+        var analiseExistente = AnaliseDePartida.Create(
+            _partidaId, "vitoria_casa", 0.1m, 0.1m, 0.1m, 0.0m, 1.9m, aprovadaNoFiltro: true, motivoDoDescarte: null,
+            DateTime.UtcNow.AddHours(-1));
+        analiseExistente.RegistrarDecisaoDoClaude(DecisaoDoClaude.Confirma, "justificativa antiga", "resposta bruta antiga", "v1");
+        _analiseRepository.GetPorPartidaEMercadoAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>())
+            .Returns(analiseExistente);
+
+        var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
+
+        Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
+
+        resultado.IsSuccess.Should().BeTrue();
+        analiseExistente.DecisaoDoClaude.Should().Be(DecisaoDoClaude.NaoAvaliada);
+        analiseExistente.JustificativaDoClaude.Should().BeNull();
+        analiseExistente.RespostaLlmBruta.Should().BeNull();
+        analiseExistente.VersaoDoPrompt.Should().BeNull();
+    }
 }

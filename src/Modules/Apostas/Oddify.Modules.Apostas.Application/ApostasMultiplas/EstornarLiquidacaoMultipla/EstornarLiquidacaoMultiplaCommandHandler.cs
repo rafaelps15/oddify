@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
@@ -58,7 +59,15 @@ internal sealed class EstornarLiquidacaoMultiplaCommandHandler(
         MovimentacaoDaBanca movimentacao = banca.RegistrarMovimentacao(reversao, TipoDeMovimentacao.Estorno, apostaMultipla.Id, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Ver comentário equivalente em LiquidarMultiplaCommandHandler.
+            return Result.Failure(CommonErrors.ConflitoDeConcorrencia);
+        }
 
         return Result.Success();
     }

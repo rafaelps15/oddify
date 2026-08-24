@@ -1,5 +1,7 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
@@ -131,5 +133,29 @@ public sealed class ExcluirApostaMultiplaCommandHandlerTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(AnaliseDisponivelParaApostaErrors.NotFound(perna.AnaliseId));
         _apostaMultiplaRepository.DidNotReceive().Delete(Arg.Any<ApostaMultipla>());
+    }
+
+    [Fact]
+    public async Task Handle_should_return_conflito_de_concorrencia_when_save_throws_concurrency_exception()
+    {
+        Banca banca = CriarBanca(1000m);
+        var apostaMultipla = ApostaMultipla.Create(
+            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
+
+        AnaliseDisponivelParaAposta disponivel = CriarDisponivelUtilizada();
+        var perna = PernaDeAposta.Create(apostaMultipla.Id, disponivel.Id, Guid.NewGuid(), "vitoria_casa", 4.0m);
+
+        _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+        _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyCollection<PernaDeAposta>)[perna]);
+        _analiseDisponivelRepository.GetAsync(disponivel.Id, Arg.Any<CancellationToken>()).Returns(disponivel);
+
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DbUpdateConcurrencyException("conflito simulado"));
+
+        Result resultado = await CriarHandler().Handle(new ExcluirApostaMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(CommonErrors.ConflitoDeConcorrencia);
     }
 }

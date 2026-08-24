@@ -36,6 +36,7 @@
     <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Domain\Oddify.Modules.Analise.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Application\Oddify.Modules.Analise.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.PublicApi\Oddify.Modules.Analise.PublicApi.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Analise\Oddify.Modules.Analise.Presentation\Oddify.Modules.Analise.Presentation.csproj" />
     <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Domain\Oddify.Modules.Apostas.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Application\Oddify.Modules.Apostas.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Apostas\Oddify.Modules.Apostas.Presentation\Oddify.Modules.Apostas.Presentation.csproj" />

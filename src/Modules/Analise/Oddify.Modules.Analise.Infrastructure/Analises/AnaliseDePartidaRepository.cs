@@ -11,6 +11,12 @@ internal sealed class AnaliseDePartidaRepository(AnaliseDbContext context) : IAn
         return await context.AnalisesDePartida.SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
+    public async Task<AnaliseDePartida?> GetPorPartidaEMercadoAsync(Guid partidaId, string mercado, CancellationToken cancellationToken = default)
+    {
+        return await context.AnalisesDePartida
+            .SingleOrDefaultAsync(a => a.PartidaId == partidaId && a.Mercado == mercado, cancellationToken);
+    }
+
     public void Insert(AnaliseDePartida analise)
     {
         context.AnalisesDePartida.Add(analise);

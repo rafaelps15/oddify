@@ -9,6 +9,13 @@
     <InternalsVisibleTo Include="Oddify.UnitTests" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Só para capturar DbUpdateConcurrencyException ao redor de SaveChangesAsync (proteção
+         contra double-spend/lost-update sob concorrência — ver *Configuration.cs no módulo
+         Infrastructure para o .UseXminAsConcurrencyToken()). Não referencia nenhum provider
+         (Npgsql), só o pacote raiz do EF Core. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Update="SonarAnalyzer.CSharp" Version="10.32.0.713" />
   </ItemGroup>
 </Project>

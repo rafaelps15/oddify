@@ -26,23 +26,46 @@ internal sealed class AnalisarPartidaCommandHandler(
             return Result.Failure<Guid>(AnaliseDePartidaErrors.DadosIndisponiveis(request.PartidaId));
         }
 
-        var analise = AnaliseDePartida.Create(
-            request.PartidaId,
-            request.Mercado,
-            calculo.ProbPoissonPura,
-            calculo.ProbDixonColes,
-            calculo.ProbImplicitaDaOdd,
-            calculo.Vantagem,
-            calculo.Odd,
-            calculo.Aprovada,
-            calculo.Motivo,
-            DateTime.UtcNow);
+        AnaliseDePartida? analiseExistente =
+            await analiseRepository.GetPorPartidaEMercadoAsync(request.PartidaId, request.Mercado, cancellationToken);
 
-        analiseRepository.Insert(analise);
+        Guid analiseId;
+
+        if (analiseExistente is not null)
+        {
+            analiseExistente.AtualizarCalculo(
+                calculo.ProbPoissonPura,
+                calculo.ProbDixonColes,
+                calculo.ProbImplicitaDaOdd,
+                calculo.Vantagem,
+                calculo.Odd,
+                calculo.Aprovada,
+                calculo.Motivo,
+                DateTime.UtcNow);
+
+            analiseId = analiseExistente.Id;
+        }
+        else
+        {
+            var analise = AnaliseDePartida.Create(
+                request.PartidaId,
+                request.Mercado,
+                calculo.ProbPoissonPura,
+                calculo.ProbDixonColes,
+                calculo.ProbImplicitaDaOdd,
+                calculo.Vantagem,
+                calculo.Odd,
+                calculo.Aprovada,
+                calculo.Motivo,
+                DateTime.UtcNow);
+
+            analiseRepository.Insert(analise);
+            analiseId = analise.Id;
+        }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return analise.Id;
+        return analiseId;
     }
 
     private async Task<AnaliseCalculada?> ObterCalculoAsync(Guid partidaId, string mercado, CancellationToken cancellationToken)

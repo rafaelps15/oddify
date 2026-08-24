@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.11" />
+    <!-- Só para capturar DbUpdateException ao redor de SaveChangesAsync em
+         SincronizarFixturesDaLigaCommandHandler (proteção contra corrida no upsert de
+         Partida/Equipe — ver UNIQUE INDEX em PartidaConfiguration/EquipeConfiguration).
+         Não referencia nenhum provider (Npgsql), só o pacote raiz do EF Core. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Common\Oddify.Common.Application\Oddify.Common.Application.csproj" />

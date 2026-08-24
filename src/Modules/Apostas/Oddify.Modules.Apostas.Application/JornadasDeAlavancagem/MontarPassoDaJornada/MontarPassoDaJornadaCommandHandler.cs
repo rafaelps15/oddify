@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
@@ -104,7 +105,17 @@ internal sealed class MontarPassoDaJornadaCommandHandler(
             return Result.Failure<Guid>(marcarEmAbertoResult.Error);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Ver comentário equivalente em MontarMultiplaCommandHandler — mesma corrida possível
+            // aqui: uma oportunidade retornada por GetOportunidadesParaAlavancagemQuery pode já ter
+            // sido consumida por outra montagem concorrente entre a query e este SaveChanges.
+            return Result.Failure<Guid>(CommonErrors.ConflitoDeConcorrencia);
+        }
 
         return passo.Id;
     }

@@ -18,5 +18,11 @@ internal sealed class ApostaMultiplaConfiguration : IEntityTypeConfiguration<Apo
         builder.Property(a => a.Descricao).HasMaxLength(500);
 
         builder.HasIndex(a => a.UsuarioId);
+
+        // Token de concorrência otimista (xmin) — ver comentário em
+        // AnaliseDisponivelParaApostaConfiguration. Aqui protege contra dupla liquidação: Liquidar()
+        // só verifica Resultado != Pendente em memória, então duas liquidações concorrentes da
+        // mesma aposta (endpoint manual vs. job em lote de PartidaEncerrada) podiam ambas persistir.
+        builder.Property<uint>("Version").IsRowVersion();
     }
 }

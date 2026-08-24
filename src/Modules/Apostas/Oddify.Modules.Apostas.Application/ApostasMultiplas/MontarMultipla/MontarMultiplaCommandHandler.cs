@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
@@ -82,7 +83,18 @@ internal sealed class MontarMultiplaCommandHandler(
             }
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Corrida entre duas requisições concorrentes tentando usar a mesma
+            // AnaliseDisponivelParaAposta — MarcarComoUtilizada() só protege o estado em memória; o
+            // xmin (ver AnaliseDisponivelParaApostaConfiguration) é quem realmente impede o
+            // double-spend sob concorrência real.
+            return Result.Failure<Guid>(CommonErrors.ConflitoDeConcorrencia);
+        }
 
         return apostaMultipla.Id;
     }

@@ -12,6 +12,12 @@ internal sealed class PartidaConfiguration : IEntityTypeConfiguration<Partida>
     {
         builder.Property(p => p.IdExterno).HasMaxLength(100);
 
+        // O "upsert" de SincronizarFixturesDaLigaCommandHandler é check-then-insert em nível de
+        // aplicação (GetByIdExternoAsync seguido de Insert), sem lock — duas execuções concorrentes
+        // (job periódico + chamada manual, ou dois ciclos sobrepostos) podiam duplicar a partida.
+        // Este índice único garante a idempotência de verdade no banco.
+        builder.HasIndex(p => p.IdExterno).IsUnique();
+
         // Suporta os filtros de liga+temporada+rodada da tela de Partidas (GetPartidasQuery,
         // GetRodadasDisponiveisQuery, GetRodadaMaisRecenteEncerradaQuery) — não é unique, várias
         // partidas compartilham a mesma combinação.

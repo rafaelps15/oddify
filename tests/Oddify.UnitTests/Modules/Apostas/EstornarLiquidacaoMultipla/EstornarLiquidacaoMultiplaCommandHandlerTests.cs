@@ -1,5 +1,7 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
@@ -92,5 +94,31 @@ public sealed class EstornarLiquidacaoMultiplaCommandHandlerTests
 
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(ApostaMultiplaErrors.NotFound(apostaMultiplaId));
+    }
+
+    [Fact]
+    public async Task Handle_should_return_conflito_de_concorrencia_when_save_throws_concurrency_exception()
+    {
+        Banca banca = CriarBanca(1000m);
+        var apostaMultipla = ApostaMultipla.Create(
+            _usuarioId, banca.Id, oddCombinada: 4.0m, stake: 50m, OrigemDaAposta.ManualEntry, descricao: null, passoDaJornadaId: null, DateTime.UtcNow);
+        apostaMultipla.Liquidar(ganhou: true, DateTime.UtcNow);
+        banca.RegistrarMovimentacao(apostaMultipla.LucroOuPerda!.Value, TipoDeMovimentacao.Liquidacao, apostaMultipla.Id, DateTime.UtcNow);
+
+        var perna = PernaDeAposta.Create(apostaMultipla.Id, Guid.NewGuid(), Guid.NewGuid(), "vitoria_casa", 4.0m);
+        perna.Resolver(true);
+
+        _apostaMultiplaRepository.GetAsync(apostaMultipla.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(apostaMultipla);
+        _pernaDeApostaRepository.GetPorApostaMultiplaAsync(apostaMultipla.Id, Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyCollection<PernaDeAposta>)[perna]);
+        _bancaRepository.GetAsync(banca.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(banca);
+
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DbUpdateConcurrencyException("conflito simulado"));
+
+        Result resultado = await CriarHandler().Handle(new EstornarLiquidacaoMultiplaCommand(apostaMultipla.Id), CancellationToken.None);
+
+        resultado.IsFailure.Should().BeTrue();
+        resultado.Error.Should().Be(CommonErrors.ConflitoDeConcorrencia);
     }
 }
