@@ -105,7 +105,7 @@ unusual — stay inside the architecture's scope.
 
 ## 3. Application layer — queries (reads)
 
-Every query handler in scope must match `add-feature/references/query-slice.md` (§B1–B6) **exactly** —
+Every query handler in scope must match `add-feature/references/query-slice.md` (§B1–B7) **exactly** —
 that file is the executable spec for this section, not just background reading. Read it before
 reviewing any query handler, and cite the specific `§B_` section in each finding instead of a bare
 "convention" reference.
@@ -120,7 +120,10 @@ reviewing any query handler, and cite the specific `§B_` section in each findin
       backing a small fixed catalog that should have been a seeded table. The one narrow, explicitly-
       commented exception is a handler with zero persisted state behind it at all (every value supplied
       on the request or a true unkeyed constant); anything with more than that — especially a fixed,
-      keyed catalog — is this finding, not the exception.
+      keyed catalog — is this finding, not the exception. A handler with a constructor taking only
+      other modules' `PublicApi` interfaces (no `IDbConnectionFactory` at all, query-slice.md §B7) is a
+      **different**, also-sanctioned shape, not this finding — it still does real I/O, just none of it
+      against this module's own schema; don't flag it for "missing" `IDbConnectionFactory`.
 - [ ] **A static catalog array read directly by both a `QueryHandler` and a `CommandHandler`** (e.g. a
       `private static readonly T[] Catalog` inside an `Application/Calculo/...Calculator.cs`) is a
       finding — two copies of the same fixed rows with nothing keeping them in sync will drift the first
@@ -144,7 +147,12 @@ reviewing any query handler, and cite the specific `§B_` section in each findin
       child collection as a mutable property outside the parent's positional constructor — never a
       separate intermediate type converted afterward (query-slice.md §B4). If you find a `<Entity>Row`
       record and a `.ToResponse(...)` extension sitting next to a query handler, that's the finding —
-      point at §B4 for the fix, not just "simplify this."
+      point at §B4 for the fix, not just "simplify this." **Not the same finding**: a `Row` type that
+      exists because the grouping key itself can only be resolved from another module's `PublicApi`
+      data (query-slice.md §B6) — there the row-then-regroup shape is required, not a shortcut; the
+      actual finding there is duplicated `GroupBy(...).Select(g => new ...Response(...))` aggregation
+      logic copy-pasted across sibling handlers instead of both calling one shared
+      `Application/Calculo/<Name>Calculator.cs`.
 - [ ] **Parent+children multi-mapping always merges through a `Dictionary<Guid, TResponse>`, even in a
       single-item handler filtered by id.** Dapper constructs a fresh parent instance per row (one per
       child), so `rows.FirstOrDefault()` after a multi-map silently keeps only the first child and drops

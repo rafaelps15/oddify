@@ -342,6 +342,88 @@ todoItem.ChecklistItems.ForEach(c => c.Enriquecer(assigneesById.GetValueOrDefaul
 
 `List<T>.ForEach` here is the BCL method, not the `foreach` statement — see the no-`foreach` rule below.
 
+## B6. Cross-module aggregation — grouping by a key another module resolves
+
+B5's `Enriquecer(...)` pattern is 1:1: one extra field per already-materialized row. It doesn't cover
+a **report that must group/aggregate by a key only another module can resolve** (e.g., "profit per
+team" when "team" comes from a Fixtures `PartidaResumoResponse`, not anything in this module's own
+schema) — grouping happens in C# after the batch call, not in the row-level SQL. Shape:
+
+1. Query this module's own rows into a private `internal sealed record <Name>Row(...)` (not the final
+   Response — the grouping key doesn't exist yet at this point) via the normal B1–B3 Dapper shape.
+2. Batch-fetch the enrichment data from the other module's `PublicApi` (B5's batch-call rule still
+   applies — one call, never per-row).
+3. Resolve each row's grouping key from the enrichment data (a shared static function, e.g.
+   `ChaveDeDesempenho.ResolverPorTime(...)`, if more than one query handler needs the same key logic —
+   CLAUDE.md §17).
+4. Group `(Chave, Row)` pairs and aggregate into the final Response. **The aggregation step itself
+   (`GroupBy` → counts/sums → `new <Name>Response(...)`) is a shared static calculator in
+   `Application/Calculo/<Name>Calculator.cs`, not inline in each handler**, the moment more than one
+   query handler needs the same aggregation shape over a different grouping key — this is the same
+   "query handler orchestrates, never *is* the calculation" rule as any other Calculator, just fed by
+   a `(Chave, Row)` sequence instead of a single entity.
+
+```csharp
+// Application/Calculo/DesempenhoRow.cs (or wherever the shared Row type lives — never inside one of
+// the several handler folders that consume it, since it isn't any single one of theirs)
+internal sealed record DesempenhoRow(ResultadoDaAposta Resultado, decimal LucroOuPerda, decimal Stake, int QtdPernas, Guid PartidaId);
+
+// Application/Calculo/DesempenhoCalculator.cs
+internal static class DesempenhoCalculator
+{
+    public static List<DesempenhoResponse> Agrupar(IEnumerable<(string Chave, DesempenhoRow Row)> entradas) =>
+        entradas
+            .GroupBy(e => e.Chave)
+            .Select(g => new DesempenhoResponse(g.Key, g.Count(), /* ... */))
+            .OrderByDescending(d => d.Lucro)
+            .ToList();
+}
+```
+
+```csharp
+// GetDesempenhoPorTimeQueryHandler.Handle, after the B1–B3 query into List<DesempenhoRow> rows:
+IEnumerable<(string Chave, DesempenhoRow Row)> entradas = rows.SelectMany(r =>
+    ChaveDeDesempenho.ResolverPorTime(r.QtdPernas, r.PartidaId, partidasPorId).Select(chave => (chave, r)));
+
+return DesempenhoCalculator.Agrupar(entradas);
+```
+
+A sibling handler grouping the same rows by a different key (campeonato instead of time) reuses the
+same `Row` type and the same `Calculator.Agrupar(...)` call, only the key-resolution line differs —
+if you find the `GroupBy(...).Select(g => new ...Response(...))` block copy-pasted between two
+handlers instead of both calling the same `Calculator`, that's the finding.
+
+## B7. Pure cross-module composition — zero `IDbConnectionFactory`, not the B4b "no persisted state" exception
+
+A query that combines data owned entirely by **other** modules (nothing in this module's own schema
+at all) has no SQL to write, so `IDbConnectionFactory`/Dapper never appears in it. This is **not** the
+same as B4b's "zero persisted state" exception (that one is for a pure computation with no I/O
+whatsoever) — this shape still does real, awaited I/O, just entirely through other modules'
+`PublicApi` interfaces instead of this module's own connection:
+
+```csharp
+internal sealed class GetResultadosDasPernasQueryHandler(IFixturesApi fixturesApi, IAnaliseApi analiseApi)
+    : IQueryHandler<GetResultadosDasPernasQuery, IReadOnlyDictionary<Guid, bool>>
+{
+    public async Task<Result<IReadOnlyDictionary<Guid, bool>>> Handle(
+        GetResultadosDasPernasQuery request, CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<Guid> partidaIds = request.Pernas.Select(p => p.PartidaId).Distinct().ToList();
+        IReadOnlyCollection<PartidaResponse> partidas = await fixturesApi.ObterPartidasAsync(partidaIds, cancellationToken);
+        var partidasPorId = partidas.ToDictionary(p => p.Id);
+
+        // validation + the actual per-perna resolution via analiseApi.ResolverMercado(...) follow —
+        // see the real handler for the full shape.
+    }
+}
+```
+
+Constructor takes the `PublicApi` interfaces instead of `IDbConnectionFactory` — everything else about
+the handler (async `Handle`, `Result<T>` return, no `Result.Success(...)` wrapping, validation as a
+pure static helper taking already-fetched data rather than a private method on the Handler, §17) still
+applies exactly like B1–B3. Tested with `Substitute.For<IFixturesApi>()`/`Substitute.For<IAnaliseApi>()`
+per `add-tests`, not against a fake `IDbConnectionFactory`.
+
 Rules:
 - `IQuery<TResponse>` records carry only the filter/paging parameters — never a full entity.
 - The handler opens its own connection via `await using DbConnection connection = await

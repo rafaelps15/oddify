@@ -60,20 +60,10 @@ internal sealed class GetDesempenhoPorTimeQueryHandler(
         IReadOnlyCollection<PartidaResumoResponse> partidas = await fixturesApi.ObterPartidasResumoAsync(partidaIds, cancellationToken);
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        var resultado = rows
-            .SelectMany(r => ChaveDeDesempenho.ResolverPorTime(r.QtdPernas, r.PartidaId, partidasPorId).Select(chave => (Chave: chave, Row: r)))
-            .GroupBy(e => e.Chave)
-            .Select(g => new DesempenhoResponse(
-                g.Key,
-                g.Count(),
-                g.Count(e => e.Row.Resultado is ResultadoDaAposta.Ganha or ResultadoDaAposta.MeioGanha),
-                g.Count(e => e.Row.Resultado is ResultadoDaAposta.Perdida or ResultadoDaAposta.MeioPerdida),
-                g.Sum(e => e.Row.LucroOuPerda),
-                g.Sum(e => e.Row.Stake) > 0 ? g.Sum(e => e.Row.LucroOuPerda) / g.Sum(e => e.Row.Stake) : null))
-            .OrderByDescending(d => d.Lucro)
-            .ToList();
+        IEnumerable<(string Chave, ApostaComPartidaRow Row)> entradas = rows.SelectMany(r =>
+            ChaveDeDesempenho.ResolverPorTime(r.QtdPernas, r.PartidaId, partidasPorId).Select(chave => (Chave: chave, Row: r)));
 
-        return resultado;
+        return DesempenhoCalculator.Agrupar(entradas);
     }
 
     private sealed record DesempenhoParametros(Guid BancaId, Guid UsuarioId, int Pendente, int Anulada);
