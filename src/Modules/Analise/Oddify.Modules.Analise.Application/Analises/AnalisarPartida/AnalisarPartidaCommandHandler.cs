@@ -63,7 +63,16 @@ internal sealed class AnalisarPartidaCommandHandler(
             analiseId = analise.Id;
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // Corrida entre duas execuções concorrentes deste comando para a mesma Partida+Mercado
+        // (endpoint manual vs. disparo automático do consumer) — ver UNIQUE INDEX em
+        // AnaliseDePartidaConfiguration. Tratado como conflito: a execução concorrente que venceu
+        // já persistiu o cálculo; não há nada a corrigir aqui.
+        Result saveResult = await unitOfWork.SaveChangesAsync(
+            AnaliseDePartidaErrors.RecalculoConcorrente(request.PartidaId, request.Mercado), cancellationToken);
+        if (saveResult.IsFailure)
+        {
+            return Result.Failure<Guid>(saveResult.Error);
+        }
 
         return analiseId;
     }

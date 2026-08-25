@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
@@ -31,16 +30,7 @@ internal sealed class DepositarNaBancaCommandHandler(
             request.Valor, TipoDeMovimentacao.Deposito, apostaMultiplaId: null, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
-        try
-        {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Dois depósitos concorrentes na mesma banca — AjustarSaldo() só protege o estado em
-            // memória; o xmin (ver BancaConfiguration) é quem impede o lost-update sob concorrência real.
-            return Result.Failure(CommonErrors.ConflitoDeConcorrencia);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

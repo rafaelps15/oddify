@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
@@ -85,17 +84,7 @@ internal sealed class LiquidarMultiplaCommandHandler(
             apostaMultipla.LucroOuPerda!.Value, TipoDeMovimentacao.Liquidacao, apostaMultipla.Id, agora);
         movimentacaoDaBancaRepository.Insert(movimentacao);
 
-        try
-        {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Duas liquidações/movimentações concorrentes da mesma ApostaMultipla ou Banca (endpoint
-            // manual vs. lote de PartidaEncerrada) — Liquidar()/AjustarSaldo() só protegem o estado
-            // em memória; o xmin (ver *Configuration.cs) é quem impede o lost-update sob concorrência real.
-            return Result.Failure(CommonErrors.ConflitoDeConcorrencia);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

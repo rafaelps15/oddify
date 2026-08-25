@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
@@ -47,17 +46,14 @@ internal sealed class SincronizarFixturesDaLigaCommandHandler(
             await SincronizarFixtureAsync(liga.Id, fixture, request.Temporada, equipesSincronizadas, cancellationToken);
         }
 
-        try
+        // Corrida entre duas execuções concorrentes desta sincronização tentando inserir a mesma
+        // Partida/Equipe (mesmo IdExterno) — ver UNIQUE INDEX em PartidaConfiguration/
+        // EquipeConfiguration. Tratado como idempotente: a execução concorrente que venceu já
+        // persistiu os dados corretos; a próxima sincronização periódica reconcilia sozinha.
+        Result saveResult = await unitOfWork.SaveChangesAsync(LigaConfiguradaErrors.SincronizacaoConcorrente(request.LigaId), cancellationToken);
+        if (saveResult.IsFailure)
         {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // Corrida entre duas execuções concorrentes desta sincronização tentando inserir a
-            // mesma Partida/Equipe (mesmo IdExterno) — ver UNIQUE INDEX em PartidaConfiguration/
-            // EquipeConfiguration. Tratado como idempotente: a execução concorrente que venceu já
-            // persistiu os dados corretos; a próxima sincronização periódica reconcilia sozinha.
-            return Result.Failure(LigaConfiguradaErrors.SincronizacaoConcorrente(request.LigaId));
+            return saveResult;
         }
 
         return Result.Success();

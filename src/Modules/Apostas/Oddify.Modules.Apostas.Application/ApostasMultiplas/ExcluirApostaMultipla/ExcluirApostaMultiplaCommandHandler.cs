@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Application.Messaging;
@@ -80,15 +79,7 @@ internal sealed class ExcluirApostaMultiplaCommandHandler(
 
         apostaMultiplaRepository.Delete(apostaMultipla);
 
-        try
-        {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Ver comentário equivalente em LiquidarMultiplaCommandHandler.
-            return Result.Failure(CommonErrors.ConflitoDeConcorrencia);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

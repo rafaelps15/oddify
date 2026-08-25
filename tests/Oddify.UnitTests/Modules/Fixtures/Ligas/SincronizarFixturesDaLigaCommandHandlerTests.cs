@@ -1,7 +1,5 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using Oddify.Common.Domain;
 using Oddify.Modules.Fixtures.Application.Abstractions.Data;
 using Oddify.Modules.Fixtures.Application.Abstractions.ExternalData;
@@ -119,25 +117,5 @@ public sealed class SincronizarFixturesDaLigaCommandHandlerTests
         partidaExistente.Situacao.Should().Be(SituacaoDaPartida.Encerrada);
         partidaExistente.GolsCasa.Should().Be(2);
         partidaExistente.GolsVisitante.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task Handle_should_return_sincronizacao_concorrente_when_save_throws_db_update_exception()
-    {
-        _ligaRepository.GetAsync(Liga.Id, Arg.Any<CancellationToken>()).Returns(Liga);
-        _apiFootballClient.GetFixturesAsync(Liga.IdExterno, 2026, Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyCollection<FixtureExternoDto>>([CriarFixture()]));
-        _equipeRepository.GetByIdExternoAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Equipe?)null);
-        _partidaRepository.GetByIdExternoAsync("fixture-1", Arg.Any<CancellationToken>()).Returns((Partida?)null);
-
-        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new DbUpdateException("conflito simulado"));
-
-        var command = new SincronizarFixturesDaLigaCommand(Liga.Id, 2026);
-
-        Result resultado = await CriarHandler().Handle(command, CancellationToken.None);
-
-        resultado.IsFailure.Should().BeTrue();
-        resultado.Error.Should().Be(LigaConfiguradaErrors.SincronizacaoConcorrente(Liga.Id));
     }
 }

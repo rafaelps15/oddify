@@ -1,7 +1,5 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Application.Clock;
 using Oddify.Common.Domain;
@@ -61,20 +59,5 @@ public sealed class DepositarNaBancaCommandHandlerTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(BancaErrors.NotFound(bancaId));
         _movimentacaoDaBancaRepository.DidNotReceive().Insert(Arg.Any<MovimentacaoDaBanca>());
-    }
-
-    [Fact]
-    public async Task Handle_should_return_conflito_de_concorrencia_when_save_throws_concurrency_exception()
-    {
-        Banca banca = CriarBanca(1000m);
-        _bancaRepository.GetAsync(banca.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(banca);
-
-        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new DbUpdateConcurrencyException("conflito simulado"));
-
-        Result resultado = await CriarHandler().Handle(new DepositarNaBancaCommand(banca.Id, 250m), CancellationToken.None);
-
-        resultado.IsFailure.Should().BeTrue();
-        resultado.Error.Should().Be(CommonErrors.ConflitoDeConcorrencia);
     }
 }

@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using Dapper;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Oddify.Common.Application.Data;
 using Oddify.Common.Application.EventBus;
 using Oddify.Common.Infrastructure.Serialization;
@@ -16,11 +17,13 @@ namespace Oddify.Common.Infrastructure.Inbox
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly ILogger<ProcessInboxJob> _logger;
 
-        public ProcessInboxJob(IDbConnectionFactory dbConnectionFactory, IServiceScopeFactory serviceScopeFactory)
+        public ProcessInboxJob(IDbConnectionFactory dbConnectionFactory, IServiceScopeFactory serviceScopeFactory, ILogger<ProcessInboxJob> logger)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _serviceScopeFactory = serviceScopeFactory;
+            _logger = logger;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -44,7 +47,19 @@ namespace Oddify.Common.Infrastructure.Inbox
 
             foreach (InboxMessageRow message in messages)
             {
-                await ProcessMessageAsync(connection, schema, presentationAssembly, message, cancellationToken);
+                try
+                {
+                    await ProcessMessageAsync(connection, schema, presentationAssembly, message, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Uma mensagem com falha (ex.: conflito de concorrência no handler, evento
+                    // malformado) não deve travar o lote inteiro — as demais mensagens pendentes
+                    // (deste schema e, sem isso, potencialmente de qualquer outro módulo no mesmo
+                    // ciclo) continuam sendo processadas. A mensagem que falhou não é marcada como
+                    // processada, então será retentada no próximo ciclo do job.
+                    _logger.LogError(ex, "Falha ao processar a mensagem {MessageId} do inbox de {Schema}", message.Id, schema);
+                }
             }
         }
 

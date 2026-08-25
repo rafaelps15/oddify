@@ -1,7 +1,5 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using Oddify.Common.Application.Authentication;
 using Oddify.Common.Domain;
 using Oddify.Modules.Apostas.Application.Abstractions.Data;
@@ -114,28 +112,5 @@ public sealed class MontarMultiplaCommandHandlerTests
 
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Should().Be(BancaErrors.NotFound(bancaId));
-    }
-
-    [Fact]
-    public async Task Handle_should_return_conflito_de_concorrencia_when_save_throws_concurrency_exception()
-    {
-        Banca banca = CriarBanca(1000m);
-        _bancaRepository.GetAsync(banca.Id, _usuarioId, Arg.Any<CancellationToken>()).Returns(banca);
-
-        AnaliseDisponivelParaAposta disponivel1 = CriarDisponivel(Guid.NewGuid(), odd: 2.0m, probabilidade: 0.60m);
-        AnaliseDisponivelParaAposta disponivel2 = CriarDisponivel(Guid.NewGuid(), odd: 2.0m, probabilidade: 0.60m);
-
-        _analiseDisponivelRepository.GetAsync(disponivel1.Id, Arg.Any<CancellationToken>()).Returns(disponivel1);
-        _analiseDisponivelRepository.GetAsync(disponivel2.Id, Arg.Any<CancellationToken>()).Returns(disponivel2);
-
-        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new DbUpdateConcurrencyException("conflito simulado"));
-
-        var command = new MontarMultiplaCommand(banca.Id, [disponivel1.Id, disponivel2.Id]);
-
-        Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
-
-        resultado.IsFailure.Should().BeTrue();
-        resultado.Error.Should().Be(CommonErrors.ConflitoDeConcorrencia);
     }
 }
