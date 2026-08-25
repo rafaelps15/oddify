@@ -16,8 +16,8 @@ public sealed class EstatisticasTests(OddifyWebAppFactory factory) : IAsyncLifet
     [Fact]
     public async Task GetEstatisticasDeEquipe_should_return_the_stats_registered_for_the_partida()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         await RegistrarEstatisticaEquipeAsync(partidaId, equipeCasaId, gols: 2, finalizacoes: 10, escanteios: 5, posse: 55.5m);
         await RegistrarEstatisticaEquipeAsync(partidaId, equipeVisitanteId, gols: 1, finalizacoes: 6, escanteios: 3, posse: 44.5m);
@@ -32,8 +32,8 @@ public sealed class EstatisticasTests(OddifyWebAppFactory factory) : IAsyncLifet
     [Fact]
     public async Task GetEstatisticasDeEquipe_should_return_an_empty_list_when_nothing_was_registered()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         List<EstatisticaEquipeResponse> resultado = await GetEstatisticasDeEquipeAsync(partidaId);
 
@@ -43,9 +43,9 @@ public sealed class EstatisticasTests(OddifyWebAppFactory factory) : IAsyncLifet
     [Fact]
     public async Task GetEstatisticasDeEquipe_should_not_return_stats_from_a_different_partida()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partida1Id = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
-        Guid partida2Id = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partida1Id = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
+        Guid partida2Id = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         await RegistrarEstatisticaEquipeAsync(partida1Id, equipeCasaId, gols: 3, finalizacoes: 12, escanteios: 6, posse: 60m);
 
@@ -57,9 +57,9 @@ public sealed class EstatisticasTests(OddifyWebAppFactory factory) : IAsyncLifet
     [Fact]
     public async Task GetEstatisticasDeJogador_should_return_the_stats_registered_for_the_partida()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
-        Guid jogadorId = await CriarJogadorAsync(equipeCasaId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
+        Guid jogadorId = await JogadoresFactory.GivenJogador(_client, equipeCasaId);
 
         await RegistrarEstatisticaJogadorAsync(partidaId, jogadorId, gols: 1, assistencias: 2, minutos: 90, titular: true, nota: 8.2m);
 
@@ -72,75 +72,12 @@ public sealed class EstatisticasTests(OddifyWebAppFactory factory) : IAsyncLifet
     [Fact]
     public async Task GetEstatisticasDeJogador_should_return_an_empty_list_when_nothing_was_registered()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         List<EstatisticaJogadorResponse> resultado = await GetEstatisticasDeJogadorAsync(partidaId);
 
         resultado.Should().BeEmpty();
-    }
-
-    private async Task<(Guid LigaId, Guid EquipeCasaId, Guid EquipeVisitanteId)> CriarLigaComDuasEquipesAsync()
-    {
-        HttpResponseMessage ligaResponse = await _client.PostAsJsonAsync("ligas", new
-        {
-            IdExterno = $"liga-{Guid.NewGuid()}",
-            Nome = "Liga de Teste",
-            MediaDeGols = 2.5m,
-            FatorCasa = 1.1m
-        });
-        Guid ligaId = await ligaResponse.Content.ReadFromJsonAsync<Guid>();
-
-        HttpResponseMessage casaResponse = await _client.PostAsJsonAsync("equipes", new
-        {
-            IdExterno = $"equipe-casa-{Guid.NewGuid()}",
-            Nome = "Time da Casa",
-            LigaId = ligaId
-        });
-        Guid equipeCasaId = await casaResponse.Content.ReadFromJsonAsync<Guid>();
-
-        HttpResponseMessage visitanteResponse = await _client.PostAsJsonAsync("equipes", new
-        {
-            IdExterno = $"equipe-visitante-{Guid.NewGuid()}",
-            Nome = "Time Visitante",
-            LigaId = ligaId
-        });
-        Guid equipeVisitanteId = await visitanteResponse.Content.ReadFromJsonAsync<Guid>();
-
-        return (ligaId, equipeCasaId, equipeVisitanteId);
-    }
-
-    private async Task<Guid> CriarPartidaAsync(Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId)
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("partidas", new
-        {
-            IdExterno = $"partida-{Guid.NewGuid()}",
-            LigaId = ligaId,
-            EquipeCasaId = equipeCasaId,
-            EquipeVisitanteId = equipeVisitanteId,
-            DataUtc = DateTime.UtcNow,
-            Rodada = 1,
-            Temporada = 2026
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
-    }
-
-    private async Task<Guid> CriarJogadorAsync(Guid equipeId)
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("jogadores", new
-        {
-            IdExterno = $"jogador-{Guid.NewGuid()}",
-            EquipeId = equipeId,
-            Nome = "Jogador de Teste",
-            Posicao = "Atacante"
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
     }
 
     private async Task RegistrarEstatisticaEquipeAsync(

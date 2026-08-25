@@ -290,7 +290,7 @@ rule against the real code before asserting it — don't assume every rule below
 
 ---
 
-## Integration tests (brief — verify before extending)
+## Integration tests
 
 If the target repo has an `IntegrationTests` project, check what it actually references (a real
 database via Docker/`docker-compose`, `Testcontainers`, `WebApplicationFactory`) before writing anything
@@ -299,6 +299,106 @@ unit tests deliberately skip: query handlers that hit Dapper/a real database, an
 round-trips through EF Core. Same naming (`<Feature>Tests`, `sealed`), same FluentAssertions style;
 follow whatever base class/fixture the existing integration tests already use for wiring the database
 and app.
+
+---
+
+## D. Test Data Factories (`Given<Entity>`) — arrange helpers shared across integration tests
+
+The moment two integration test classes need the same precondition (e.g. `EquipesTests` and
+`PartidasTests` both need "a Liga with two Equipes" before they can test their own feature), stop
+duplicating a private `CriarXAsync` in each class and extract a shared, static **Test Data Factory**
+instead — one `internal static class <Entities>Factory` per entity the test suite needs to set up,
+living next to the `<Entities>Tests.cs` files it serves (`tests/<Solution>.IntegrationTests/Modules/<Module>/<Entities>Factory.cs`).
+
+This is a **different pattern from the Application `Factory`/`Calculator`** in `CLAUDE.md` §17 — that
+one is production code called from a Command/Query Handler; this one only exists inside the test
+project and drives the system the same way a real caller would (through the actual endpoint/transport
+the tests already use — `HttpClient` in a `WebApplicationFactory`-based suite), never by calling a
+handler or repository directly. Two things distinguish it from an ordinary private test helper:
+
+- **Naming: `Given<Entity>`, no `Async` suffix** — even though the method is `async Task<...>`. This
+  is a deliberate exception to the rest of the codebase's `...Async` convention (same kind of
+  documented deviation as the Outbox/Inbox "Style note" in `CLAUDE.md` §5): `Given` marks it as an
+  **arrange**-phase step in a Given-When-Then sense, and the missing suffix is what makes that
+  visually distinct from a `When`/`Act`-phase helper like `GetTodoItemsAsync` inside the test class
+  itself (which keeps the normal `Async` suffix — it's testing the endpoint under test, not setting
+  up a precondition, so it doesn't move into the Factory at all).
+- **One call returns the entity in its fully-usable final state.** If creating a valid precondition
+  needs more than one request (create, then a follow-up state transition, then waiting for
+  eventual-consistency processing if the target repo has an Outbox/Inbox), bundle all of it inside the
+  one `Given<Entity>` call — never expose the intermediate steps as separate public methods on the
+  Factory unless a specific test genuinely needs to stop partway.
+
+`TodoItem`-shaped example, matching an `HttpClient`-based integration-test suite:
+
+```csharp
+// tests/<Solution>.IntegrationTests/Modules/Todos/TodoItemsFactory.cs
+internal static class TodoItemsFactory
+{
+    public static async Task<Guid> GivenTodoItem(HttpClient client, string? title = null, DateTime? dueDateUtc = null)
+    {
+        HttpResponseMessage response = await client.PostAsJsonAsync("todo-items", new
+        {
+            Title = title ?? "Buy milk",
+            Description = (string?)null,
+            DueDateUtc = dueDateUtc,
+        });
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
+    // Bundles create + the follow-up state transition into one call — a test that needs a completed
+    // TodoItem as a precondition never sees the intermediate "just created" state.
+    public static async Task<Guid> GivenCompletedTodoItem(HttpClient client, string? title = null)
+    {
+        Guid todoItemId = await GivenTodoItem(client, title);
+
+        HttpResponseMessage response = await client.PutAsync($"todo-items/{todoItemId}/complete", content: null);
+        response.EnsureSuccessStatusCode();
+
+        return todoItemId;
+    }
+}
+```
+
+Consumed from any test class that needs the precondition, never by calling the private per-class
+helpers this replaces:
+
+```csharp
+public sealed class TodoChecklistTests(<ProjectName>WebAppFactory factory) : IAsyncLifetime
+{
+    private readonly HttpClient _client = factory.CreateClient();
+
+    [Fact]
+    public async Task AddChecklistItem_should_fail_when_the_todo_item_is_already_completed()
+    {
+        Guid todoItemId = await TodoItemsFactory.GivenCompletedTodoItem(_client);
+
+        HttpResponseMessage response = await _client.PostAsJsonAsync($"todo-items/{todoItemId}/checklist-items", new { Description = "x" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+}
+```
+
+Rules:
+- `response.EnsureSuccessStatusCode()` inside the Factory, not a FluentAssertions
+  `response.StatusCode.Should().Be(...)` — a Factory failure is an arrange-phase bug in the test
+  infrastructure itself, not the thing under test, so it should throw immediately with the HTTP
+  failure detail rather than read like a failed assertion in the test that happened to call it.
+- Only extract a `Given<Entity>` once a **second** test class actually needs the same precondition —
+  don't pre-emptively create one for every entity "for consistency" before that happens (same
+  discipline as the Application `Factory`'s own "don't extract before a second consumer" rule,
+  §17 — it applies here for the same reason: an unused abstraction is still a cost, even a cheap one).
+- A composite `Given<X>ComY(...)` helper spanning two aggregates (e.g. "a League with two Teams") is
+  fine and follows the same one-call-final-state rule — it calls the other Factories, it doesn't
+  reimplement their requests.
+- Never call a handler, repository, or `DbContext` directly from a Factory — it drives the system
+  exactly the way the tests already do (HTTP through `WebApplicationFactory`, or whatever transport
+  the target repo's integration tests actually use), so a setup bug surfaces as the same kind of
+  failure a real caller would hit.
 
 ## Checklist before finishing
 

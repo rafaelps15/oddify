@@ -16,9 +16,9 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task GetEscalacoes_should_return_the_escalacao_with_its_jogadores_nested()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
-        Guid jogadorId = await CriarJogadorAsync(equipeCasaId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
+        Guid jogadorId = await JogadoresFactory.GivenJogador(_client, equipeCasaId);
 
         Guid escalacaoId = await RegistrarEscalacaoAsync(partidaId, equipeCasaId, "4-4-2", "Técnico de Teste");
         await RegistrarEscalacaoJogadorAsync(escalacaoId, jogadorId, titular: true, posicao: "Atacante", numero: 9);
@@ -37,8 +37,8 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task GetEscalacoes_should_return_the_escalacao_with_an_empty_jogadores_list_when_none_was_registered_yet()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         await RegistrarEscalacaoAsync(partidaId, equipeCasaId, "4-3-3", "Outro Técnico");
 
@@ -51,8 +51,8 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task GetEscalacoes_should_return_an_empty_list_when_nothing_was_registered()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         List<EscalacaoResponse> resultado = await GetEscalacoesAsync(partidaId);
 
@@ -62,8 +62,8 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task GetEscalacoes_should_return_both_teams_when_both_were_registered()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         await RegistrarEscalacaoAsync(partidaId, equipeCasaId, "4-4-2", "Técnico Casa");
         await RegistrarEscalacaoAsync(partidaId, equipeVisitanteId, "3-5-2", "Técnico Visitante");
@@ -78,8 +78,8 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task RegistrarEscalacaoJogador_should_fail_when_the_escalacao_does_not_exist()
     {
-        (_, Guid equipeCasaId, _) = await CriarLigaComDuasEquipesAsync();
-        Guid jogadorId = await CriarJogadorAsync(equipeCasaId);
+        (_, Guid equipeCasaId, _) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid jogadorId = await JogadoresFactory.GivenJogador(_client, equipeCasaId);
 
         HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes-de-jogador", new
         {
@@ -96,7 +96,7 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task RegistrarEscalacao_should_fail_when_the_partida_does_not_exist()
     {
-        (_, Guid equipeCasaId, _) = await CriarLigaComDuasEquipesAsync();
+        (_, Guid equipeCasaId, _) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
 
         HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes", new
         {
@@ -112,8 +112,8 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
     [Fact]
     public async Task RegistrarEscalacao_should_fail_when_the_equipe_does_not_exist()
     {
-        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await CriarLigaComDuasEquipesAsync();
-        Guid partidaId = await CriarPartidaAsync(ligaId, equipeCasaId, equipeVisitanteId);
+        (Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId) = await EquipesFactory.GivenLigaComDuasEquipes(_client);
+        Guid partidaId = await PartidasFactory.GivenPartida(_client, ligaId, equipeCasaId, equipeVisitanteId);
 
         HttpResponseMessage response = await _client.PostAsJsonAsync("escalacoes", new
         {
@@ -161,69 +161,6 @@ public sealed class EscalacoesTests(OddifyWebAppFactory factory) : IAsyncLifetim
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         return (await response.Content.ReadFromJsonAsync<List<EscalacaoResponse>>())!;
-    }
-
-    private async Task<Guid> CriarJogadorAsync(Guid equipeId)
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("jogadores", new
-        {
-            IdExterno = $"jogador-{Guid.NewGuid()}",
-            EquipeId = equipeId,
-            Nome = "Jogador de Teste",
-            Posicao = "Atacante"
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
-    }
-
-    private async Task<(Guid LigaId, Guid EquipeCasaId, Guid EquipeVisitanteId)> CriarLigaComDuasEquipesAsync()
-    {
-        HttpResponseMessage ligaResponse = await _client.PostAsJsonAsync("ligas", new
-        {
-            IdExterno = $"liga-{Guid.NewGuid()}",
-            Nome = "Liga de Teste",
-            MediaDeGols = 2.5m,
-            FatorCasa = 1.1m
-        });
-        Guid ligaId = await ligaResponse.Content.ReadFromJsonAsync<Guid>();
-
-        HttpResponseMessage casaResponse = await _client.PostAsJsonAsync("equipes", new
-        {
-            IdExterno = $"equipe-casa-{Guid.NewGuid()}",
-            Nome = "Time da Casa",
-            LigaId = ligaId
-        });
-        Guid equipeCasaId = await casaResponse.Content.ReadFromJsonAsync<Guid>();
-
-        HttpResponseMessage visitanteResponse = await _client.PostAsJsonAsync("equipes", new
-        {
-            IdExterno = $"equipe-visitante-{Guid.NewGuid()}",
-            Nome = "Time Visitante",
-            LigaId = ligaId
-        });
-        Guid equipeVisitanteId = await visitanteResponse.Content.ReadFromJsonAsync<Guid>();
-
-        return (ligaId, equipeCasaId, equipeVisitanteId);
-    }
-
-    private async Task<Guid> CriarPartidaAsync(Guid ligaId, Guid equipeCasaId, Guid equipeVisitanteId)
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("partidas", new
-        {
-            IdExterno = $"partida-{Guid.NewGuid()}",
-            LigaId = ligaId,
-            EquipeCasaId = equipeCasaId,
-            EquipeVisitanteId = equipeVisitanteId,
-            DataUtc = DateTime.UtcNow,
-            Rodada = 1,
-            Temporada = 2026
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
     }
 
     private sealed record EscalacaoResponse(Guid Id, Guid PartidaId, Guid EquipeId, string Formacao, string Tecnico, List<EscalacaoJogadorResponse> Jogadores);

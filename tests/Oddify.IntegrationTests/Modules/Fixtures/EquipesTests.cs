@@ -16,12 +16,12 @@ public sealed class EquipesTests(OddifyWebAppFactory factory) : IAsyncLifetime
     [Fact]
     public async Task GetEquipes_should_filter_by_ids_across_different_ligas()
     {
-        Guid ligaAId = await CriarLigaAsync();
-        Guid ligaBId = await CriarLigaAsync();
+        Guid ligaAId = await LigasFactory.GivenLiga(_client);
+        Guid ligaBId = await LigasFactory.GivenLiga(_client);
 
-        Guid equipeAId = await CriarEquipeAsync(ligaAId, "Time A");
-        Guid equipeBId = await CriarEquipeAsync(ligaBId, "Time B");
-        await CriarEquipeAsync(ligaBId, "Time C");
+        Guid equipeAId = await EquipesFactory.GivenEquipe(_client, ligaAId, "Time A");
+        Guid equipeBId = await EquipesFactory.GivenEquipe(_client, ligaBId, "Time B");
+        await EquipesFactory.GivenEquipe(_client, ligaBId, "Time C");
 
         HttpResponseMessage response = await _client.GetAsync($"equipes?ids={equipeAId}&ids={equipeBId}");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -37,8 +37,8 @@ public sealed class EquipesTests(OddifyWebAppFactory factory) : IAsyncLifetime
     [Fact]
     public async Task GetEquipes_should_still_filter_by_ligaId_when_ids_is_not_provided()
     {
-        Guid ligaId = await CriarLigaAsync();
-        Guid equipeId = await CriarEquipeAsync(ligaId, "Time da Casa");
+        Guid ligaId = await LigasFactory.GivenLiga(_client);
+        Guid equipeId = await EquipesFactory.GivenEquipe(_client, ligaId, "Time da Casa");
 
         HttpResponseMessage response = await _client.GetAsync($"equipes?ligaId={ligaId}");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -47,31 +47,6 @@ public sealed class EquipesTests(OddifyWebAppFactory factory) : IAsyncLifetime
 
         equipes.Should().NotBeNull();
         equipes.Should().ContainSingle(e => e.Id == equipeId);
-    }
-
-    private async Task<Guid> CriarLigaAsync()
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("ligas", new
-        {
-            IdExterno = $"liga-{Guid.NewGuid()}",
-            Nome = "Liga de Teste",
-            MediaDeGols = 2.5m,
-            FatorCasa = 1.1m
-        });
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
-    }
-
-    private async Task<Guid> CriarEquipeAsync(Guid ligaId, string nome)
-    {
-        HttpResponseMessage response = await _client.PostAsJsonAsync("equipes", new
-        {
-            IdExterno = $"equipe-{Guid.NewGuid()}",
-            Nome = nome,
-            LigaId = ligaId
-        });
-
-        return await response.Content.ReadFromJsonAsync<Guid>();
     }
 
     private sealed record EquipeResponse(Guid Id, string IdExterno, string Nome, Guid LigaId);

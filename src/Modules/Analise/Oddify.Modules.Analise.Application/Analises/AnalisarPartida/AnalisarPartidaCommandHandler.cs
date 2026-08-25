@@ -15,11 +15,10 @@ internal sealed class AnalisarPartidaCommandHandler(
     IUnitOfWork unitOfWork)
     : ICommandHandler<AnalisarPartidaCommand, Guid>
 {
-    private const int JanelaDeJogosRecentes = 10;
-
     public async Task<Result<Guid>> Handle(AnalisarPartidaCommand request, CancellationToken cancellationToken)
     {
-        AnaliseCalculada? calculo = await ObterCalculoAsync(request.PartidaId, request.Mercado, cancellationToken);
+        AnaliseCalculada? calculo = await AnaliseDePartidaFactory.ObterCalculoAsync(
+            request.PartidaId, request.Mercado, ligaRepository, partidaRepository, cotacaoRepository, cancellationToken);
 
         if (calculo is null)
         {
@@ -63,80 +62,8 @@ internal sealed class AnalisarPartidaCommandHandler(
             analiseId = analise.Id;
         }
 
-        // Corrida entre duas execuções concorrentes deste comando para a mesma Partida+Mercado
-        // (endpoint manual vs. disparo automático do consumer) — ver UNIQUE INDEX em
-        // AnaliseDePartidaConfiguration. Tratado como conflito: a execução concorrente que venceu
-        // já persistiu o cálculo; não há nada a corrigir aqui.
-        Result saveResult = await unitOfWork.SaveChangesAsync(
-            AnaliseDePartidaErrors.RecalculoConcorrente(request.PartidaId, request.Mercado), cancellationToken);
-        if (saveResult.IsFailure)
-        {
-            return Result.Failure<Guid>(saveResult.Error);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return analiseId;
-    }
-
-    private async Task<AnaliseCalculada?> ObterCalculoAsync(Guid partidaId, string mercado, CancellationToken cancellationToken)
-    {
-        Partida? partida = await partidaRepository.GetAsync(partidaId, cancellationToken);
-        if (partida is null)
-        {
-            return null;
-        }
-
-        Liga? liga = await ligaRepository.GetAsync(partida.LigaId, cancellationToken);
-        if (liga is null)
-        {
-            return null;
-        }
-
-        HistoricoDeEquipe historicoCasa = HistoricoDeEquipeCalculator.Calcular(
-            await partidaRepository.GetRecentesPorEquipeAsync(partida.EquipeCasaId, JanelaDeJogosRecentes, cancellationToken),
-            partida.EquipeCasaId);
-
-        HistoricoDeEquipe historicoVisitante = HistoricoDeEquipeCalculator.Calcular(
-            await partidaRepository.GetRecentesPorEquipeAsync(partida.EquipeVisitanteId, JanelaDeJogosRecentes, cancellationToken),
-            partida.EquipeVisitanteId);
-
-        Cotacao? cotacao = await cotacaoRepository.GetMaisRecenteAsync(partidaId, mercado, cancellationToken);
-        if (cotacao is null)
-        {
-            return null;
-        }
-
-        IReadOnlyDictionary<string, decimal> oddsDoGrupoDeMercado =
-            await ObterOddsDoGrupoNaMesmaCasaAsync(partidaId, mercado, cotacao.Casa, cancellationToken);
-
-        if (!RemovedorDeMargem.GrupoCompleto(mercado, oddsDoGrupoDeMercado))
-        {
-            // Cobertura incompleta da casa para as demais saídas do mercado (ex.: só over sem under) —
-            // não dá para remover a margem com segurança, então a partida fica sem análise desta vez.
-            return null;
-        }
-
-        return AnaliseDePartidaCalculator.Calcular(liga, historicoCasa, historicoVisitante, cotacao, oddsDoGrupoDeMercado, mercado);
-    }
-
-    private async Task<IReadOnlyDictionary<string, decimal>> ObterOddsDoGrupoNaMesmaCasaAsync(
-        Guid partidaId,
-        string mercado,
-        string casa,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyCollection<Cotacao> cotacoes = await cotacaoRepository.GetPorPartidaAsync(partidaId, cancellationToken);
-        IReadOnlyCollection<string> grupo = MercadoResolver.ObterGrupoDeMercados(mercado);
-
-        var oddsPorMercado = new Dictionary<string, decimal>();
-
-        // cotacoes ja vem ordenada por ColetadaEmUtc desc (ICotacaoRepository.GetPorPartidaAsync) — a
-        // primeira ocorrencia de cada mercado é a mais recente, por isso TryAdd (nunca sobrescreve) é
-        // suficiente aqui.
-        foreach (Cotacao cotacaoDoGrupo in cotacoes.Where(c => c.Casa == casa && grupo.Contains(c.Mercado)))
-        {
-            oddsPorMercado.TryAdd(cotacaoDoGrupo.Mercado, cotacaoDoGrupo.Odd);
-        }
-
-        return oddsPorMercado;
     }
 }

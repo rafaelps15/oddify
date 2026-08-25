@@ -27,40 +27,34 @@ internal sealed class SincronizarAoVivoCommandHandler(
             return Result.Failure(fixturesResult.Error);
         }
 
+        // Best-effort por fixture — uma partida não encontrada (ainda não sincronizada pela temporada)
+        // ou faltando gols não derruba o ciclo inteiro, por isso "continue" em vez de propagar falha.
         foreach (FixtureAoVivoExternoDto fixture in fixturesResult.Value)
         {
-            await AtualizarFixtureAsync(fixture, cancellationToken);
+            if (fixture.GolsCasa is null || fixture.GolsVisitante is null)
+            {
+                continue;
+            }
+
+            Partida? partida = await partidaRepository.GetByIdExternoAsync(fixture.IdExterno, cancellationToken);
+
+            if (partida is null)
+            {
+                continue;
+            }
+
+            if (fixture.EmAndamento)
+            {
+                partida.AtualizarAoVivo(fixture.GolsCasa.Value, fixture.GolsVisitante.Value);
+            }
+            else if (fixture.Encerrada)
+            {
+                partida.RegistrarResultado(fixture.GolsCasa.Value, fixture.GolsVisitante.Value);
+            }
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
-    }
-
-    // Best-effort por fixture — uma partida não encontrada (ainda não sincronizada pela temporada)
-    // ou uma transição inválida (ex.: já Liquidada) não derruba o ciclo inteiro, mesmo padrão de
-    // SincronizarFixturesDaLigaCommandHandler.SincronizarFixtureAsync.
-    private async Task AtualizarFixtureAsync(FixtureAoVivoExternoDto fixture, CancellationToken cancellationToken)
-    {
-        if (fixture.GolsCasa is null || fixture.GolsVisitante is null)
-        {
-            return;
-        }
-
-        Partida? partida = await partidaRepository.GetByIdExternoAsync(fixture.IdExterno, cancellationToken);
-
-        if (partida is null)
-        {
-            return;
-        }
-
-        if (fixture.EmAndamento)
-        {
-            partida.AtualizarAoVivo(fixture.GolsCasa.Value, fixture.GolsVisitante.Value);
-        }
-        else if (fixture.Encerrada)
-        {
-            partida.RegistrarResultado(fixture.GolsCasa.Value, fixture.GolsVisitante.Value);
-        }
     }
 }

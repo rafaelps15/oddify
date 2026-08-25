@@ -164,6 +164,12 @@ and one failure-translation test (unknown id → 404, or whichever `ErrorType` t
 matching the status-code table in `Common.Presentation`'s `ApiResults.Problem`. A `GET`-only query
 feature (list/search) needs at least a happy-path test asserting the returned shape/count.
 
+If the feature under test needs a precondition another entity already owns (e.g. a `TodoItem` needs an
+existing `TodoList`), and a second test class needs that same precondition too, extract a
+`Given<Entity>` Test Data Factory instead of a private `CriarXAsync`/`SetupXAsync` helper repeated per
+class — see the `add-tests` skill's "Test Data Factories" section for the full pattern and naming
+convention (`Given<Entity>`, no `Async` suffix, one call returns the fully-usable final state).
+
 ## Run
 
 ```

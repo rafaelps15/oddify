@@ -21,11 +21,6 @@ public sealed class AnalisarPartidaCommandHandlerTests
     private readonly Guid _equipeCasaId = Guid.NewGuid();
     private readonly Guid _equipeVisitanteId = Guid.NewGuid();
 
-    public AnalisarPartidaCommandHandlerTests()
-    {
-        _unitOfWork.SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
-    }
-
     private AnalisarPartidaCommandHandler CriarHandler() => new(
         _ligaRepository, _partidaRepository, _cotacaoRepository, _analiseRepository, _unitOfWork);
 
@@ -83,7 +78,7 @@ public sealed class AnalisarPartidaCommandHandlerTests
         resultado.IsSuccess.Should().BeTrue();
         _analiseRepository.Received(1).Insert(Arg.Is<AnaliseDePartida>(a =>
             a.PartidaId == _partidaId && a.Mercado == "vitoria_casa"));
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -108,7 +103,7 @@ public sealed class AnalisarPartidaCommandHandlerTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Code.Should().Be("Analises.DadosIndisponiveis");
         _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -148,7 +143,7 @@ public sealed class AnalisarPartidaCommandHandlerTests
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Code.Should().Be("Analises.DadosIndisponiveis");
         _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -180,7 +175,7 @@ public sealed class AnalisarPartidaCommandHandlerTests
         resultado.Value.Should().Be(analiseExistente.Id);
         analiseExistente.OddDeMercado.Should().Be(1.5m);
         _analiseRepository.DidNotReceive().Insert(Arg.Any<AnaliseDePartida>());
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -214,31 +209,5 @@ public sealed class AnalisarPartidaCommandHandlerTests
         analiseExistente.JustificativaDoClaude.Should().BeNull();
         analiseExistente.RespostaLlmBruta.Should().BeNull();
         analiseExistente.VersaoDoPrompt.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Handle_should_return_recalculo_concorrente_when_save_throws_db_update_exception()
-    {
-        ConfigurarDadosBasicos();
-
-        _cotacaoRepository.GetMaisRecenteAsync(_partidaId, "vitoria_casa", Arg.Any<CancellationToken>()).Returns(
-            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow));
-
-        _cotacaoRepository.GetPorPartidaAsync(_partidaId, Arg.Any<CancellationToken>()).Returns(
-        [
-            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_casa", 1.5m, "bet365", DateTime.UtcNow),
-            Cotacao.Create(Guid.NewGuid(), _partidaId, "empate", 4.2m, "bet365", DateTime.UtcNow),
-            Cotacao.Create(Guid.NewGuid(), _partidaId, "vitoria_visitante", 6.0m, "bet365", DateTime.UtcNow)
-        ]);
-
-        _unitOfWork.SaveChangesAsync(Arg.Any<Error>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure(AnaliseDePartidaErrors.RecalculoConcorrente(_partidaId, "vitoria_casa")));
-
-        var command = new AnalisarPartidaCommand(_partidaId, "vitoria_casa");
-
-        Result<Guid> resultado = await CriarHandler().Handle(command, CancellationToken.None);
-
-        resultado.IsFailure.Should().BeTrue();
-        resultado.Error.Should().Be(AnaliseDePartidaErrors.RecalculoConcorrente(_partidaId, "vitoria_casa"));
     }
 }

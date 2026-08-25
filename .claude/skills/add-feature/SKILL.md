@@ -65,6 +65,11 @@ One class per file, file name matches the class name exactly. The namespace is t
 - **Folder = use case.** One folder per use case, containing all files for that slice.
 - **Handlers are `internal sealed`** with primary constructors, implementing `ICommandHandler<TCommand>`,
   `ICommandHandler<TCommand, TResponse>`, or `IQueryHandler<TQuery, TResponse>`.
+- **A Handler has exactly one method: `Handle`.** No private helper methods, ever (CLAUDE.md §17,
+  verified against Kamil Grzybek's own repository). If the logic is short, it stays inline in `Handle`.
+  If a fetch-and-build step needs its own I/O or is a real calculation, extract it to a `static`
+  `Factory`/`Calculator` in `Application/Calculo/<Name>Calculator.cs` — dependencies as method
+  parameters, no interface, no DI registration — never a private method on the Handler.
 - **No manual DI registration.** Handlers, validators, and endpoints are discovered by assembly
   scanning — never register any of the three by hand.
 - **Return `Result` / `Result<T>`, never throw** for expected failures. Errors come from static factory
@@ -93,6 +98,8 @@ One class per file, file name matches the class name exactly. The namespace is t
       `IDbConnectionFactory` + Dapper) — never mixed
 - [ ] Command/Query is a `sealed record` implementing the right `ICommand[<T>]`/`IQuery<T>`
 - [ ] Handler is `internal sealed`, primary-constructor DI, delegates all business rules to the entity
+- [ ] Handler has no private helper methods — inline in `Handle`, or extracted to a static
+      `Factory`/`Calculator` (CLAUDE.md §17), never in between
 - [ ] Handler never calls `SaveChangesAsync` before every failure branch has already returned
 - [ ] Command has a matching `internal sealed ...Validator : AbstractValidator<...>` for structural rules
 - [ ] Query SQL aliases every column with `AS {nameof(Response.Property)}`, no interpolated values

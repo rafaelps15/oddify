@@ -1001,7 +1001,7 @@ intentional conventions to replicate:
   `Tasks`/`TodoItem` worked example. Prefer them over freehand implementations so new code
   matches the existing slices exactly, and run `ca-review` before considering a change done.
 
-## 17. No generic "Services" — Policies and Command re-send instead
+## 17. No generic "Services" — Entity methods, Policies, Command re-send, or Calculator instead
 
 Two upstream reference architectures this template draws from — Milan Jovanovic's modular-monolith
 style and Kamil Grzybek's `modular-monolith-with-ddd` — never have an `IXService`/`XService` class
@@ -1015,7 +1015,11 @@ calls to do the actual work. What it holds determines where it actually belongs:
 - a pure decision spanning multiple aggregates → a **Policy** (below);
 - multi-step orchestration (repository calls + domain calls) that more than one Command Handler
   needs → a sign the two Handlers should collapse into **one Command, re-sent** (below), not a
-  shared class.
+  shared class;
+- a genuine calculation combining data fetched from more than one repository/aggregate → a
+  **`Calculator`**, or a **`Factory`** if the fetch itself needs its own I/O (below) — a `static`
+  method taking the needed dependencies as parameters, never a private method on the Handler and
+  never a DI-registered wrapper around the fetch.
 
 **Exempt — plain technical infrastructure**: cache wrappers (`ICacheService`, §4),
 auth/permission lookups, background jobs (`IHostedService`/Quartz-style implementations), external
@@ -1098,30 +1102,158 @@ internal sealed class CompleteTodoItemCommandHandler(ITodoItemRepository todoIte
 The endpoint resolves `IUserContext.UserId` and passes it in explicitly; it doesn't live inside the
 Handler as an ambient dependency the batch trigger can't satisfy.
 
-**Cross-module read orchestration → inline in the one Handler that needs it.** "Call another
-module's `PublicApi` (§11) several times, aggregate the responses, feed a pure calculator" doesn't
-get its own `IXDataService` wrapper — when only one Handler consumes it, the fetch steps are
-private helper methods on that Handler itself:
+**When the resend needs to be decoupled from the triggering request → an Internal Command, not a
+synchronous resend.** The `ISender.Send(...)` loop above is still a **synchronous** resend — the
+triggering Handler's own request waits on all N inner pipeline executions before it returns. This
+is Kamil Grzybek's own resolution for what would otherwise be a "Service": his
+`modular-monolith-with-ddd` never introduces an orchestration class for this either — instead, a
+domain-event handler that needs to fan out N follow-up Commands **without** blocking the original
+request on all N of them enqueues each one as an **Internal Command** (§5,
+`ICommandsScheduler.EnqueueAsync(ICommand)` / `InternalCommandProcessorJob`) instead of calling
+`ISender.Send(...)` directly:
 ```csharp
-internal sealed class GetTodoItemInsightCommandHandler(
-    IProjectsApi projectsApi, ITodoItemRepository todoItemRepository, IUnitOfWork unitOfWork)
-    : ICommandHandler<GetTodoItemInsightCommand, Guid>
+internal sealed class TodoListArchivedDomainEventHandler(
+    ITodoItemRepository todoItemRepository, ICommandsScheduler commandsScheduler, IUnitOfWork unitOfWork)
+    : IDomainEventHandler<TodoListArchivedDomainEvent>
 {
-    public async Task<Result<Guid>> Handle(GetTodoItemInsightCommand request, CancellationToken cancellationToken)
+    public async Task Handle(TodoListArchivedDomainEvent notification, CancellationToken cancellationToken)
     {
-        InsightCalculation? calculation = await ComputeInsightAsync(request.TodoItemId, cancellationToken);
-        // ... persist, same shape as any other command handler
-    }
+        IReadOnlyCollection<TodoItem> pending = await todoItemRepository.GetPendingForListAsync(notification.TodoListId, cancellationToken);
 
-    private async Task<InsightCalculation?> ComputeInsightAsync(Guid todoItemId, CancellationToken cancellationToken)
-    {
-        // fetch from projectsApi, feed InsightCalculator.Calculate(...) — private to this handler
+        foreach (TodoItem item in pending)
+        {
+            await commandsScheduler.EnqueueAsync(new CompleteTodoItemCommand(item.Id, item.OwnerId));
+        }
+
+        // EnqueueAsync only marks the row on the change tracker — this SaveChanges is what
+        // actually persists the N rows (same durability contract as IOutboxWriter.Enqueue, §5).
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }
 ```
+Each enqueued `Command` is then dispatched **on its own**, later, by `InternalCommandProcessorJob`
+polling `internal_commands` — one `ISender.Send(...)` per row, in its own DI scope, not all N
+inline in this handler's call stack. Choose between the two resend shapes by what's actually
+calling: a **batch/event Command Handler re-sending synchronously** (the plain `ISender.Send(...)`
+loop above) is right when the caller can reasonably wait on all N inner executions (e.g. a small,
+bounded fan-out already running inside a background job); reach for `ICommandsScheduler` instead
+the moment that fan-out is large, unbounded, or triggered from a path (a domain-event handler
+reacting inline inside the original request's own transaction) that shouldn't block on N synchronous
+pipeline runs. Both are "resend the same Command" — never a new orchestration class — the only
+axis that changes is whether the resend is synchronous (`ISender`) or durable/decoupled
+(`ICommandsScheduler`).
+
+**A Handler has exactly one method: `Handle`. No private helper methods, ever — verified against
+Kamil's actual repository** (`gh search code "private async Task" repo:kgrzybek/modular-monolith-with-ddd
+path:Application` and the `private static` equivalent both return **zero results**, across every
+module). Two real shapes from his codebase, and no third:
+- **Short enough to read in one piece → inline in `Handle`, no extraction at all.**
+  `AuthenticateCommandHandler.Handle` opens a connection, runs a Dapper query, checks three
+  business conditions, and builds the result — all directly in `Handle`, not spread across private
+  methods, even though there's no reuse concern forcing that shape. If it fits, it stays inline.
+- **Fetch (+ construction) needed by more than one entry point → a `static` `Factory`/`Calculator`
+  class, never a private method on the Handler.** `PriceListFactory.CreatePriceList(IDbConnection
+  connection)` (`Application/PriceListItems/`) is `public static`, takes the already-open
+  connection as a **parameter** (not a field — the class holds no state and is never constructed),
+  runs its own Dapper query, and returns the finished domain object. Three different call sites
+  (`BuySubscriptionCommandHandler`, `BuySubscriptionRenewalCommandHandler`,
+  `GetPriceListItemsQueryHandler`) call `PriceListFactory.CreatePriceList(...)` directly — each
+  Handler's own `Handle` is still just that one call plus whatever it does with the result:
+  ```csharp
+  internal class BuySubscriptionCommandHandler : ICommandHandler<BuySubscriptionCommand, Guid>
+  {
+      // fields: IAggregateStore, IPayerContext, ISqlConnectionFactory
+
+      public async Task<Guid> Handle(BuySubscriptionCommand command, CancellationToken cancellationToken)
+      {
+          var priceList = await PriceListFactory.CreatePriceList(_sqlConnectionFactory.GetOpenConnection());
+
+          var subscription = SubscriptionPayment.Buy(
+              _payerContext.PayerId, SubscriptionPeriod.Of(command.SubscriptionTypeCode),
+              command.CountryCode, MoneyValue.Of(command.Value, command.Currency), priceList);
+
+          _aggregateStore.AppendChanges(subscription);
+          return subscription.Id;
+      }
+  }
+  ```
+  **Deliberate deviation from the quoted `PriceListFactory` above**: Kamil's own version runs its
+  Dapper query straight against the `IDbConnection` it receives. This template does **not** do that
+  in an Application-layer `Factory` — the Domain-defined repository interfaces already exist for
+  exactly this fetch (§8), so a `Factory`'s data access always goes through the entity's
+  `I<Entity>Repository`, never a raw `IDbConnection`/Dapper call of its own. Only a **Query**
+  handler (§B1–B6, `add-feature/references/query-slice.md`) is allowed to hold `IDbConnectionFactory`
+  + Dapper directly; a `Factory` sits on the command/write side and must respect that same split.
+  Worked example, `TodoItem`-shaped:
+  ```csharp
+  // Application/Calculo/TodoListSummaryFactory.cs
+  public static class TodoListSummaryFactory
+  {
+      public static async Task<TodoListSummary?> ObterResumoAsync(
+          Guid todoListId,
+          ITodoListRepository todoListRepository,
+          ITodoItemRepository todoItemRepository,
+          CancellationToken cancellationToken)
+      {
+          TodoList? todoList = await todoListRepository.GetAsync(todoListId, cancellationToken);
+          if (todoList is null)
+          {
+              return null;
+          }
+
+          IReadOnlyCollection<TodoItem> items = await todoItemRepository.GetByListIdAsync(todoListId, cancellationToken);
+
+          return TodoListSummaryCalculator.Calcular(todoList, items);
+      }
+  }
+  ```
+  `ITodoListRepository`/`ITodoItemRepository` are the same Domain-declared interfaces any Command
+  Handler already injects — the `Factory` takes them as parameters exactly like it takes any other
+  dependency, it just never resolves a `DbConnection` on its own. The pure combination step still
+  splits out to a `Calculator` per the rule below.
+
+  Naming split by what the static method returns: call it a `Factory` when it hands back a
+  constructed domain object (`PriceList`, above); call it a `Calculator` (already this template's
+  own convention, `Application/Calculo/<Name>Calculator.cs`) when it hands back a derived
+  value/DTO instead of a domain entity — same shape either way, just the name matching what comes
+  out. **This resolves the ambiguity from the two bullets above** (Policy-vs-Calculator, and
+  fetch-orchestration for a cross-module read): whichever one applies, the fetch+build step is
+  this `static` class — a parameter-driven method, not a private method living inside the Handler
+  — regardless of whether it's consumed by one Handler today or several. Extracting it before a
+  second consumer exists is *not* premature here the way a DI-registered wrapper service would
+  be (§17's opening rule): a `static` method with no interface and no registration costs nothing to
+  have "early" — there's no abstraction to walk back later, just a file to inline back into the
+  Handler if it turns out to be overkill. Reusable-file-scoped-`Calculo` `Calculator`s like
+  `AnaliseDePartidaCalculator` in this same class stay pure (no I/O, no repository parameters) —
+  a `Factory` fetching from repositories and a pure `Calculator` combining already-fetched values
+  are two ends of the same spectrum, not competing patterns; a fetch-heavy case commonly calls a
+  `Factory` that itself calls a pure `Calculator` at the end, mirroring how `PriceListFactory`
+  above still delegates the actual price-list construction to `PriceList.Create(...)`.
 Don't introduce the wrapper "for reuse" before a second consumer actually exists — extracting one
 once a second Handler genuinely needs the same fetch is a normal refactor at that point, not a
 violation to pre-empt now.
+
+**The genuinely-no-way-around-it case → Kamil's own "Domain Service", already present in this
+template as `Calculator`.** Kamil Grzybek doesn't actually eliminate "Service" as a concept — his
+own tactical-pattern building blocks
+(`docs/architecture-decision-log/0012-use-domain-driven-design-tactical-patterns.md` in
+`modular-monolith-with-ddd`) explicitly keep one: *"Domain Service - stateless service to execute
+some business logic which does not belong to any of Entity/Value Object"*. This is the residual
+case none of the patterns above cover: the logic isn't a single aggregate's decision (not an
+entity method), isn't a pure yes/no verdict over already-loaded data (not a `Policy`), isn't the
+same effect fired from two entry points (not a Command resend) — it's a genuine multi-input
+**calculation/algorithm** that combines data loaded from more than one repository/aggregate
+(inside the same module — not the cross-module `PublicApi` case above) into a derived result. This
+template already has a name and address for exactly that: `Application/Calculo/<Name>Calculator.cs`
+— `public static class`, no interface, never registered in DI, no I/O of its own (whatever calls
+it loads the inputs and passes them in). `PriceListFactory` above **is** this pattern's sibling —
+the I/O (fetch, multiple repositories/connections) lives in its own `static` `Factory` per the
+rule above, and the pure combination step is a `Calculator`; neither one is ever a private method
+on the Handler, and the Handler's `Handle` is just "call the Factory/Calculator, do something with
+the result." The test for "is this really this case, not a `Policy`": a `Policy` returns a
+decision (usually a `bool`) from state that already fully exists; a `Calculator`/`Factory` derives
+a new value/shape from combining several distinct data sources — if the method assembles inputs
+from more than one repository before it can decide anything, it's this case, not a `Policy`.
 
 **Don't relabel, eliminate.** Turning `internal sealed class XService(deps...) { ... }` +
 `services.AddScoped<XService>()` into `internal static class X { public static Task<Result>

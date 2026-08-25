@@ -79,15 +79,29 @@ unusual — stay inside the architecture's scope.
 - [ ] **No generic "Service" class holding orchestration logic** (CLAUDE.md §17). A DI-registered
       class (`services.AddScoped<XService>()`) whose constructor takes several
       repositories/collaborators and exposes a method a Command Handler calls to do the actual work
-      is a finding. Point at §17 for the fix depending on what it holds: a single-aggregate decision
-      belongs on the entity; a pure decision spanning multiple aggregates becomes a `Policy` in
-      `Domain/<Aggregate>/Policies/` (static, no interface, no DI); orchestration shared by two
-      Command Handlers means they should collapse into one `Command`, re-sent via `ISender.Send(...)`
-      from the batch/event-triggered side instead of both depending on a shared class. A `static`
-      class/method that still takes several repositories/collaborators as parameters purely to be
-      called from more than one Handler is the same finding wearing a different disguise — the DI
-      registration and `Service` suffix are gone, but the shared-orchestration shape isn't; don't
-      accept that rename as a fix.
+      is a finding. What it holds decides the fix: a single-aggregate decision belongs on the entity;
+      a pure decision spanning multiple aggregates becomes a `Policy` in `Domain/<Aggregate>/Policies/`
+      (static, no interface, no DI); a genuine calculation combining data fetched from more than one
+      repository/aggregate becomes a `static` `Factory` (fetches + builds a domain object) or
+      `Calculator` (pure derived value) in `Application/Calculo/<Name>Calculator.cs`, dependencies
+      taken as method parameters — this extraction is legitimate **even for a single consumer today**
+      (§17: "not premature here the way a DI-registered wrapper service would be"), so it is *not* the
+      same finding as the next case; orchestration (repository calls + domain calls) that more than
+      one Command Handler needs for the *same effect* is a sign the Handlers should collapse into one
+      `Command`, re-sent via `ISender.Send(...)` (synchronous) or `ICommandsScheduler.EnqueueAsync(...)`
+      (decoupled, §17) from the batch/event-triggered side — never a shared class. Renaming an
+      `XService` into a `static` class that keeps the same multi-Handler *orchestration* shape (as
+      opposed to a Factory/Calculator's fetch-and-derive shape) is the same finding wearing a
+      different disguise; don't accept that rename as a fix.
+- [ ] **Handler has any method besides `Handle`, including a private helper → finding, no exceptions
+      for size.** CLAUDE.md §17 confirms this against Kamil Grzybek's own `modular-monolith-with-ddd`
+      (`gh search code "private async Task"` / `"private static"` under any module's `Application`
+      return zero results). A `private async Task<...> FooAsync(...)` or any other `private` method
+      on a Command/Query Handler is this finding even when it looks like harmless, well-named
+      decomposition. The fix is one of exactly two shapes: inline it back into `Handle` if it's short
+      enough to read in one piece, or extract it to the `static` `Factory`/`Calculator` pattern from
+      the bullet above (dependencies as parameters, never a field, never DI-registered) — point at
+      that bullet, don't invent a third option.
 
 ## 3. Application layer — queries (reads)
 

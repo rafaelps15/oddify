@@ -1,6 +1,7 @@
 using Oddify.Common.Application.Messaging;
 using Oddify.Common.Domain;
 using Oddify.Modules.Analise.PublicApi;
+using Oddify.Modules.Apostas.Application.Calculo;
 using Oddify.Modules.Fixtures.PublicApi;
 
 namespace Oddify.Modules.Apostas.Application.ApostasMultiplas.GetResultadosDasPernas;
@@ -15,7 +16,7 @@ internal sealed class GetResultadosDasPernasQueryHandler(IFixturesApi fixturesAp
         IReadOnlyCollection<PartidaResponse> partidas = await fixturesApi.ObterPartidasAsync(partidaIds, cancellationToken);
         var partidasPorId = partidas.ToDictionary(p => p.Id);
 
-        Error? erro = request.Pernas.Select(p => ValidarPerna(p, partidasPorId)).FirstOrDefault(e => e is not null);
+        Error? erro = request.Pernas.Select(p => PernaValidator.Validar(p, partidasPorId)).FirstOrDefault(e => e is not null);
         if (erro is not null)
         {
             return Result.Failure<IReadOnlyDictionary<Guid, bool>>(erro);
@@ -30,24 +31,5 @@ internal sealed class GetResultadosDasPernasQueryHandler(IFixturesApi fixturesAp
             });
 
         return resultados;
-    }
-
-    private static Error? ValidarPerna(PernaParaResolver perna, Dictionary<Guid, PartidaResponse> partidasPorId)
-    {
-        if (!partidasPorId.TryGetValue(perna.PartidaId, out PartidaResponse? partida))
-        {
-            return Error.NotFound(
-                "ApostasMultiplas.PartidaNaoEncontrada",
-                $"A partida {perna.PartidaId} não foi encontrada");
-        }
-
-        if (partida.GolsCasa is null || partida.GolsVisitante is null)
-        {
-            return Error.Problem(
-                "ApostasMultiplas.PartidaNaoEncerrada",
-                $"A partida {perna.PartidaId} ainda não foi encerrada");
-        }
-
-        return null;
     }
 }
